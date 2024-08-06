@@ -87,6 +87,7 @@ typedef struct Project {
     
     AV_DS(AvDynamicArray, struct FunctionDescription) functions;
     AV_DS(AvDynamicArray, struct VariableDescription) variables;
+    AV_DS(AvDynamicArray, struct VariableDescription) constants;
     AV_DS(AvDynamicArray, struct ImportDescription) externals;
     AV_DS(AvDynamicArray, struct ConstValue*) arrays;
     uint32 statementCount;

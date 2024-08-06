@@ -7,27 +7,35 @@
 
 #define VALUE_TYPE_ALL VALUE_TYPE_ARRAY|VALUE_TYPE_STRING|VALUE_TYPE_NUMBER
 
-#define BUILT_IN_FUNCS \
-    BUILT_IN_FUNC(fileName, {VALUE_TYPE_STRING})\
-    BUILT_IN_FUNC(fileBaseName, {VALUE_TYPE_STRING})\
-    BUILT_IN_FUNC(arraySize, {VALUE_TYPE_ALL})\
+#include "symbols.h"
 
 void runtimeError(Project* project, const char* message, ...);
+void toConstValue(struct Value value, struct ConstValue* val, Project* project);
+void toValue(struct ConstValue value, struct Value* val);
 
 
-#define BUILT_IN_FUNC(func, args) struct Value func(uint32 valueCount, struct Value* values);
+#define BUILT_IN_FUNC(func, ...) struct Value func(Project* project, uint32 valueCount, struct Value* values);
 BUILT_IN_FUNCS
 #undef BUILT_IN_FUNC
+
+
 
 struct BuiltInFunctionDescription{
     AvString identifier;
     uint32 argumentCount;
     enum ValueType* argTypes;
-    struct Value (*function)(uint32, struct Value*);
+    struct Value (*function)(Project*, uint32, struct Value*);
+};
+
+struct BuiltInVariableDescription{
+    AvString identifier;
+    struct Value value;
 };
 
 extern const struct BuiltInFunctionDescription builtInFunctions[];
 extern const uint32 builtInFunctionCount;
+extern const struct BuiltInVariableDescription builtInVariables[];
+extern const uint32 builtInVariableCount;
 
 bool32 isBuiltInFunction(struct BuiltInFunctionDescription* description, AvString identifier, Project* project);
 

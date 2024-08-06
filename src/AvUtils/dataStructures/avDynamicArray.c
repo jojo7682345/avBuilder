@@ -208,6 +208,25 @@ uint32 avDynamicArrayAdd(void* data, AvDynamicArray dynamicArray) {
 
 }
 
+uint32 avDynamicArrayAddRange(void* data, uint32 count, uint64 offset, uint64 stride, AvDynamicArray dynamicArray){
+	avAssert(data != NULL, "data cannot be a null pointer");
+
+	if(stride == AV_DYNAMIC_ARRAY_ELEMENT_SIZE){
+		stride = dynamicArray->dataSize;
+	}
+
+	byte* dataPtr = (byte*)data + offset;
+	uint32 startIndex = -1;
+	for (uint i = 0; i < count; i++) {
+		uint32 index = avDynamicArrayAdd(dataPtr, dynamicArray);
+		if(startIndex == -1){
+			startIndex = index;
+		}
+		dataPtr += stride;
+	}
+	return startIndex;
+}
+
 bool32 avDynamicArrayWrite(void* data, uint32 index, AvDynamicArray dynamicArray) {
 
 	Page* page = getPage(&index, dynamicArray);
@@ -245,6 +264,10 @@ bool32 avDynamicArrayRead(void* data, uint32 index, AvDynamicArray dynamicArray)
 bool32 avDynamicArrayRemove(uint32 index, AvDynamicArray dynamicArray) {
 	avAssert(dynamicArray->allowRelocation==true, "removing elements while relocation is not allowed");
 
+	if(index == AV_DYNAMIC_ARRAY_LAST){
+		index = dynamicArray->count-1;
+	}
+	
 	if (index >= dynamicArray->count) {
 		return false;
 	}
@@ -336,9 +359,6 @@ uint32 avDynamicArrayWriteRange(void* data, uint32 count, uint64 offset, uint64 
 uint32 avDynamicArrayReadRange(void* data, uint32 count, uint64 offset, uint64 stride, uint32 startIndex, AvDynamicArray dynamicArray) {
 	if (count == 0) {
 		return 0;
-	}
-	if(count == AV_DYNAMIC_ARRAY_ELEMENT_COUNT){
-		count = dynamicArray->count;
 	}
 	if(stride == AV_DYNAMIC_ARRAY_ELEMENT_SIZE){
 		stride = dynamicArray->dataSize;

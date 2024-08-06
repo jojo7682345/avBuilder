@@ -8,6 +8,7 @@ C_SYMBOLS_START
 
 #define AV_DYNAMIC_ARRAY_ELEMENT_SIZE ((uint64)-1)
 #define AV_DYNAMIC_ARRAY_ELEMENT_COUNT ((uint64)-1)
+#define AV_DYNAMIC_ARRAY_LAST ((uint32)-1)
 #define AV_DYNAMIC_ARRAY_FULL_RANGE AV_DYNAMIC_ARRAY_ELEMENT_COUNT, 0, AV_DYNAMIC_ARRAY_ELEMENT_SIZE, 0
 
 typedef struct AvDynamicArray_T* AvDynamicArray;
@@ -35,6 +36,7 @@ void avDynamicArrayReserve(uint32 count, AvDynamicArray dynamicArray);
 
 uint32 avDynamicArrayWriteRange(void* data, uint32 count, uint64 offset, uint64 stride, uint32 startIndex, AvDynamicArray dynamicArray);
 uint32 avDynamicArrayReadRange(void* data, uint32 count, uint64 offset, uint64 stride, uint32 startIndex, AvDynamicArray dynamicArray);
+uint32 avDynamicArrayAddRange(void* data, uint32 count, uint64 offset, uint64 stride, AvDynamicArray dynamicArray);
 
 void avDynamicArraySetDeallocateElementCallback(AvDeallocateElementCallback callback, AvDynamicArray dynamicArray);
 

@@ -31,7 +31,7 @@ exit $ret
 #include "include/AvUtils/avTypes.h"
 
 #define CC "gcc"
-#define CFLAGS "-std=c11 -Wall -ggdb -fPIC -lm"
+#define CFLAGS "-std=c11 -Wall -ggdb -fPIC -lm -Wjump-misses-init"
 #define INCLUDES "include"
 #define PROGRAM "avBuilder"
 
@@ -44,7 +44,7 @@ typedef struct File {
 
 int compileFile(File file, unsigned int index, unsigned int max) {
     char buffer[2048] = { 0 };
-    sprintf(buffer, "%s %s -c -o %s ../%s -I../include", CC, CFLAGS, file.output, file.source);
+    sprintf(buffer, "%s %s -c -o bootstrap/%s %s -Iinclude", CC, CFLAGS, file.output, file.source);
     printf("[%u/%u] compiling %s\n", index, max, file.source);
     int result = system(buffer);
     return result;
@@ -52,14 +52,14 @@ int compileFile(File file, unsigned int index, unsigned int max) {
 
 int linkFile(const char* output, unsigned int fileCount, const File files[], unsigned int index, unsigned int max){
     char buffer[2048] = { 0 };
-    char objects[1024] = { 0 };
+    char objects[4096] = { 0 };
     
     int offset = 0;
     for(uint32 i = 0; i < fileCount; i++){
-        offset += sprintf(objects + offset, "%s ", files[i].output);
+        offset += sprintf(objects + offset, "bootstrap/%s ", files[i].output);
     }
 
-    sprintf(buffer, "%s %s -o ../%s %s ", CC, CFLAGS, output, objects);
+    sprintf(buffer, "%s %s -o %s %s", CC, CFLAGS, output, objects);
     printf("[%u/%u] linking %s\n", index, max, output);
     int result = system(buffer);
     return result;
@@ -67,7 +67,8 @@ int linkFile(const char* output, unsigned int fileCount, const File files[], uns
 
 
 int main(int argC, char* argV[]) {
-
+    chdir("..");
+    
     bool32 failed = false;
     const File bootstrapFiles[] = {
         SOURCE_FILE("src/AvUtils/threading",        "avThread"),
@@ -117,8 +118,6 @@ int main(int argC, char* argV[]) {
         printf("only \'run\' supported\n");
         return -1;
     }
-
-    int ret = chdir("..");
 
     pid_t my_pid = 0;
     int status = 0, timeout = 0;

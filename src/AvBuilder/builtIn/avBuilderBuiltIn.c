@@ -4,10 +4,10 @@
 #define TS(str) sizeof(#str)
 
 
-#define BUILT_IN_FUNC(func, args) {\
+#define BUILT_IN_FUNC(func, ...) {\
     .identifier=AV_CSTRA(#func),\
-    .argumentCount = sizeof((enum ValueType[])args)/sizeof(enum ValueType),\
-    .argTypes = (enum ValueType[]) args,\
+    .argumentCount = sizeof((enum ValueType[])__VA_ARGS__)/sizeof(enum ValueType),\
+    .argTypes = (enum ValueType[]) __VA_ARGS__,\
     .function = func\
 },
 const struct BuiltInFunctionDescription builtInFunctions[] = {
@@ -15,6 +15,36 @@ const struct BuiltInFunctionDescription builtInFunctions[] = {
 };
 const uint32 builtInFunctionCount = sizeof(builtInFunctions)/sizeof(struct BuiltInFunctionDescription);
 #undef BUILT_IN_FUNC
+
+#define SET_VALUE_TYPE_NUMBER(number) .asNumber=number
+#define SET_VALUE_TYPE_STRING(string) .asString=string
+#define SET_VALUE_TYPE_ARRAY(array) .asArray=array
+
+#define SET_VALUE(type, val) SET_##type(val)
+
+#define BUILT_IN_VAR(var, valType, val) {\
+    .identifier=AV_CSTRA(#var),\
+    .value={ \
+        .type=valType,\
+        SET_VALUE(valType, val),\
+    },\
+},
+const struct BuiltInVariableDescription builtInVariables[] = {
+    BUILT_IN_VARS 
+};
+const uint32 builtInVariableCount = sizeof(builtInVariables)/sizeof(struct BuiltInVariableDescription);
+#undef BUILT_IN_VAR
+#undef SET_VALUE_TYPE_STRING
+#undef SET_VALUE_TYPE_ARRAY
+#undef SET_VALUE_TYPE_NUMBER
+
+#define SET_VALUE_TYPE_NUMBER(number) number
+
+#define BUILT_IN_VAR(var, valType, val) var=SET_VALUE(valType, val),
+enum BuiltInConstants {
+    BUILT_IN_VARS
+};
+#undef BUILT_IN_VAR
 
 bool32 isBuiltInFunction(struct BuiltInFunctionDescription* description, AvString identifier, Project* project){
     for(uint32 i = 0; i < builtInFunctionCount; i++){
@@ -123,11 +153,11 @@ struct Value callBuiltInFunction(struct BuiltInFunctionDescription description, 
         }
     }
 
-    return description.function(argumentCount, values);
+    return description.function(project, argumentCount, values);
 
 }
 
-struct Value fileName(uint32 valueCount, struct Value* values){
+struct Value fileName(Project* project, uint32 valueCount, struct Value* values){
     AvString file = values[0].asString;
     AvArray filePaths = AV_EMPTY;
     avStringSplitOnChar(&filePaths, '/', file);
@@ -149,8 +179,11 @@ struct Value fileName(uint32 valueCount, struct Value* values){
     };
 }
 
-struct Value fileBaseName(uint32 valueCount, struct Value* values){
+struct Value fileBaseName(Project* project, uint32 valueCount, struct Value* values){
     AvString file = values[0].asString;
+    if(file.len == 0 || file.chrs==nullptr){
+        runtimeError(project, "cannot get basename of null value");
+    }
     AvArray filePaths = AV_EMPTY;
     avStringSplitOnChar(&filePaths, '/', file);
     AvString fileName = AV_EMPTY;
@@ -175,7 +208,7 @@ struct Value fileBaseName(uint32 valueCount, struct Value* values){
     };
 }
 
-struct Value arraySize(uint32 valueCount, struct Value* values){
+struct Value arraySize(Project* project, uint32 valueCount, struct Value* values){
     if(values[0].type!=VALUE_TYPE_ARRAY){
         return (struct Value) {
             .type = VALUE_TYPE_NUMBER,
@@ -188,3 +221,237 @@ struct Value arraySize(uint32 valueCount, struct Value* values){
     };
 }
 
+struct Value filter(Project* project, uint32 valueCount, struct Value* values){
+    uint32 filterType = values[0].asNumber;
+
+    struct ConstValue tmpValue = {0};
+    uint32 count = 1;
+    struct ConstValue* vals = &tmpValue;
+    if(values[2].type==VALUE_TYPE_ARRAY){
+        vals = values[2].asArray.values;
+        count = values[2].asArray.count;
+    }else{
+        toConstValue(values[2], &tmpValue, project);
+    }
+
+    AvDynamicArray newValues = {0};
+    avDynamicArrayCreate(0, sizeof(struct ConstValue), &newValues);
+
+    for(uint32 i = 0; i < count; i++){
+        struct ConstValue value = vals[i];
+        AvString str = value.asString;
+        char buffer[256] = {0};
+        if(value.type == VALUE_TYPE_NUMBER){
+            avStringPrintfToBuffer(buffer, sizeof(buffer)-1, AV_CSTR("%i"), value.asNumber);
+            AvString tmpStr = AV_CSTR(buffer);
+            memcpy(&str, &tmpStr, sizeof(AvString));
+        }
+        switch (filterType)
+        {
+        case FILTER_TYPE_ENDS_WITH:
+            if(avStringEndsWith(str,values[1].asString)){
+                avDynamicArrayAdd(&value, newValues);
+            }
+            break;
+        default:
+            runtimeError(project, "unsupported filter type");
+            break;
+        }
+    }
+    struct ConstValue* filteredValues = nullptr;
+    uint32 allowedCount = avDynamicArrayGetSize(newValues);
+    if(allowedCount > 0){
+        filteredValues = avAllocatorAllocate(sizeof(struct ConstValue)*allowedCount, &project->allocator);
+        avDynamicArrayReadRange(filteredValues, allowedCount, 0, sizeof(struct ConstValue), 0, newValues);
+    }
+    struct Value filtered = {
+        .type = VALUE_TYPE_ARRAY,
+        .asArray.count = allowedCount,
+        .asArray.values = filteredValues,
+    };
+    if(allowedCount==1){
+        toValue(filteredValues[0], &filtered);
+    }
+
+    avDynamicArrayDestroy(newValues);
+
+    return filtered;
+}
+
+struct Value filePath(Project* project, uint32 valueCount, struct Value* values){
+    AvString file = values[0].asString;
+    if(file.len == 0 || file.chrs==nullptr){
+        runtimeError(project, "cannot get basename of null value");
+    }
+    AvArray filePaths = AV_EMPTY;
+    avStringSplitOnChar(&filePaths, '/', file);
+
+    if(filePaths.count==0){
+        return (struct Value){
+            .type = VALUE_TYPE_STRING,
+            .asString = {
+                .chrs="",
+                .len = 0,
+                .memory = nullptr,
+            },
+        };
+    }
+
+    AvString* paths = (AvString*)filePaths.data;
+    if(paths[filePaths.count-1].len==0){
+        avArrayFree(&filePaths);
+        return values[0];
+    }
+    
+    struct Value returnValue = (struct Value){
+        .type = VALUE_TYPE_STRING,
+        .asString = {
+            .chrs=values[0].asString.chrs,
+            .len = values[0].asString.len - paths[filePaths.count-1].len,
+            .memory = nullptr,
+        },
+    };
+    avArrayFree(&filePaths);
+    return returnValue;
+}
+
+struct Value print(Project* project, uint32 valueCount, struct Value* values){
+    struct Value value = values[0];
+    switch(value.type){
+        case VALUE_TYPE_STRING:
+            avStringPrint(value.asString);
+            break;
+        case VALUE_TYPE_NUMBER:
+            avStringPrintf(AV_CSTR("%i"), value.asNumber);
+            break;
+        case VALUE_TYPE_ARRAY:
+            for(uint32 i = 0; i < value.asArray.count; i++){
+                struct ConstValue val = value.asArray.values[i];
+                switch(val.type){
+                    case VALUE_TYPE_STRING:
+                        avStringPrint(val.asString);
+                        break;
+                    case VALUE_TYPE_NUMBER:
+                        avStringPrintf(AV_CSTR("%i"), val.asNumber);
+                        break;
+                    default:
+                        runtimeError(project, "logic error");
+                        break;
+                }
+                if(i < value.asArray.count-1){
+                    avStringPrint(AV_CSTRA(" "));
+                }
+            }
+            break;
+        default:
+            runtimeError(project, "logic error");
+    }
+
+    return values[0];
+}
+
+struct Value println(Project* project, uint32 valueCount, struct Value* values){
+    struct Value value = values[0];
+    switch(value.type){
+        case VALUE_TYPE_STRING:
+            avStringPrintln(value.asString);
+            break;
+        case VALUE_TYPE_NUMBER:
+            avStringPrintf(AV_CSTR("%i\n"), value.asNumber);
+            break;
+        case VALUE_TYPE_ARRAY:
+            for(uint32 i = 0; i < value.asArray.count; i++){
+                struct ConstValue val = value.asArray.values[i];
+                switch(val.type){
+                    case VALUE_TYPE_STRING:
+                        avStringPrint(val.asString);
+                        break;
+                    case VALUE_TYPE_NUMBER:
+                        avStringPrintf(AV_CSTR("%i"), val.asNumber);
+                        break;
+                    default:
+                        runtimeError(project, "logic error");
+                        break;
+                }
+                avStringPrint(AV_CSTRA("\n"));
+            }
+            break;
+        default:
+            runtimeError(project, "logic error");
+    }
+
+    return values[0];
+}
+
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <errno.h>
+
+struct Value makeDir(Project* project, uint32 valueCount, struct Value* values){
+    AvString dir = AV_EMPTY;
+    avStringClone(&dir, values[0].asString);
+    int ret = mkdir(dir.chrs, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    if(ret == -1){
+        avStringFree(&dir);
+        struct ConstValue* vals = avAllocatorAllocate(sizeof(struct ConstValue)*2, &project->allocator);
+        vals[0].type = VALUE_TYPE_NUMBER;
+        vals[0].asNumber = errno;
+        memcpy(&vals[1].asString, &AV_CSTR(strerror(errno)), sizeof(AvString));
+        vals[1].type = VALUE_TYPE_STRING;
+        return (struct Value) {
+            .type=VALUE_TYPE_ARRAY,
+            .asArray = {
+                .count = 2,
+                .values = vals,
+            },
+        };
+    }
+    avStringFree(&dir);
+    return values[0];
+}
+#include <linux/limits.h>
+#include <stdio.h>
+
+static int _mkdir(const char *dir, unsigned int mode) {
+    char tmp[PATH_MAX];
+    char *p = NULL;
+    size_t len;
+
+    snprintf(tmp, sizeof(tmp),"%s",dir);
+    len = strlen(tmp);
+    if (tmp[len - 1] == '/'){
+        tmp[len - 1] = 0;
+    }
+    for (p = tmp + 1; *p; p++){
+        if (*p == '/') {
+            *p = 0;
+            mkdir(tmp, mode);
+            *p = '/';
+        }
+    }
+    return mkdir(tmp, mode);
+}
+
+struct Value makeDirs(Project* project, uint32 valueCount, struct Value* values){
+    AvString dir = AV_EMPTY;
+    avStringClone(&dir, values[0].asString);
+    int ret = _mkdir(dir.chrs, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    if(ret == -1){
+        avStringFree(&dir);
+        struct ConstValue* vals = avAllocatorAllocate(sizeof(struct ConstValue)*2, &project->allocator);
+        vals[0].type = VALUE_TYPE_NUMBER;
+        vals[0].asNumber = errno;
+        vals[1].type = VALUE_TYPE_STRING;
+        AvString error = AV_CSTR(strerror(errno));
+        memcpy(&(vals[1].asString), &error, sizeof(AvString));
+        return (struct Value) {
+            .type=VALUE_TYPE_ARRAY,
+            .asArray = {
+                .count = 2,
+                .values = vals,
+            },
+        };
+    }
+    avStringFree(&dir);
+    return values[0];
+}

@@ -40,6 +40,8 @@ typeFound:
     return type;
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wjump-misses-init"
 bool32 avDirectoryOpen(AvString location, AvPath* root, AvPathRef pathRef){
     avStringDebugContextStart;
     AvPath path = {0};
@@ -131,6 +133,7 @@ pathNotDirectory:
 
     return false;
 }
+#pragma GCC diagnostic pop
 
 void avDirectoryClose(AvPathRef path){
     if(path->root){

@@ -583,7 +583,7 @@ bool32 processProject(void* statements, Project* project){
         struct Statement_S* statement = (project->statements)[i];
 
         switch(statement->type){
-            case STATEMENT_TYPE_IMPORT:
+            case STATEMENT_TYPE_IMPORT:{
                 struct ImportStatement_S import = statement->importStatement;
                 for(uint32 j = 0; j < import.mappingCount; j++){
                     struct ImportMapping_S mapping = import.mappings[j];
@@ -597,8 +597,9 @@ bool32 processProject(void* statements, Project* project){
                     };
                     avDynamicArrayAdd(&external, project->externals);
                 }
-            break;
-            case STATEMENT_TYPE_FUNCTION_DEFINITION:
+                break;
+            }
+            case STATEMENT_TYPE_FUNCTION_DEFINITION:{
                 struct FunctionDefinition_S function = statement->functionDefinition;
                 if(checkPreviouslyDefined(function.functionName, project)){
                     avStringPrintf(AV_CSTR("Multiple Definitions found of %s\n"), function.functionName);
@@ -610,7 +611,8 @@ bool32 processProject(void* statements, Project* project){
                     .project = project,
                 };
                 avDynamicArrayAdd(&func, project->functions);
-            break;
+                break;
+            }
             case STATEMENT_TYPE_VARIABLE_ASSIGNMENT:
             break;
             default:

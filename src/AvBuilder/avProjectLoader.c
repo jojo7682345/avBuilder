@@ -7,6 +7,7 @@ bool32 loadProjectFile(const AvString projectFilePath, AvStringRef projectFileCo
     AvFile file = AV_EMPTY;
     avFileHandleCreate(projectFilePath, &file);
     if(!avFileOpen(file, AV_FILE_OPEN_READ_DEFAULT)){
+        avFileHandleDestroy(file);
         return false;
     }
     uint64 size = avFileGetSize(file);

@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <AvUtils/string/avRegex.h>
+#include <AvUtils/avProcess.h>
 
 #define AV_DYNAMIC_ARRAY_EXPOSE_MEMORY_LAYOUT
 #include <AvUtils/dataStructures/avDynamicArray.h>
@@ -52,6 +53,15 @@ void runtimeError(Project* project, const char* message, ...){
 
     avStringPrintf(AV_CSTR("Globals: [\n"));
     avDynamicArrayForEachElement(struct VariableDescription, project->variables, {
+        struct VariableDescription var = element;
+        avStringPrintf(AV_CSTR("\t%s = "), var.identifier);
+        printValue(*var.value);
+        avStringPrint(AV_CSTR("\n"));
+    });
+    avStringPrintf(AV_CSTR("]\n"));
+
+    avStringPrintf(AV_CSTR("Constants: [\n"));
+    avDynamicArrayForEachElement(struct VariableDescription, project->constants, {
         struct VariableDescription var = element;
         avStringPrintf(AV_CSTR("\t%s = "), var.identifier);
         printValue(*var.value);
@@ -193,7 +203,7 @@ struct ArrayValue getArray(struct ArrayExpression_S array, Project* project){
 
 struct Value performUnary(struct UnaryExpression_S expression, Project* project){
     switch(expression.operator){
-        case UNARY_OPERATOR_MINUS:
+        case UNARY_OPERATOR_MINUS:{
             struct Value value = getValue(expression.expression, project);
             if(value.type != VALUE_TYPE_NUMBER){
                 runtimeError( project,"unary minus operator not defined for types other than number");
@@ -201,7 +211,7 @@ struct Value performUnary(struct UnaryExpression_S expression, Project* project)
             }
             value.asNumber = -value.asNumber;
             return value;
-        break;
+        }
         case UNARY_OPERATOR_NONE:
             avAssert(false, "should not reach here");
             break;
@@ -344,6 +354,14 @@ struct VariableDescription findVariable(AvString identifier, Project* project){
             return var;
         }
     }
+    uint32 existingConstantCount = avDynamicArrayGetSize(project->constants);
+    for(uint32 i = 0; i < existingConstantCount; i++){
+        struct VariableDescription var = (struct VariableDescription){0};
+        avDynamicArrayRead(&var, i, project->constants);
+        if(avStringEquals(identifier, var.identifier)){
+            return var;
+        }
+    }
     uint32 externalCount = avDynamicArrayGetSize(project->externals);
     for(uint32 i = 0; i < externalCount; i++){
         struct ImportDescription ext = (struct ImportDescription){0};
@@ -384,11 +402,12 @@ static void addFilesInPath(AvString directory, AvPathRef root, bool32 recursive,
         AvPathNode node = path.content[i];
         
         switch(node.type){
-            case AV_PATH_NODE_TYPE_FILE:
+            case AV_PATH_NODE_TYPE_FILE:{
                 AvString str = {0};
                 avStringCopyToAllocator(node.fullName, &str, &project->allocator);
                 avDynamicArrayAdd(&str, files);
                 break;
+            }
             case AV_PATH_NODE_TYPE_DIRECTORY:
                 if(recursive){
                     addFilesInPath(node.name, &path, recursive, files, project);
@@ -461,7 +480,6 @@ end:
     return value;
 }
 
-__warnattr("not implemented")
 struct Value filterValues(struct FilterExpression_S filter, Project* project){
 
     struct Value value = getValue(filter.expression, project);
@@ -493,7 +511,6 @@ struct Value filterValues(struct FilterExpression_S filter, Project* project){
 
     bool8* isAllowed = avCallocate(count, sizeof(bool8), "allocating filter");
     for(uint32 i = 0; i < count; i++){
-        struct ConstValue val = values[i];
         bool8 allowed = true;
         for(uint32 level = 0; level < filterCount; level++){
             bool8 filterPassed = false;
@@ -506,18 +523,8 @@ struct Value filterValues(struct FilterExpression_S filter, Project* project){
                     }
                 }
                 if(filt.type==VALUE_TYPE_STRING){
-                    char buffer[4096];
-                    AvString str = val.asString;
-                    if(val.type==VALUE_TYPE_NUMBER){
-                        avStringPrintfToBuffer(buffer, 4095, AV_CSTR("%i"), val.asNumber);
-                        AvString buff = AV_CSTR(buffer);
-                        memcpy(&str, &buff, sizeof(AvString));
-                    }
-                    AvRegexResult res = avRegexMatch(filt.asString, str, nullptr);
-                    if(res.matched){
-                        filterPassed = true;
-                        break;
-                    }
+                    runtimeError(project, "filtering with strings is not supported");
+                    filterPassed = false;
                 }
             }
             if(!filterPassed){
@@ -527,13 +534,38 @@ struct Value filterValues(struct FilterExpression_S filter, Project* project){
         }
         isAllowed[i] = allowed;
     }
-    
+
+    AvDynamicArray newValues = {0};
+    avDynamicArrayCreate(0, sizeof(struct ConstValue), &newValues);
+    bool32 allowedCount = 0;
+    for(uint32 i = 0; i < count; i++){
+        if(isAllowed[i]){
+            avDynamicArrayAdd(values+i, newValues);
+            allowedCount++;
+        }
+    }
+
+    struct ConstValue* filteredValues = nullptr;
+    if(allowedCount > 0){
+        filteredValues = avAllocatorAllocate(sizeof(struct ConstValue)*allowedCount, &project->allocator);
+        avDynamicArrayReadRange(filteredValues, allowedCount, 0, sizeof(struct ConstValue), 0, newValues);
+    }
+    struct Value filtered = {
+        .type = VALUE_TYPE_ARRAY,
+        .asArray.count = allowedCount,
+        .asArray.values = filteredValues,
+    };
+    if(allowedCount==1){
+        toValue(filteredValues[0], &filtered);
+    }
+
+    avDynamicArrayDestroy(newValues);
     avFree(filters);
     avFree(tmpValues);
     avFree(filterSizes);
     avFree(isAllowed);
 
-    return NULL_VALUE;
+    return filtered;
 }
 
 __warnattr("not implemented")
@@ -617,6 +649,254 @@ void performForeach(struct ForeachStatement_S foreach, Project* project){
 struct Value callFunction(struct CallExpression_S call, Project* project);
 void runVariableAssignment(struct VariableAssignment_S statement, uint32 index, Project* project);
 
+enum NodeType{
+    TYPE_STRING,
+    TYPE_NESTED,
+};
+struct Node {
+    enum NodeType type;
+    union {
+        AvString string;
+        AvDynamicArray nested;
+    };
+};
+struct CommandDescription {
+    uint32 argumentCount;
+    AvString bin;
+    AvString args[];
+};
+
+uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
+    uint32 start = avDynamicArrayGetSize(chars);
+    bool32 ignoreNext = false;
+    for(uint32 i = 0; i < arg.len; i++){
+        char c = arg.chrs[i];
+        if(c=='$' && !ignoreNext){
+            uint32 j = i+1;
+            for(; j < arg.len; j++){
+                char chr = arg.chrs[j];
+                if(!(avCharIsLetter(chr) || (j-i > 2 && avCharIsNumber(chr)) || chr=='_')){
+                    break;
+                }
+            }
+            AvString varName = {
+                .chrs = arg.chrs + i + 1,
+                .len = j - i - 1,
+                .memory = nullptr,
+            };
+            struct VariableDescription var = findVariable(varName, project);
+            if(!var.project || var.value==nullptr || var.value->type==VALUE_TYPE_NONE){
+                avDynamicArrayAddRange((char*)varName.chrs-1, varName.len+1, 0, 1, chars);
+                i = j-1;
+                continue;
+            }
+            struct Value value = *var.value;
+            if(value.type == VALUE_TYPE_STRING){
+                processArg(value.asString, chars, project);
+                i = j-1;
+                continue;
+            }
+            if(value.type == VALUE_TYPE_NUMBER){
+                char buffer[256] = {0};
+                avStringPrintfToBuffer(buffer, sizeof(buffer)-1, AV_CSTR("%i"), value.asNumber);
+                avDynamicArrayAddRange(buffer, avCStringLength(buffer), 0, 1, chars);
+                i = j-1;
+                continue;
+            }
+            if(value.type == VALUE_TYPE_ARRAY){
+                uint32 count = value.asArray.count;
+                struct ConstValue* values = value.asArray.values;
+                for(uint32 k = 0; k < count; k++){
+                    struct ConstValue val = values[k];
+                    bool32 isEmpty = true;
+                    if(val.type == VALUE_TYPE_STRING){
+                        if(processArg(val.asString, chars, project)){
+                            isEmpty = false;
+                        }
+                    }
+                    if(val.type == VALUE_TYPE_NUMBER){
+                        char buffer[256] = {0};
+                        avStringPrintfToBuffer(buffer, sizeof(buffer)-1, AV_CSTR("%i"), val.asNumber);
+                        avDynamicArrayAddRange(buffer, avCStringLength(buffer), 0, 1, chars);
+                        isEmpty = true;
+                    }
+                    if(k < count -1 && !isEmpty){
+                        char tmpChar = ' ';
+                        avDynamicArrayAdd(&tmpChar, chars);
+                    }
+                }
+
+                i = j-1;
+            }
+
+            continue;
+        }
+        if(c=='*' && !ignoreNext){
+            uint32 j = i+1;
+            for(; j < arg.len; j++){
+                char chr = arg.chrs[j];
+                if(!(avCharIsLetter(chr) || (j-i > 2 && avCharIsNumber(chr)) || chr=='_')){
+                    break;
+                }
+            }
+            AvString varName = {
+                .chrs = arg.chrs + i + 1,
+                .len = j - i - 1,
+                .memory = nullptr,
+            };
+            struct VariableDescription var = findVariable(varName, project);
+            if(!var.project || var.value==nullptr || var.value->type==VALUE_TYPE_NONE){
+                avDynamicArrayAddRange((char*)varName.chrs-1, varName.len+1, 0, 1, chars);
+                i = j-1;
+                continue;
+            }
+            struct Value value = *var.value;
+            if(value.type == VALUE_TYPE_STRING){
+                processArg(value.asString, chars, project);
+                i = j-1;
+                continue;
+            }
+            if(value.type == VALUE_TYPE_NUMBER){
+                char buffer[256] = {0};
+                avStringPrintfToBuffer(buffer, sizeof(buffer)-1, AV_CSTR("%i"), value.asNumber);
+                avDynamicArrayAddRange(buffer, avCStringLength(buffer), 0, 1, chars);
+                i = j-1;
+                continue;
+            }
+            if(value.type == VALUE_TYPE_ARRAY){
+                uint32 count = value.asArray.count;
+                struct ConstValue* values = value.asArray.values;\
+                uint32 left = i;
+                uint32 right = j;
+                for(; left != -1; left--){
+                    char c = arg.chrs[left];
+                    if(c==' '){
+                        break;
+                    }
+                }
+                for(; right < arg.len; right++){
+                    char c = arg.chrs[right];
+                    if(c==' '){
+                        break;
+                    }
+                }
+                
+                AvString leftMost = {
+                    .chrs = arg.chrs + (left+1),
+                    .len = i - (left+1),
+                };
+                AvString rightMost = {
+                    .chrs = arg.chrs + j,
+                    .len = arg.len - right,
+                };
+                avDynamicArraySetAllowRelocation(true, chars);
+                for(uint32 k = 0; k < leftMost.len; k++){
+                    avDynamicArrayRemove(AV_DYNAMIC_ARRAY_LAST, chars);
+                }
+                avDynamicArraySetAllowRelocation(false, chars);
+
+                for(uint32 k = 0; k < count; k++){
+                    struct ConstValue val = values[k];
+                    avDynamicArrayAddRange((char*)leftMost.chrs, leftMost.len, 0, 1, chars);
+                    bool32 isEmpty = true;
+                    if(val.type == VALUE_TYPE_STRING){
+                        if(processArg(val.asString, chars, project)){
+                            isEmpty = false;
+                        }
+                    }
+                    if(val.type == VALUE_TYPE_NUMBER){
+                        char buffer[256] = {0};
+                        avStringPrintfToBuffer(buffer, sizeof(buffer)-1, AV_CSTR("%i"), val.asNumber);
+                        avDynamicArrayAddRange(buffer, avCStringLength(buffer), 0, 1, chars);
+                        isEmpty = false;
+                    }
+
+                    avDynamicArrayAddRange((char*)rightMost.chrs, rightMost.len, 0, 1, chars);
+
+                    if(k < count -1 && !isEmpty){
+                        char tmpChar = ' ';
+                        avDynamicArrayAdd(&tmpChar, chars);
+                    }
+                }   
+
+                i = j-1;
+            }
+            continue;
+        }
+        ignoreNext = false;
+        if(c=='\\'){
+            ignoreNext = true;
+            continue;
+        }
+
+        avDynamicArrayAdd(&c, chars);
+    }
+    
+    return avDynamicArrayGetSize(chars)-start;
+}
+
+void parseCommandString(AvString str, struct CommandDescription** dst, Project* project){
+    AvDynamicArray finalArg = AV_EMPTY;
+    avDynamicArrayCreate(0, sizeof(char), &finalArg);
+
+    processArg(str, finalArg, project);
+
+    uint32 count = avDynamicArrayGetSize(finalArg);
+    char* buffer = avCallocate(count+1, 1, "");
+    avDynamicArrayReadRange(buffer, count, 0, 1, 0, finalArg);
+
+    AvDynamicArray args = AV_EMPTY;
+    avDynamicArrayCreate(0, sizeof(struct AvString), &args);
+
+    uint32 start = -1;
+    for(uint32 i = 0; i < count; i++){
+        char c = buffer[i];
+        if(start == -1){
+            if(avCharIsWhiteSpace(c)){
+                continue;
+            }
+            start = i;
+            continue;
+        }
+        if(avCharIsWhiteSpace(c)){
+            AvString arg = {
+                .chrs = buffer + start,
+                .len = i - start,
+                .memory = nullptr,
+            };
+            avDynamicArrayAdd(&arg, args);
+            start = -1;
+        }
+    }
+    if(start != -1){
+        AvString arg ={
+            .chrs = buffer + start,
+            .len = count - start,
+            .memory = nullptr,
+        };
+        avDynamicArrayAdd(&arg, args);
+    }
+    uint32 argCount = avDynamicArrayGetSize(args);
+    avDynamicArrayMakeContiguous(args);
+    AvString* strings = avDynamicArrayGetPageDataPtr(0, args);
+
+    AvProcessStartInfo info = AV_EMPTY;
+	avProcessStartInfoPopulateARR(&info, strings[0], (AvString)AV_EMPTY,argCount, strings);
+
+    AvProcess process = AV_EMPTY;
+	avProcessStart(info, &process);
+	avProcessWaitExit(process);
+    avProcessDiscard(process);
+
+    avProcessStartInfoDestroy(&info);
+    
+    avFree(buffer);
+    avDynamicArrayDestroy(finalArg);
+
+    avDynamicArrayDestroy(args);
+    
+}
+
 void performCommand(struct CommandStatementBody_S command, Project* project){
     startLocalContext(project, true);
 
@@ -635,7 +915,16 @@ void performCommand(struct CommandStatementBody_S command, Project* project){
         }
     }
 
-    //findVariable
+    struct VariableDescription commandVar = findVariable(AV_CSTR("command"), project);
+    if(commandVar.value!=nullptr && commandVar.value->type != VALUE_TYPE_STRING){
+        runtimeError(project, "command value is not string");
+        endLocalContext(project);
+        return;
+    }
+    
+    AvString commandUnformated = commandVar.value->asString;
+    struct CommandDescription* commandDescription = nullptr;
+    parseCommandString(commandUnformated, &commandDescription, project);
 
     endLocalContext(project);
 }
@@ -731,11 +1020,12 @@ struct Value runFunction(struct FunctionDefinition_S function, Project* project)
             case FUNCTION_STATEMENT_TYPE_PERFORM:
                 performPerform(statement.performStatement, project);
                 break;
-            case FUNCTION_STATEMENT_TYPE_RETURN:
+            case FUNCTION_STATEMENT_TYPE_RETURN:{
                 struct Value returnValue = getValue(statement.returnStatement.value, project);
                 memcpy(&value, &returnValue, sizeof(struct Value));
                 done = true;
                 break;
+            }
             case FUNCTION_STATEMENT_TYPE_VAR_DEFINITION:
                 performVariableDefinition(statement.variableDefinition, project);
                 break;
@@ -802,27 +1092,49 @@ struct Value callFunction(struct CallExpression_S call, Project* project){
     return returnValue;
 }
 
+#define REPLACE(seq, chr) avStringFree(newString); if(avStringReplace(newString, *prevString, AV_CSTR(seq), AV_CSTR(chr))){ SWAP(*(uint64*)&newString, *(uint64*)&prevString); finalString = prevString; }
+#define SWAP(a, b) a^=b; b^=a; a^=b;
+void sanitizeString(AvStringRef str, Project* project){
+    avStringDebugContextStart;
+    AvString newStr = AV_EMPTY;
+    AvStringRef prevString = str;
+    AvStringRef newString = &newStr; 
+    AvStringRef finalString = newString;
+    REPLACE("\\n","\n");
+    REPLACE("\\\"","\"");
+    REPLACE("\\\'","\'");
+    REPLACE("\\r","\r");
+    REPLACE("\\t","\t");
+    REPLACE("\\\\","\\");
+    REPLACE("\\b","\b");
+    memset(str, 0 ,sizeof(AvString));
+    avStringCopyToAllocator(*finalString, str, &project->allocator);
+    avStringFree(finalString);
+    avStringDebugContextEnd;
+}
+
 struct Value getValue(struct Expression_S* expression, Project* project){
     switch(expression->type){
         case EXPRESSION_TYPE_NONE:
-            avStringPrintf(AV_CSTR("Warning: null value\n"));
             return (struct Value){
-                .type = VALUE_TYPE_STRING,
-                .asString = {
-                    .chrs = nullptr,
-                    .len = 0,
-                    .memory = nullptr,
+                .type = VALUE_TYPE_ARRAY,
+                .asArray = {
+                    .count=0,
+                    .values=nullptr,
                 },
             };
-        case EXPRESSION_TYPE_LITERAL:
+        case EXPRESSION_TYPE_LITERAL:{
+            AvString str = {
+                .chrs = expression->literal.value.chrs + 1,
+                .len = expression->literal.value.len - 2,
+                .memory = nullptr,
+            };
+            sanitizeString(&str, project);
             return (struct Value){
                 .type = VALUE_TYPE_STRING,
-                .asString = (AvString) {
-                    .chrs = expression->literal.value.chrs + 1,
-                    .len = expression->literal.value.len - 2,
-                    .memory = nullptr,
-                },
+                .asString = str,
             };
+        }
         case EXPRESSION_TYPE_NUMBER:
             return (struct Value){
                 .type = VALUE_TYPE_NUMBER,
@@ -877,7 +1189,25 @@ void assignVariable(struct VariableDescription description, struct Value value, 
             return;
         }
     });
+    avDynamicArrayForEachElement(struct VariableDescription, project->constants, {
+        if(avStringEquals(description.identifier, element.identifier)){
+            runtimeError(project, "Cant write to constant");
+            return;
+        }
+    });
     addVariableToContext(description, project);
+}
+
+void assignConstant(struct VariableDescription description, struct Value value, Project* project){
+    struct Value* val = avAllocatorAllocate(sizeof(struct Value), &project->allocator);
+    memcpy(val, &value, sizeof(struct Value));
+    description.value = val;
+    avDynamicArrayForEachElement(struct VariableDescription, project->variables, {
+        if(avStringEquals(description.identifier, element.identifier)){
+            runtimeError(project, "constant already exists!");
+        }
+    });
+    avDynamicArrayAdd(&description, project->constants);
 }
 
 struct Value appendValue(struct Value valueA, struct Value valueB, Project* project){
@@ -1043,6 +1373,21 @@ void printHelp(struct FunctionDefinition_S function){
 
 uint32 runProject(Project* project, AvDynamicArray arguments){
     
+    for(uint32 i = 0; i < builtInVariableCount; i++){
+        struct BuiltInVariableDescription var = builtInVariables[i];
+        assignConstant((struct VariableDescription){
+            .identifier = var.identifier,
+            .project = project,
+            .statement = -1,
+        }, var.value, project);
+    }
+
+    assignConstant((struct VariableDescription){
+            .identifier = AV_CSTR("PROJECT_NAME"),
+            .project = project,
+            .statement = -1,
+    }, (struct Value){.type=VALUE_TYPE_STRING,.asString=project->name}, project);
+
     for(uint32 i = 0; i < project->statementCount; i++){
         struct Statement_S* statement = (project->statements)[i];
         switch(statement->type){

@@ -32,7 +32,8 @@ const AvString punctuators[] = {
 #undef TOKEN
 const uint32 punctuatorCount = sizeof(punctuators)/sizeof(AvString);
 
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wjump-misses-init"
 uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray arguments){
     avStringDebugContextStart;
     uint32 result = true;
@@ -84,6 +85,7 @@ loadingFailed:
     avStringDebugContextEnd;
     return result;
 }
+#pragma GCC diagnostic pop
 
 void startLocalContext(struct Project* project, bool32 inherit){
     LocalContext* context = avAllocate(sizeof(LocalContext), "local context");
@@ -102,6 +104,7 @@ void endLocalContext(struct Project* project){
 void projectCreate(struct Project* project, AvString name){
     avAllocatorCreate(0, AV_ALLOCATOR_TYPE_DYNAMIC, &(project->allocator));
     avDynamicArrayCreate(0, sizeof(struct VariableDescription), &project->variables);
+    avDynamicArrayCreate(0, sizeof(struct VariableDescription), &project->constants);
     avDynamicArrayCreate(0, sizeof(struct FunctionDescription), &project->functions);
     avDynamicArrayCreate(0, sizeof(struct FunctionDescription), &project->externals);
     avDynamicArrayCreate(0, sizeof(struct ConstValue*), &project->arrays);
@@ -110,6 +113,7 @@ void projectCreate(struct Project* project, AvString name){
 }
 void projectDestroy(struct Project* project){
     avDynamicArrayDestroy(project->variables);
+    avDynamicArrayDestroy(project->constants);
     avDynamicArrayDestroy(project->functions);
     avDynamicArrayDestroy(project->externals);
     avDynamicArrayDestroy(project->arrays);
@@ -131,7 +135,7 @@ int main(int argC, const char* argV[]){
         AvString arg = AV_CSTR(argV[i]);
         avDynamicArrayAdd(&arg, arguments);
     }
-    uint32 result = processProjectFile(AV_CSTR("avUtils.project"), arguments);
+    uint32 result = processProjectFile(AV_CSTR(argV[1]), arguments);
     if(result==0){
         avStringPrintf(AV_CSTR("Successfully parsed project file\n"));
     }

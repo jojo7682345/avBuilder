@@ -27,10 +27,12 @@ uint64 avCStringLength(const char* str) {
 }
 
 void avStringClone(AvStringRef dst, AvString src) {
-	avAssert(dst != nullptr, "dst must be a valid string reference");
 	AvStringHeapMemory memory;
 	avStringMemoryHeapAllocate(src.len, &memory);
 	avStringMemoryStore(src, 0, AV_STRING_FULL_LENGTH, memory);
+	if(dst->memory){
+		avStringFree(dst);	
+	}
 	avStringFromMemory(dst, 0, AV_STRING_FULL_LENGTH, memory);
 }
 
@@ -387,19 +389,19 @@ strOffset avStringFindLastOccuranceOf(AvString str, AvString find) {
 }
 
 strOffset avStringFindFirstOccuranceOf(AvString str, AvString find) {
-	uint64 strOffset = 0;
 	if (str.len < find.len) {
 		return AV_STRING_NULL;
 	}
-
 	for (uint64 i = 0; i < str.len; i++) {
-		if (str.chrs[i] == find.chrs[strOffset]) {
-			strOffset++;
-			if (strOffset == find.len) {
-				return i;
+		bool32 match = true;
+		for(uint64 j = i; j < AV_MIN(str.len, i+find.len); j++){
+			if(str.chrs[j]!=find.chrs[j-i]){
+				match = false;
+				break;
 			}
-		} else {
-			strOffset = 0;
+		}
+		if(match){
+			return i;
 		}
 	}
 	return AV_STRING_NULL;
@@ -426,15 +428,28 @@ uint64 avStringFindCount(AvString str, AvString find) {
 }
 
 bool32 avStringEndsWith(AvString str, AvString sequence) {
-	strOffset offset = avStringFindLastOccuranceOf(str, sequence);
-	if (offset == AV_STRING_NULL) {
+	if(str.len < sequence.len){
 		return false;
 	}
-	return offset + sequence.len == str.len;
+	uint64 offset = str.len - sequence.len;
+	for(uint64 i = offset; i < str.len; i++){
+		if(str.chrs[i] != sequence.chrs[i-offset]){
+			return false;
+		}
+	}
+	return true;
 }
 
 bool32 avStringStartsWith(AvString str, AvString sequence) {
-	return avStringFindFirstOccuranceOf(str, sequence) == 0;
+	if(str.len < sequence.len){
+		return false;
+	}
+	for(uint64 i = 0; i < sequence.len; i++){
+		if(str.chrs[i] != sequence.chrs[i]){
+			return false;
+		}
+	}
+	return true;
 }
 
 bool32 avStringEndsWithChar(AvString str, char chr) {
@@ -462,6 +477,8 @@ bool32 avStringWrite(AvStringRef str, strOffset offset, char chr) {
 	str->memory->data[offset] = chr;
 	return true;
 }
+
+
 char avStringRead(AvString str, strOffset offset) {
 	if (str.len == 0) {
 		return '\0';
@@ -576,7 +593,7 @@ uint64 avStringReplace(AvStringRef dst, AvString str, AvString sequence, AvStrin
 		strOffset offset = avStringFindFirstOccuranceOf(
 			remainingStr,
 			sequence
-		) - 1;
+		);
 		avStringMemoryStore(remainingStr, writeIndex, offset, memory);
 		readIndex += offset;
 		writeIndex += offset;

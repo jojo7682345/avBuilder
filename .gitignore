@@ -1,4 +1,5 @@
-.[oa]
+*.[oa]
+*.so
 build/tmp/
-.vscode
+.vscode/
 avBuilder

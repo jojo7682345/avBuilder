@@ -8,7 +8,6 @@
 #include <AvUtils/avProcess.h>
 #include <AvUtils/process/avPipe.h>
 #include <AvUtils/avEnvironment.h>
-#include <AvUtils/builder/avBuilder.h>
 
 
 #include <stdio.h>
@@ -197,6 +196,7 @@ void testDynamicArray() {
 	for (uint i = 0; i < avDynamicArrayGetSize(arr); i++) {
 		printf("%u\n", buffer[i]);
 	}
+	avFree(buffer);
 
 	avDynamicArrayDestroy(arr);
 }
@@ -220,7 +220,7 @@ void testString() {
 	avStringReplace(&replacedString, str, AV_CSTR("_"), AV_CSTR(" insert "));
 	avStringFree(&str);
 	avStringPrint(str);
-
+	avStringFree(&replacedString);
 
 
 	printf("\n");
@@ -316,6 +316,8 @@ void testFile() {
 
 	printf(buffer);
 
+	avFree(buffer);
+
 	avFileClose(file);
 
 	avFileHandleDestroy(file);
@@ -336,6 +338,7 @@ void testProcess() {
 	AvProcess process = AV_EMPTY;
 	avProcessStart(info, &process);
 	avProcessWaitExit(process);
+	avProcessDiscard(process);
 
 	avFileClose(testFile);
 	avFileOpen(testFile, AV_FILE_OPEN_READ_DEFAULT);
