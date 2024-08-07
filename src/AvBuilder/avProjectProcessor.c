@@ -453,16 +453,18 @@ struct Statement_S* processFunctionDefinitionStatement(struct FunctionDefinition
             parameterCount++;
             iterator = iterator->next;
         }
-        AvString* parameters = avAllocatorAllocate(sizeof(AvString)*parameterCount, &project->allocator);
-        uint64 index = 0;
-        iterator = function.parameterList;
-        while(iterator && iterator->parameter){
-            memcpy(parameters+index, &iterator->parameter->name, sizeof(AvString));
-            index++;
-            iterator = iterator->next;
+        if(parameterCount!=0){
+            AvString* parameters = avAllocatorAllocate(sizeof(AvString)*parameterCount, &project->allocator);
+            uint64 index = 0;
+            iterator = function.parameterList;
+            while(iterator && iterator->parameter){
+                memcpy(parameters+index, &iterator->parameter->name, sizeof(AvString));
+                index++;
+                iterator = iterator->next;
+            }
+            statement->functionDefinition.parameters = parameters;
         }
         statement->functionDefinition.parameterCount = parameterCount;
-        statement->functionDefinition.parameters = parameters;
     }
     {
         uint64 statementCount = 0;
