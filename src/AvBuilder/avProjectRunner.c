@@ -34,12 +34,18 @@ void runtimeError(Project* project, const char* message, ...){
 
     while(context){
         if(avDynamicArrayGetSize(context->variables) > 0){
-            avDynamicArrayForEachElement(struct VariableDescription, context->variables, {
-                struct VariableDescription var = element;
-                avStringPrintf(AV_CSTR("\t%s = "), var.identifier);
-                printValue(*var.value);
-                avStringPrint(AV_CSTR("\n"));
-            });
+            for(uint32 index = 0; index < avDynamicArrayGetSize(context->variables); index++) { 
+                struct VariableDescription element; avDynamicArrayRead(&element, index, (context->variables)); { 
+                    struct VariableDescription var = element; 
+                    avStringPrintf(AV_CSTR("\t%s = "), var.identifier); 
+                    if(var.value){
+                        printValue(*var.value); 
+                    }else{
+                        avStringPrint(AV_CSTR("NULL"));
+                    }
+                    avStringPrint(AV_CSTR("\n")); 
+                } 
+            }
             if(context->previous){
                 avStringPrint(AV_CSTR("], [\n"));
             }
@@ -957,16 +963,20 @@ void performVariableDefinition(struct VariableDefinition_S variable, Project* pr
         runtimeError(project, "Array size is not allowed to be 0 (for now)");
         return;
     }
+
+    struct Value* value = avAllocatorAllocate(sizeof(struct Value), &project->allocator);
+    value->type = VALUE_TYPE_NUMBER,
+    value->asNumber = 0;
     if(size.asNumber==1){
         addVariableToContext((struct VariableDescription){
             .identifier = variable.identifier,
             .project = project,
             .statement = -1,
-            .value = nullptr,
+            .value = value,
         }, project);
         return;
     }
-    struct Value* value = avAllocatorAllocate(sizeof(struct Value), &project->allocator);
+    
     value->type = VALUE_TYPE_ARRAY;
     value->asArray = (struct ArrayValue){
         .count = size.asNumber,
@@ -1263,7 +1273,7 @@ void assignVariableIndexed(struct AvString identifier, uint32 index, struct Valu
         }
         context = context->previous;
     }
-    if(varIndex != -1){
+    if(varIndex == -1){
         avDynamicArrayForEachElement(struct VariableDescription, project->variables, {
             if(avStringEquals(identifier, element.identifier)){
                 variables = context->variables;
