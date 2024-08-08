@@ -5,6 +5,7 @@
 #include <AvUtils/dataStructures/avDynamicArray.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "avBuilder.h"
 
@@ -31,6 +32,8 @@ const AvString punctuators[] = {
 #undef TOKEN_PUNCTUATOR
 #undef TOKEN
 const uint32 punctuatorCount = sizeof(punctuators)/sizeof(AvString);
+
+
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wjump-misses-init"
@@ -70,7 +73,26 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
         goto processingFailed;
     }
 
-    uint32 returnCode = runProject(&project, arguments);
+    struct ProjectOptions options = {0};
+    avDynamicArraySetAllowRelocation(true, arguments);
+
+    for(uint32 i = 0; i < avDynamicArrayGetSize(arguments); i++){
+        AvString argument = AV_EMPTY;
+        avDynamicArrayRead(&argument, i, arguments);
+        AvString entryFlag = AV_CSTR("--entry=");
+        if(avStringStartsWith(argument, entryFlag)){
+            AvString entry = {
+                .chrs = argument.chrs + entryFlag.len,
+                .len = argument.len - entryFlag.len,
+            };
+            memcpy(&options.entry, &entry, sizeof(AvString));
+            avDynamicArrayRemove(i, arguments);
+            i--;
+        }
+        
+    }
+
+    uint32 returnCode = runProject(&project, arguments, options);
     result = returnCode;
 
 processingFailed:

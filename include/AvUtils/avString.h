@@ -139,6 +139,7 @@ int32 avStringCompare(AvString strA, AvString strB);
 bool32 avStringEqualsCaseInsensitive(AvString strA, AvString strB);
 
 void avStringReplaceChar(AvStringRef str, char original, char replacement);
+uint64 avStringReplaceAll(AvStringRef dst, AvString str, uint32 count, uint64 stride, AvString* sequences, AvString* replacements);
 uint64 avStringReplace(AvStringRef dst, AvString str, AvString sequence, AvString replacement);
 
 void avStringJoin_(AvStringRef dst, ...);

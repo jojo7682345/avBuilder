@@ -1102,24 +1102,24 @@ struct Value callFunction(struct CallExpression_S call, Project* project){
     return returnValue;
 }
 
-#define REPLACE(seq, chr) avStringFree(newString); if(avStringReplace(newString, *prevString, AV_CSTR(seq), AV_CSTR(chr))){ SWAP(*(uint64*)&newString, *(uint64*)&prevString); finalString = prevString; }
+#define REPLACE(seq, chr) avStringFree(newString); if(avStringReplace(newString, *prevString, AV_CSTR(seq), AV_CSTR(chr))){ SWAP(*(uint64*)&newString, *(uint64*)&prevString); finalString = newString; } else { finalString = prevString;}
 #define SWAP(a, b) a^=b; b^=a; a^=b;
 void sanitizeString(AvStringRef str, Project* project){
     avStringDebugContextStart;
     AvString newStr = AV_EMPTY;
-    AvStringRef prevString = str;
-    AvStringRef newString = &newStr; 
-    AvStringRef finalString = newString;
-    REPLACE("\\n","\n");
-    REPLACE("\\\"","\"");
-    REPLACE("\\\'","\'");
-    REPLACE("\\r","\r");
-    REPLACE("\\t","\t");
-    REPLACE("\\\\","\\");
-    REPLACE("\\b","\b");
+    AvString seqs[] = {
+        AV_CSTRA("\\n"),AV_CSTR("\n"),
+        AV_CSTRA("\\\""),AV_CSTRA("\""),
+        AV_CSTRA("\\\'"),AV_CSTRA("\'"),
+        AV_CSTRA("\\r") ,AV_CSTRA("\r"),
+        AV_CSTRA("\\t") ,AV_CSTRA("\t"),
+        AV_CSTRA("\\\\"),AV_CSTRA("\\"),
+        AV_CSTRA("\\b") ,AV_CSTRA("\b"),
+    };
+    avStringReplaceAll(&newStr, *str, sizeof(seqs)/sizeof(AvString)/2, sizeof(AvString)*2, seqs, seqs+1);
     memset(str, 0 ,sizeof(AvString));
-    avStringCopyToAllocator(*finalString, str, &project->allocator);
-    avStringFree(finalString);
+    avStringCopyToAllocator(newStr, str, &project->allocator);
+    avStringFree(&newStr);
     avStringDebugContextEnd;
 }
 
@@ -1381,7 +1381,7 @@ void printHelp(struct FunctionDefinition_S function){
     avStringPrintf(AV_CSTR("\n"));
 }
 
-uint32 runProject(Project* project, AvDynamicArray arguments){
+uint32 runProject(Project* project, AvDynamicArray arguments, struct ProjectOptions options){
     
     for(uint32 i = 0; i < builtInVariableCount; i++){
         struct BuiltInVariableDescription var = builtInVariables[i];
@@ -1413,8 +1413,12 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
         }
 
     }
+    AvString* entry = &project->name;
+    if(options.entry.len > 0 && options.entry.chrs){
+        entry = &options.entry;
+    }
 
-    struct FunctionDescription mainFunction = findFunction(project->name, project);
+    struct FunctionDescription mainFunction = findFunction(*entry, project);
     if(!mainFunction.project){
         runtimeError( project,"no entry found");
     }

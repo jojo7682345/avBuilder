@@ -565,6 +565,82 @@ void avStringReplaceChar(AvStringRef str, char original, char replacement) {
 	}
 }
 
+uint64 avStringReplaceAll(AvStringRef dst, AvString str, uint32 count, uint64 stride, AvString* sequences, AvString* replacements){
+	avAssert(dst != nullptr, "destination must be a valid reference");
+	avAssert(sequences != nullptr, "sequences must be a valid array");
+	avAssert(replacements != nullptr, "replacements must be a valid array");
+
+	uint64* counts = avCallocate(count, sizeof(uint64), "counts");
+	uint64 totalCount = 0;
+	for(uint32 i = 0; i < count; i++){
+		counts[i] = avStringFindCount(str, *((AvString*)((byte*)sequences+(i*stride))));
+		totalCount += counts[i];
+	}
+
+	if(totalCount==0){
+		avStringClone(dst, str);
+		return 0;
+	}
+
+	uint64 remainingLength = str.len;
+	uint64 replacementLength = 0;
+	for(uint32 i = 0; i < count; i++){
+		remainingLength -= counts[i] * ((AvString*)((byte*)sequences+(i*stride)))->len;
+		replacementLength += counts[i] * ((AvString*)((byte*)replacements+(i*stride)))->len;
+	}
+	uint64 newLength = remainingLength + replacementLength;
+	AvStringHeapMemory memory;
+	avStringMemoryHeapAllocate(newLength, &memory);
+
+	uint64 writeIndex = 0;
+	uint64 readIndex = 0;
+	uint64 countReplaced = 0;
+
+	while (countReplaced != totalCount) {
+		AvString remainingStr = AV_STR(
+			str.chrs + readIndex,
+			str.len - readIndex
+		);
+		uint32 closestSequence = -1;
+		strOffset closestOffset = -1;
+		for(uint32 i = 0; i < count; i++){
+			strOffset offset = avStringFindFirstOccuranceOf(
+				remainingStr,
+				*((AvString*)((byte*)sequences+(i*stride)))
+			);
+			if(offset==AV_STRING_NULL){
+				continue;
+			}
+			if(offset < closestOffset){
+				closestSequence = i;
+				closestOffset = offset;
+			}
+		}
+
+		avAssert(closestSequence!=-1, "error");
+		
+		strOffset offset = closestOffset;
+		avStringMemoryStore(remainingStr, writeIndex, offset, memory);
+		readIndex += offset;
+		
+		
+		writeIndex += offset;
+		avStringMemoryStore(*((AvString*)((byte*)replacements+(closestSequence*stride))), writeIndex, ((AvString*)((byte*)replacements+(closestSequence*stride)))->len, memory);
+		readIndex += ((AvString*)((byte*)sequences+(closestSequence*stride)))->len;
+		writeIndex += ((AvString*)((byte*)replacements+(closestSequence*stride)))->len;
+		countReplaced++;
+	}
+	AvString remainingStr = AV_STR(
+		str.chrs + readIndex,
+		str.len - readIndex
+	);
+	avStringMemoryStore(remainingStr, writeIndex, remainingStr.len, memory);
+
+	avStringFromMemory(dst, AV_STRING_WHOLE_MEMORY, memory);
+	return totalCount;
+
+}
+
 uint64 avStringReplace(AvStringRef dst, AvString str, AvString sequence, AvString replacement) {
 	avAssert(dst != nullptr, "destination must be a valid reference");
 

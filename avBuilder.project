@@ -9,7 +9,9 @@ version = "3.3.2";
 compiler = "gcc";
 linker = "gcc";
 
-
+flags=[
+    "-ggdb"
+];
 includes=[
     "./include"
 ];
@@ -22,7 +24,8 @@ compile(source, includes, outDir) {
     foreach sourceFile[index] from source perform {
         command {
             args = [
-                "-I*includes"
+                "-I*includes",
+                "$flags"
             ];
             objectFile = outDir + "/" + fileBaseName(sourceFile) + ".o";
             makeDirs(filePath(objectFile));
@@ -48,7 +51,6 @@ link(objects, libDirs, libs, executableName, outDir) {
     }
     return output;
 }
-
 
 avBuilder() {
     perform {

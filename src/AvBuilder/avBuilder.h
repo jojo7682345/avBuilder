@@ -98,12 +98,16 @@ typedef struct Project {
     ProcessState processState;
 } Project;
 
+struct ProjectOptions {
+    AvString entry;
+};
+
 
 bool32 loadProjectFile(const AvString projectFilePath, AvStringRef projectFileContent, AvStringRef projectFileName);
 bool32 tokenizeProject(const AvString projectFileContent, const AvString projectFileName, AvDynamicArray tokens);
 bool32 parseProject(AV_DS(AvDynamicArray, Token) tokenList, void** statements, Project* project);
 bool32 processProject(void* statements, Project* project);
-bool32 runProject(Project* project, AvDynamicArray arguments);
+bool32 runProject(Project* project, AvDynamicArray arguments, struct ProjectOptions options);
 
 
 void startLocalContext(struct Project* project, bool32 inherit);

@@ -1,6 +1,7 @@
 version = "3.3.2";
 compiler = "gcc";
 linker = "gcc";
+flags = "-ggdb";
 
 includes=[
     "./include"
@@ -14,8 +15,10 @@ compile(source, includes, outDir) {
     foreach sourceFile[index] from source perform {
         command {
             args = [
-                "-I*includes"
+                "-I*includes",
+                "$flags"
             ];
+            
             objectFile = outDir + "/" + fileBaseName(sourceFile) + ".o";
             makeDirs(filePath(objectFile));
             command="$compiler -c $sourceFile $args -o $objectFile";
@@ -46,6 +49,7 @@ test() {
         sourceDirs = [
             "test/src"
         ];
+                
         sourceFiles = filter(FILTER_TYPE_ENDS_WITH, ".c", files in sourceDirs recursive);
         objectFiles = compile(
             sourceFiles,
