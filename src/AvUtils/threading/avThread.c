@@ -8,7 +8,9 @@
 #include <strsafe.h>
 #include <process.h>
 #else
+#ifndef __USE_MISC
 #define __USE_MISC
+#endif
 #include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>

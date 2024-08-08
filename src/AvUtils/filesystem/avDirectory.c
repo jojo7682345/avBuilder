@@ -12,7 +12,9 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
+#ifndef __USE_MISC
 #define __USE_MISC
+#endif
 #include <dirent.h>
 #include <sys/stat.h>
 #include <stdlib.h>
