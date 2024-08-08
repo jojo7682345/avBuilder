@@ -1,4 +1,4 @@
-# Maintainer: Your Name <jojo7682345@gmail.com>
+# Maintainer: jojo7682345 <jojo7682345@gmail.com>
 pkgname=avBuilder-git
 pkgver=v0.1.1
 pkgrel=1
