@@ -1,29 +1,20 @@
 # Maintainer: jojo7682345 <jojo7682345@gmail.com>
+pggbase=avbuilder
 pkgname=avbuilder-git
 pkgver=v0.1.1
 pkgrel=1
 pkgdesc="A flexible build system written in C"
-arch=(x86_64)
+arch=('x86_64')
 url="https://github.com/jojo7682345/avBuilder.git"
 license=('GPL')
-groups=()
-depends=()
 makedepends=(git)
-optdepends=()
 provides=(avBuilder)
-conflicts=()
-replaces=()
-backup=()
-options=()
-install=
-changelog=
 source=("git+$url")
-noextract=()
 md5sums=('SKIP') 
 
 pkgver(){
   cd "avBuilder"
-  printf "$pkgver.r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)" 
+  printf "v0.1.1-r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)" 
 }
 
 build() {
