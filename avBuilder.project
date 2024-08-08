@@ -58,6 +58,7 @@ avBuilder() {
         sourceDirs = [
             "src"
         ];
+        
         sourceFiles = filter(FILTER_TYPE_ENDS_WITH, ".c", files in sourceDirs recursive);
         objectFiles = compile(
             sourceFiles,
