@@ -65,9 +65,21 @@ int linkFile(const char* output, unsigned int fileCount, const File files[], uns
     return result;
 }
 
+int install(const char* installDir){
+    char buffer[2048] = { 0 };
+    sprintf(buffer, "install -Dm775 -s "PROGRAM" %s", installDir);
+
+    printf(buffer);
+    return system(buffer);
+}
+
 
 int main(int argC, char* argV[]) {
     chdir("..");
+
+    if(argC==3 && strcmp(argV[1], "install")==0){
+        return install(argV[2]);
+    }
     
     bool32 failed = false;
     const File bootstrapFiles[] = {

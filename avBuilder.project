@@ -50,10 +50,10 @@ link(objects, libDirs, libs, executableName, outDir) {
 }
 
 
-avBuilder(dir) {
+avBuilder() {
     perform {
         sourceDirs = [
-            dir,
+            "src",
         ];
         sourceFiles = filter(FILTER_TYPE_ENDS_WITH, ".c", files in sourceDirs recursive);
         objectFiles = compile(
