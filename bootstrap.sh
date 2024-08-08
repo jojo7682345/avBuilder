@@ -68,8 +68,6 @@ int linkFile(const char* output, unsigned int fileCount, const File files[], uns
 int install(const char* installDir){
     char buffer[2048] = { 0 };
     sprintf(buffer, "install -Dm775 -s "PROGRAM" %s", installDir);
-
-    printf(buffer);
     return system(buffer);
 }
 
