@@ -1,8 +1,8 @@
 #if(false) /* BOOTSTRAP_CIRCUIT */
 #!/bin/sh
 echo compiling bootstrap mechanism
-mkdir bootstrap
-cd bootstrap
+mkdir .bootstrap
+cd .bootstrap
 self=$(basename "$0")
 gcc -o tmp -x c ../$self
 echo compiled bootstrap mechanism
@@ -16,7 +16,7 @@ else
 fi
 rm tmp
 cd ..
-rm -d -r bootstrap
+rm -d -r .bootstrap
 exit $ret
 #endif
 
@@ -44,7 +44,7 @@ typedef struct File {
 
 int compileFile(File file, unsigned int index, unsigned int max) {
     char buffer[2048] = { 0 };
-    sprintf(buffer, "%s %s -c -o bootstrap/%s %s -Iinclude", CC, CFLAGS, file.output, file.source);
+    sprintf(buffer, "%s %s -c -o .bootstrap/%s %s -Iinclude", CC, CFLAGS, file.output, file.source);
     printf("[%u/%u] compiling %s\n", index, max, file.source);
     int result = system(buffer);
     return result;
@@ -56,7 +56,7 @@ int linkFile(const char* output, unsigned int fileCount, const File files[], uns
     
     int offset = 0;
     for(uint32 i = 0; i < fileCount; i++){
-        offset += sprintf(objects + offset, "bootstrap/%s ", files[i].output);
+        offset += sprintf(objects + offset, ".bootstrap/%s ", files[i].output);
     }
 
     sprintf(buffer, "%s %s -o %s %s", CC, CFLAGS, output, objects);

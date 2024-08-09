@@ -4,11 +4,22 @@ AvBuilder is a build system written in C that allows for building of both small 
 ## How to build
 
 ```shell
-./bootstrap.sh run avBuilder.project src
+chmod +x ./bootstrap
+./bootstrap
+```
+
+## How to install
+```shell
+./boostrap install [target]
 ```
 
 ## How to use
 write a ```.project``` file according to the [syntax](./docs/avBuilderSyntax.md).
+
+## Compiling AvBuilder itself using AvBuilder
+```shell
+./avBuilder avBuilder.project
+```
 
 Run 
 ```shell
