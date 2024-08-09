@@ -175,10 +175,6 @@ int main(int argC, const char* argV[]){
         avDynamicArrayAdd(&arg, arguments);
     }
     uint32 result = processProjectFile(AV_CSTR(argV[1]), arguments);
-    if(result==0){
-        avStringPrintf(AV_CSTR("Successfully parsed project file\n"));
-    }
-
     avDynamicArrayDestroy(arguments);
     avStringDebugContextEnd;
     return result;

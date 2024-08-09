@@ -412,6 +412,7 @@ Project* importProject(AvString projectFile, Project* baseProject){
         }
     }
     avDynamicArrayDestroy(tokens);
+    memcpy(&project->options, &baseProject->options, sizeof(struct ProjectOptions));
     return project;
 
 processingFailed:
@@ -1061,8 +1062,9 @@ void parseCommandString(AvString str, struct CommandDescription** dst, Project* 
 
     avProcessStartInfoDestroy(&info);
     
-    avStringPrintf(AV_CSTR("%i = %s\n"), retCode, AV_CSTR(buffer));
-
+    if(project->options.commandDebug){
+        avStringPrintf(AV_CSTR("%i = %s\n"), retCode, AV_CSTR(buffer));
+    }
     avFree(buffer);
     avDynamicArrayDestroy(finalArg);
 
