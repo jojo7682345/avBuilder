@@ -27,7 +27,6 @@ and it should do its thing.
 
 
 ## Planned features
-- Importing other project files for reusability
 - Fetching files from the internet
 - Refactor to reduce memory usage (it uses an excessive amount at the moment)
 - if statements

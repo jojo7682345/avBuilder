@@ -81,14 +81,22 @@ typedef struct LocalContext {
     bool32 inherit;
 } LocalContext;
 
+struct ProjectOptions {
+    AvString entry;
+    bool32 commandDebug;
+};
 typedef struct Project {
     AvString name;
+    AvString projectFileContent;
+    AvString projectFileName;
+
     AvAllocator allocator;
     
     AV_DS(AvDynamicArray, struct FunctionDescription) functions;
     AV_DS(AvDynamicArray, struct VariableDescription) variables;
     AV_DS(AvDynamicArray, struct VariableDescription) constants;
     AV_DS(AvDynamicArray, struct ImportDescription) externals;
+    AV_DS(AvDynamicArray, Project*) importedProjects;
     AV_DS(AvDynamicArray, struct ConstValue*) arrays;
     uint32 statementCount;
     struct Statement_S** statements;
@@ -96,23 +104,22 @@ typedef struct Project {
     LocalContext* localContext;
 
     ProcessState processState;
+    struct ProjectOptions options;
 } Project;
 
-struct ProjectOptions {
-    AvString entry;
-};
+
 
 
 bool32 loadProjectFile(const AvString projectFilePath, AvStringRef projectFileContent, AvStringRef projectFileName);
 bool32 tokenizeProject(const AvString projectFileContent, const AvString projectFileName, AvDynamicArray tokens);
 bool32 parseProject(AV_DS(AvDynamicArray, Token) tokenList, void** statements, Project* project);
 bool32 processProject(void* statements, Project* project);
-bool32 runProject(Project* project, AvDynamicArray arguments, struct ProjectOptions options);
+bool32 runProject(Project* project, AvDynamicArray arguments);
 
 
 void startLocalContext(struct Project* project, bool32 inherit);
 void endLocalContext(struct Project* project);
-void projectCreate(struct Project* project, AvString name);
+void projectCreate(struct Project* project, AvString name, AvString content);
 void projectDestroy(struct Project* project);
 
-#endif//__AV_BUILDER__
+#endif//__AV_BUILDER__ 

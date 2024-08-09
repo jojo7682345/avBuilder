@@ -483,7 +483,8 @@ struct FunctionDescription {
 
 struct ImportDescription{
     AvString identifier;
-    uint32 importLocation;
+    AvString importFile;
+    AvString extIdentifier;
 };
 
 struct VariableDescription {

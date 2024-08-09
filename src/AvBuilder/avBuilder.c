@@ -46,6 +46,8 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
     if(!loadProjectFile(projectFilePath, &projectFileContent, &projectFileName)){
         avStringPrintf(AV_CSTR("Failed to load project file %s\n"), projectFilePath);
         result = -1;
+        avStringFree(&projectFileContent);
+        avStringFree(&projectFileName); 
         goto loadingFailed;
     }
 
@@ -54,12 +56,14 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
     if(!tokenizeProject(projectFileContent, projectFileContent, tokens)){
         avStringPrintf(AV_CSTR("Failed to tokenize project file %s\n"), projectFilePath);
         result = -1;
+        avStringFree(&projectFileContent);
+            avStringFree(&projectFileName); 
         goto tokenizingFailed;
     }
     //printTokenList(tokens);
    
     Project project = AV_EMPTY;
-    projectCreate(&project, projectFileName);
+    projectCreate(&project, projectFileName, projectFileContent);
     struct ProjectStatementList* statements = nullptr;
     if(!parseProject(tokens, (void**)&statements, &project)){
         avStringPrintf(AV_CSTR("Failed to parse project file %s\n"), projectFilePath);
@@ -80,6 +84,7 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
         AvString argument = AV_EMPTY;
         avDynamicArrayRead(&argument, i, arguments);
         AvString entryFlag = AV_CSTR("--entry=");
+        AvString commandDebugFlag = AV_CSTR("--debugCommands");
         if(avStringStartsWith(argument, entryFlag)){
             AvString entry = {
                 .chrs = argument.chrs + entryFlag.len,
@@ -89,10 +94,15 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
             avDynamicArrayRemove(i, arguments);
             i--;
         }
+        if(avStringEquals(argument, commandDebugFlag)){
+            options.commandDebug = true;
+            avDynamicArrayRemove(i, arguments);
+            i--;
+        }
         
     }
-
-    uint32 returnCode = runProject(&project, arguments, options);
+    memcpy(&project.options, &options, sizeof(struct ProjectOptions));
+    uint32 returnCode = runProject(&project, arguments);
     result = returnCode;
 
 processingFailed:
@@ -101,9 +111,6 @@ parsingFailed:
 tokenizingFailed:
     avDynamicArrayDestroy(tokens);
 loadingFailed:
-    avStringFree(&projectFileName); 
-    avStringFree(&projectFileContent);
-
     avStringDebugContextEnd;
     return result;
 }
@@ -123,14 +130,18 @@ void endLocalContext(struct Project* project){
     avFree(context);
 }
 
-void projectCreate(struct Project* project, AvString name){
+void projectCreate(struct Project* project, AvString name, AvString content){
     avAllocatorCreate(0, AV_ALLOCATOR_TYPE_DYNAMIC, &(project->allocator));
     avDynamicArrayCreate(0, sizeof(struct VariableDescription), &project->variables);
     avDynamicArrayCreate(0, sizeof(struct VariableDescription), &project->constants);
     avDynamicArrayCreate(0, sizeof(struct FunctionDescription), &project->functions);
-    avDynamicArrayCreate(0, sizeof(struct FunctionDescription), &project->externals);
+    avDynamicArrayCreate(0, sizeof(struct ImportDescription), &project->externals);
+    avDynamicArrayCreate(0, sizeof(Project*), &project->importedProjects);
     avDynamicArrayCreate(0, sizeof(struct ConstValue*), &project->arrays);
     avStringClone(&project->name, name);
+    memcpy(&project->projectFileContent, &content, sizeof(AvString));
+    memcpy(&project->projectFileName, &name, sizeof(AvString));
+    
     project->localContext = NULL;
 }
 void projectDestroy(struct Project* project){
@@ -138,9 +149,15 @@ void projectDestroy(struct Project* project){
     avDynamicArrayDestroy(project->constants);
     avDynamicArrayDestroy(project->functions);
     avDynamicArrayDestroy(project->externals);
+    avDynamicArrayForEachElement(Project*, project->importedProjects, {
+        projectDestroy(element);
+    });
+    avDynamicArrayDestroy(project->importedProjects);
     avDynamicArrayDestroy(project->arrays);
     avAllocatorDestroy(&(project->allocator));
     avStringFree(&project->name);
+    avStringFree(&project->projectFileContent);
+    avStringFree(&project->projectFileName); 
 }
 
 int main(int argC, const char* argV[]){

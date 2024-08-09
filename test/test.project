@@ -1,61 +1,15 @@
-version = "3.3.2";
+version = getVar();
 compiler = "gcc";
-linker = "gcc";
-flags = "-ggdb";
 
-includes=[
-    "./include"
-];
-libs=[
-    "m"
-];
-
-compile(source, includes, outDir) {
-    var output[arraySize(source)];
-    foreach sourceFile[index] from source perform {
-        command {
-            args = [
-                "-I*includes",
-                "$flags"
-            ];
-            
-            objectFile = outDir + "/" + fileBaseName(sourceFile) + ".o";
-            makeDirs(filePath(objectFile));
-            command="$compiler -c $sourceFile $args -o $objectFile";
-            output[index]=objectFile;
-        }
-    }
-    return output;
-}
-
-link(objects, libDirs, libs, executableName, outDir) {
-    var output;
-    perform {
-        command {
-            args = [
-                "-L*libDirs",
-                "-l*libs"
-            ];
-            outputExecutable = outDir + "/" + executableName;
-            command="$linker $args *objects -o $outputExecutable";
-            output = executableName;
-        }
-    }
-    return output;
+getVar(){
+    return test();
 }
 
 test() {
     perform {
-        sourceDirs = [
-            "test/src"
-        ];
-                
-        sourceFiles = filter(FILTER_TYPE_ENDS_WITH, ".c", files in sourceDirs recursive);
-        objectFiles = compile(
-            sourceFiles,
-            includes,
-            "out/test"
-        );
-        executable = link(objectFiles,,libs,PROJECT_NAME, "test");
+        command{
+            command = "echo $compiler";
+        }
     }
+    return compiler;
 }

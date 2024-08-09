@@ -144,7 +144,7 @@ struct Expression_S* processPrimaryExpression(struct Expression_S* expr, struct 
     avAssert(false, "invalid expression");
     return nullptr;
 }
-
+/*
 struct CallExpression_S processCall(struct Call* call, Project* project){
     struct Expression_S* function = avAllocatorAllocate(sizeof(struct Expression_S), &project->allocator);
     function = processPrimaryExpression(function, call->function, project);
@@ -155,7 +155,7 @@ struct CallExpression_S processCall(struct Call* call, Project* project){
 
     uint64 count = 0;
     struct Argument* iterator = call->argument;
-    while(iterator){
+    while(iterator && iterator->expression){
         count++;
         iterator = iterator->next;
     }
@@ -166,10 +166,8 @@ struct CallExpression_S processCall(struct Call* call, Project* project){
 
         iterator = call->argument;
         uint32 index = 0;
-        while(iterator){
-            if(iterator->expression){
-                processExpressionExpression(values+index, iterator->expression, project);
-            }
+        while(iterator && iterator->expression){
+            processExpressionExpression(values+index, iterator->expression, project);
             index++;
             iterator = iterator->next;
         }
@@ -181,11 +179,14 @@ struct CallExpression_S processCall(struct Call* call, Project* project){
         .arguments = values,
     };
 }
+*/
 
+bool32 processFunctionCall(struct CallExpression_S* call, struct Call* callStatement, Project* project);
 struct Expression_S* processCallExpression(struct Expression_S* expr, struct Call* call, Project* project){
     if(call->argument){
         expr->type = EXPRESSION_TYPE_CALL;
-        struct CallExpression_S callExpression = processCall(call, project);
+        struct CallExpression_S callExpression = {};
+        processFunctionCall(&callExpression, call, project);
         memcpy(&expr->call, &callExpression, sizeof(struct CallExpression_S));
         return expr;
     }
@@ -247,6 +248,9 @@ struct Expression_S* processSummationExpression(struct Expression_S* expr, struc
 }
 
 struct Expression_S* processArrayExpression(struct Expression_S* expr, struct Array* array, Project* project){
+    if(!array){
+        return nullptr;
+    }
     if(array->next){
         expr->type = EXPRESSION_TYPE_ARRAY;
         expr->array = processArray(array, project);
@@ -289,26 +293,26 @@ bool32  processVariableStatement(struct VariableAssignment_S* var, struct Variab
     return true;
 }
 
-bool32 processFunctionCall(struct CallExpression_S* call, struct FunctionCallStatement* callStatement, Project* project){
-    memcpy(&call->function, &callStatement->call->function->identifier, sizeof(AvString));
+bool32 processFunctionCall(struct CallExpression_S* call, struct Call* callStatement, Project* project){
+    memcpy(&call->function, &callStatement->function->identifier, sizeof(AvString));
     uint64 parameterCount = 0;
-    struct Argument* iterator = callStatement->call->argument;
-    while(iterator){
+    struct Argument* iterator = callStatement->argument;
+    while(iterator && iterator->expression){
         parameterCount++;
         iterator = iterator->next;
     }
+    struct Expression_S* parameters = nullptr;
+    if(parameterCount){
+        parameters = avAllocatorAllocate(sizeof(struct Expression_S)*parameterCount, &project->allocator);
+        uint32 index = 0;
+        iterator = callStatement->argument;
+        while(iterator && iterator->expression){
 
-    struct Expression_S* parameters = avAllocatorAllocate(sizeof(struct Expression_S), &project->allocator);
-    uint32 index = 0;
-    iterator = callStatement->call->argument;
-    while(iterator){
-        if(iterator->expression){
             processExpressionExpression(parameters+index, iterator->expression, project);
-        }else{
-            parameters[index].type = EXPRESSION_TYPE_NONE;
+            
+            index++;
+            iterator = iterator->next;
         }
-        index++;
-        iterator = iterator->next;
     }
     call->argumentCount = parameterCount;
     call->arguments = parameters;
@@ -322,7 +326,7 @@ bool32 processCommandStatement(struct CommandStatement_S* stat, struct CommandSt
     }
     if(statement->type == COMMAND_STATEMENT_FUNCTION_CALL){
         stat->type = COMMAND_STATEMENT_FUNCTION_CALL;
-        return processFunctionCall(&stat->functionCall, statement->functionCall, project);
+        return processFunctionCall(&stat->functionCall, statement->functionCall->call, project);
     }
     return false;
 }
@@ -373,7 +377,7 @@ bool32 processPerformStatement(struct PerformStatement_S* stat, struct PerformOp
     }
     if(statement->type==PERFORM_OPERATION_TYPE_FUNCTION_CALL){
         stat->type = PERFORM_STATEMENT_TYPE_FUNCTION_CALL;
-        return processFunctionCall(&stat->functionCall, statement->functionCall, project);
+        return processFunctionCall(&stat->functionCall, statement->functionCall->call, project);
     }
     if(statement->type == PERFORM_OPERATION_TYPE_VARIABLE_DEFINITION){
         stat->type = PERFORM_OPERATION_TYPE_VARIABLE_DEFINITION;
@@ -389,15 +393,16 @@ bool32 processPerformStatementBody(struct PerformStatementBody_S* stat, struct P
     while(iterator && iterator->performOperation){
         statementCount++;
         iterator = iterator->next;
-    }
-
-    struct PerformStatement_S* statements = avAllocatorAllocate(sizeof(struct PerformStatement_S)*statementCount, &project->allocator);
-    uint32 index = 0;
-    iterator = statement->performOperationList;
-    while(iterator && iterator->performOperation){
-        processPerformStatement(statements+index, iterator->performOperation, project);
-        index++;
-        iterator = iterator->next;
+    }struct PerformStatement_S* statements = nullptr;
+    if(statementCount){
+        statements = avAllocatorAllocate(sizeof(struct PerformStatement_S)*statementCount, &project->allocator);
+        uint32 index = 0;
+        iterator = statement->performOperationList;
+        while(iterator && iterator->performOperation){
+            processPerformStatement(statements+index, iterator->performOperation, project);
+            index++;
+            iterator = iterator->next;
+        }
     }
     stat->statementCount = statementCount;
     stat->statements = statements;
@@ -595,7 +600,11 @@ bool32 processProject(void* statements, Project* project){
                     }
                     struct ImportDescription external = (struct ImportDescription){
                         .identifier = mapping.alias,
-                        .importLocation = i,
+                        .extIdentifier = mapping.symbol,
+                        .importFile = {
+                            .chrs = import.importFile.chrs + 1,
+                            .len = import.importFile.len - 2,
+                        },
                     };
                     avDynamicArrayAdd(&external, project->externals);
                 }

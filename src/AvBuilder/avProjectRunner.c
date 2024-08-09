@@ -58,12 +58,24 @@ void runtimeError(Project* project, const char* message, ...){
     avStringPrintf(AV_CSTR("]\n"));
 
     avStringPrintf(AV_CSTR("Globals: [\n"));
-    avDynamicArrayForEachElement(struct VariableDescription, project->variables, {
-        struct VariableDescription var = element;
-        avStringPrintf(AV_CSTR("\t%s = "), var.identifier);
-        printValue(*var.value);
-        avStringPrint(AV_CSTR("\n"));
-    });
+    for(uint32 index = 0; index < avDynamicArrayGetSize(project->variables); index++) {
+         struct VariableDescription element; 
+         avDynamicArrayRead(&element, index, (project->variables)); 
+         { 
+            struct VariableDescription var = element; 
+            avStringPrintf(((AvString){
+                .chrs="\t%s = ", 
+                .len=avCStringLength("\t%s = "), 
+                .memory=((AvStringMemory*)0)
+            }), var.identifier); 
+            if(var.value){
+                printValue(*var.value); 
+            }
+            avStringPrint(((AvString){
+                .chrs="\n", .len=avCStringLength("\n"), .memory=((AvStringMemory*)0)
+            })); 
+        } 
+    };
     avStringPrintf(AV_CSTR("]\n"));
 
     avStringPrintf(AV_CSTR("Constants: [\n"));
@@ -328,10 +340,119 @@ struct Value performMultiplication(struct MultiplicationExpression_S expression,
     };
 }
 
-__warnattr("not implmented")
+void assignConstant(struct VariableDescription description, struct Value value, Project* project);
+void addVariableToContext(struct VariableDescription description, Project* project);
+
+
+Project* importProject(AvString projectFile, Project* baseProject){
+    avStringDebugContextStart;
+
+    AvString projectFileContent = AV_EMPTY;
+    AvString projectFileName = AV_EMPTY;
+    if(!loadProjectFile(projectFile, &projectFileContent, &projectFileName)){
+        avStringPrintf(AV_CSTR("Failed to load project file %s\n"), projectFile);
+        goto loadingFailed;
+    }
+
+    AV_DS(AvDynamicArray, Token) tokens = AV_EMPTY;
+    avDynamicArrayCreate(0, sizeof(Token), &tokens);
+    if(!tokenizeProject(projectFileContent, projectFileName, tokens)){
+        avStringPrintf(AV_CSTR("Failed to tokenize project file %s\n"), projectFile);
+        goto tokenizingFailed;
+    }
+    //printTokenList(tokens);
+   
+    Project* project = avAllocatorAllocate(sizeof(Project), &baseProject->allocator);
+    avDynamicArrayAdd(&project, baseProject->importedProjects);
+
+    projectCreate(project, projectFileName, projectFileContent);
+    struct ProjectStatementList* statements = nullptr;
+    if(!parseProject(tokens, (void**)&statements, project)){
+        avStringPrintf(AV_CSTR("Failed to parse project file %s\n"), projectFile);
+        goto parsingFailed;
+    }
+    
+    if(!processProject(statements, project)){
+        avStringPrintf(AV_CSTR("Failed to perform processing on project file %s\n"), projectFile);
+        goto processingFailed;
+    }
+
+    for(uint32 i = 0; i < builtInVariableCount; i++){
+        struct BuiltInVariableDescription var = builtInVariables[i];
+        assignConstant((struct VariableDescription){
+            .identifier = var.identifier,
+            .project = project,
+            .statement = -1,
+        }, var.value, project);
+    }
+
+    assignConstant((struct VariableDescription){
+            .identifier = AV_CSTR("PROJECT_NAME"),
+            .project = project,
+            .statement = -1,
+    }, (struct Value){.type=VALUE_TYPE_STRING,.asString=baseProject->name}, project);
+
+    for(uint32 i = 0; i < project->statementCount; i++){
+        struct Statement_S* statement = (project->statements)[i];
+        switch(statement->type){
+            case STATEMENT_TYPE_IMPORT:
+            case STATEMENT_TYPE_FUNCTION_DEFINITION:
+                break;
+            case STATEMENT_TYPE_VARIABLE_ASSIGNMENT:
+                addVariableToContext((struct VariableDescription){
+                    .identifier = statement->variableAssignment.variableName,
+                    .project = project,
+                    .statement = i,
+                    .value = nullptr,
+                }, project);
+                break;
+            case STATEMENT_TYPE_NONE:
+                avAssert(false, "logic error");
+                goto processingFailed;
+        }
+    }
+    avDynamicArrayDestroy(tokens);
+    return project;
+
+processingFailed:
+parsingFailed:
+    projectDestroy(project);
+tokenizingFailed:
+    avDynamicArrayDestroy(tokens);
+loadingFailed:
+    avStringFree(&projectFileName); 
+    avStringFree(&projectFileContent);
+
+    avStringDebugContextEnd;
+    return nullptr;
+}
+
+struct VariableDescription findVariable(AvString identifier, Project* project);
+
 struct VariableDescription importVariable(struct ImportDescription import, Project* project){
-    avAssert(false, "not implemented yet");
-    return (struct VariableDescription){0};
+
+    bool32 found = false;
+    Project* extProject = nullptr;
+    for(uint32 index = 0; index < avDynamicArrayGetSize(project->importedProjects); index++) { 
+        Project* element; 
+        avDynamicArrayRead(&element, index, (project->importedProjects)); 
+        { 
+            if(avStringEquals(import.importFile, element->name)){
+                found = true;
+                break;
+            }
+        }
+    }
+
+    if(!found){
+        extProject = importProject(import.importFile, project);
+    }
+    if(!extProject){
+        runtimeError(project, "failed to import project file %s", import.importFile);
+        return (struct VariableDescription) {0};
+    }
+
+    return findVariable(import.extIdentifier, extProject);
 }
 
 struct VariableDescription findVariable(AvString identifier, Project* project){
@@ -394,7 +515,7 @@ struct Value retrieveVariableValue(struct IdentifierExpression_S identifier, Pro
         runtimeError( project,"importing variable of wrong type");
         return NULL_VALUE;
     }
-    return getValue(statement->variableAssignment.value, project);
+    return getValue(statement->variableAssignment.value, description.project);
 }
 
 static void addFilesInPath(AvString directory, AvPathRef root, bool32 recursive, AvDynamicArray files, Project* project){
@@ -574,10 +695,30 @@ struct Value filterValues(struct FilterExpression_S filter, Project* project){
     return filtered;
 }
 
-__warnattr("not implemented")
+struct FunctionDescription findFunction(AvString identifier, Project* project);
 struct FunctionDescription importFunction(struct ImportDescription import, Project* project){
-    runtimeError(project, "importing functions is not implemented yet, was trying to import %s from %s", import.identifier, import.importLocation);
-    return (struct FunctionDescription){0};
+    bool32 found = false;
+    Project* extProject = nullptr;
+    for(uint32 index = 0; index < avDynamicArrayGetSize(project->importedProjects); index++) { 
+        Project* element; 
+        avDynamicArrayRead(&element, index, (project->importedProjects)); 
+        { 
+            if(avStringEquals(import.importFile, element->name)){
+                found = true;
+                break;
+            }
+        }
+    }
+
+    if(!found){
+        extProject = importProject(import.importFile, project);
+    }
+    if(!extProject){
+        runtimeError(project, "failed to import project file %s", import.importFile);
+        return (struct FunctionDescription) {0};
+    }
+
+    return findFunction(import.extIdentifier, extProject);
 }
 
 struct FunctionDescription findFunction(AvString identifier, Project* project){
@@ -691,6 +832,27 @@ uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
                 .memory = nullptr,
             };
             struct VariableDescription var = findVariable(varName, project);
+            if(!var.value){
+                if(!var.project){
+                    runtimeError(project, "unable to find variable %s", varName);
+                    goto invalidValue;
+                }
+                if(var.statement >= var.project->statementCount){
+                    goto invalidValue;
+                }
+                struct Statement_S* statement = var.project->statements[var.statement];
+                if(statement->type != STATEMENT_TYPE_VARIABLE_ASSIGNMENT){
+                    goto invalidValue;
+                }
+                if(!statement->variableAssignment.value){
+                    goto invalidValue;
+                }
+                struct Value* value = avAllocatorAllocate(sizeof(struct Value), &project->allocator);
+                struct Value tmpValue = getValue(statement->variableAssignment.value, project);
+                memcpy(value, &tmpValue, sizeof(struct Value));
+                var.value = value;
+                invalidValue:
+            }
             if(!var.project || var.value==nullptr || var.value->type==VALUE_TYPE_NONE){
                 avDynamicArrayAddRange((char*)varName.chrs-1, varName.len+1, 0, 1, chars);
                 i = j-1;
@@ -793,7 +955,7 @@ uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
                 };
                 AvString rightMost = {
                     .chrs = arg.chrs + j,
-                    .len = arg.len - right,
+                    .len = right - j,
                 };
                 avDynamicArraySetAllowRelocation(true, chars);
                 for(uint32 k = 0; k < leftMost.len; k++){
@@ -882,6 +1044,9 @@ void parseCommandString(AvString str, struct CommandDescription** dst, Project* 
         };
         avDynamicArrayAdd(&arg, args);
     }
+
+    
+
     uint32 argCount = avDynamicArrayGetSize(args);
     avDynamicArrayMakeContiguous(args);
     AvString* strings = avDynamicArrayGetPageDataPtr(0, args);
@@ -891,11 +1056,13 @@ void parseCommandString(AvString str, struct CommandDescription** dst, Project* 
 
     AvProcess process = AV_EMPTY;
 	avProcessStart(info, &process);
-	avProcessWaitExit(process);
+	int32 retCode = avProcessWaitExit(process);
     avProcessDiscard(process);
 
     avProcessStartInfoDestroy(&info);
     
+    avStringPrintf(AV_CSTR("%i = %s\n"), retCode, AV_CSTR(buffer));
+
     avFree(buffer);
     avDynamicArrayDestroy(finalArg);
 
@@ -1081,23 +1248,23 @@ struct Value callFunction(struct CallExpression_S call, Project* project){
     }
     struct FunctionDefinition_S function = statement->functionDefinition;
     if(function.parameterCount != call.argumentCount){
-        runtimeError( project,"invalid number of arguments in function call");
+        runtimeError( project,"invalid number of arguments calling function %s", call.function);
     }
 
     
-    startLocalContext(project, false);
+    startLocalContext(description.project, false);
     for(uint32 i = 0; i < call.argumentCount; i++){
         struct Value value = values[i];
         struct VariableDescription variable = {
             .identifier = function.parameters[i],
-            .project = project,
+            .project = description.project,
             .statement = description.statement,
         };
-        assignVariable(variable, value, project);
+        assignVariable(variable, value, description.project);
     }
     avFree(values);
-    struct Value returnValue = runFunction(function, project);
-    endLocalContext(project);
+    struct Value returnValue = runFunction(function, description.project);
+    endLocalContext(description.project);
 
     return returnValue;
 }
@@ -1118,7 +1285,9 @@ void sanitizeString(AvStringRef str, Project* project){
     };
     avStringReplaceAll(&newStr, *str, sizeof(seqs)/sizeof(AvString)/2, sizeof(AvString)*2, seqs, seqs+1);
     memset(str, 0 ,sizeof(AvString));
-    avStringCopyToAllocator(newStr, str, &project->allocator);
+    if(newStr.len){
+        avStringCopyToAllocator(newStr, str, &project->allocator);
+    }
     avStringFree(&newStr);
     avStringDebugContextEnd;
 }
@@ -1381,7 +1550,7 @@ void printHelp(struct FunctionDefinition_S function){
     avStringPrintf(AV_CSTR("\n"));
 }
 
-uint32 runProject(Project* project, AvDynamicArray arguments, struct ProjectOptions options){
+uint32 runProject(Project* project, AvDynamicArray arguments){
     
     for(uint32 i = 0; i < builtInVariableCount; i++){
         struct BuiltInVariableDescription var = builtInVariables[i];
@@ -1414,8 +1583,8 @@ uint32 runProject(Project* project, AvDynamicArray arguments, struct ProjectOpti
 
     }
     AvString* entry = &project->name;
-    if(options.entry.len > 0 && options.entry.chrs){
-        entry = &options.entry;
+    if(project->options.entry.len > 0 && project->options.entry.chrs){
+        entry = &project->options.entry;
     }
 
     struct FunctionDescription mainFunction = findFunction(*entry, project);

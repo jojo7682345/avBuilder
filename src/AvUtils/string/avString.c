@@ -569,7 +569,15 @@ uint64 avStringReplaceAll(AvStringRef dst, AvString str, uint32 count, uint64 st
 	avAssert(dst != nullptr, "destination must be a valid reference");
 	avAssert(sequences != nullptr, "sequences must be a valid array");
 	avAssert(replacements != nullptr, "replacements must be a valid array");
-
+	if(str.len == 0){
+		AvString tmpStr = {
+			.chrs = nullptr,
+			.len = 0,
+			.memory = nullptr,
+		};
+		memcpy(dst, &tmpStr, sizeof(AvString));
+		return 0;
+	}
 	uint64* counts = avCallocate(count, sizeof(uint64), "counts");
 	uint64 totalCount = 0;
 	for(uint32 i = 0; i < count; i++){

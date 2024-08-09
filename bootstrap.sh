@@ -31,7 +31,7 @@ exit $ret
 #include "include/AvUtils/avTypes.h"
 
 #define CC "gcc"
-#define CFLAGS "-std=c11 -Wall -ggdb -fPIC -lm -Wjump-misses-init"
+#define CFLAGS "-std=c11 -Wall -ggdb -fPIC -lm"
 #define INCLUDES "include"
 #define PROGRAM "avBuilder"
 

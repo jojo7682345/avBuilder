@@ -1,8 +1,8 @@
-#!./avBuilder
+#!/win/shared/usr/avBuilder/avBuilder
 
-import "test.project" {
-    func1 as extFunc;
-    var1 as extVar;
+import "test/test.project" {
+    version as testVersion;
+    getVar as getVar;
 }
 
 version = "3.3.2";
@@ -52,19 +52,24 @@ link(objects, libDirs, libs, executableName, outDir) {
     return output;
 }
 
+testEntry(){
+    perform {
+        println(getVar());
+    }
+}
+
 
 avBuilder() {
     perform {
         sourceDirs = [
             "src"
         ];
-        
         sourceFiles = filter(FILTER_TYPE_ENDS_WITH, ".c", files in sourceDirs recursive);
         objectFiles = compile(
             sourceFiles,
             includes,
             "out"
         );
-        executable = link(objectFiles,,libs,PROJECT_NAME, ".");
+        executable = link(objectFiles,[],libs,PROJECT_NAME, ".");
     }
 }
