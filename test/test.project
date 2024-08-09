@@ -1,4 +1,4 @@
-version = getVar();
+version = "0.0.1";
 compiler = "gcc";
 
 getVar(){

@@ -57,13 +57,13 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
         avStringPrintf(AV_CSTR("Failed to tokenize project file %s\n"), projectFilePath);
         result = -1;
         avStringFree(&projectFileContent);
-            avStringFree(&projectFileName); 
+        avStringFree(&projectFileName); 
         goto tokenizingFailed;
     }
     //printTokenList(tokens);
    
     Project project = AV_EMPTY;
-    projectCreate(&project, projectFileName, projectFileContent);
+    projectCreate(&project, projectFileName, projectFilePath, projectFileContent);
     struct ProjectStatementList* statements = nullptr;
     if(!parseProject(tokens, (void**)&statements, &project)){
         avStringPrintf(AV_CSTR("Failed to parse project file %s\n"), projectFilePath);
@@ -111,6 +111,7 @@ parsingFailed:
 tokenizingFailed:
     avDynamicArrayDestroy(tokens);
 loadingFailed:
+    avStringFree(&projectFileName);
     avStringDebugContextEnd;
     return result;
 }
@@ -130,7 +131,7 @@ void endLocalContext(struct Project* project){
     avFree(context);
 }
 
-void projectCreate(struct Project* project, AvString name, AvString content){
+void projectCreate(struct Project* project, AvString name, AvString file, AvString content){
     avAllocatorCreate(0, AV_ALLOCATOR_TYPE_DYNAMIC, &(project->allocator));
     avDynamicArrayCreate(0, sizeof(struct VariableDescription), &project->variables);
     avDynamicArrayCreate(0, sizeof(struct VariableDescription), &project->constants);
@@ -140,7 +141,7 @@ void projectCreate(struct Project* project, AvString name, AvString content){
     avDynamicArrayCreate(0, sizeof(struct ConstValue*), &project->arrays);
     avStringClone(&project->name, name);
     memcpy(&project->projectFileContent, &content, sizeof(AvString));
-    memcpy(&project->projectFileName, &name, sizeof(AvString));
+    avStringClone(&project->projectFileName, file);
     
     project->localContext = NULL;
 }

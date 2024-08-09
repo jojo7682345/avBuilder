@@ -1,11 +1,10 @@
 #!/usr/bin/avBuilder
 
 import "test/test.project" {
-    version as testVersion;
-    getVar as getVar;
+    version;
+    getVar;
 }
 
-version = "3.3.2";
 compiler = "gcc";
 linker = "gcc";
 
@@ -54,7 +53,7 @@ link(objects, libDirs, libs, executableName, outDir) {
 
 testEntry(){
     perform {
-        println(getVar());
+        println(version);
     }
 }
 

@@ -119,7 +119,7 @@ bool32 runProject(Project* project, AvDynamicArray arguments);
 
 void startLocalContext(struct Project* project, bool32 inherit);
 void endLocalContext(struct Project* project);
-void projectCreate(struct Project* project, AvString name, AvString content);
+void projectCreate(struct Project* project, AvString name, AvString file, AvString content);
 void projectDestroy(struct Project* project);
 
 #endif//__AV_BUILDER__ 

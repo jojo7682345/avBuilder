@@ -495,7 +495,11 @@ struct Statement_S* processFunctionDefinitionStatement(struct FunctionDefinition
 
 bool32 processImportMapping(struct ImportMapping_S* map, struct DefinitionMapping* mapping, Project* project){
     memcpy(&map->symbol, &mapping->symbol, sizeof(AvString));
-    memcpy(&map->alias, &mapping->symbolAlias, sizeof(AvString));
+    if(map->alias.len){
+        memcpy(&map->alias, &mapping->symbolAlias, sizeof(AvString));
+    }else{
+        memcpy(&map->alias, &mapping->symbol, sizeof(AvString));
+    }
     return true;
 }
 

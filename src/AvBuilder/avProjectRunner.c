@@ -365,7 +365,7 @@ Project* importProject(AvString projectFile, Project* baseProject){
     Project* project = avAllocatorAllocate(sizeof(Project), &baseProject->allocator);
     avDynamicArrayAdd(&project, baseProject->importedProjects);
 
-    projectCreate(project, projectFileName, projectFileContent);
+    projectCreate(project, projectFileName, projectFile, projectFileContent);
     struct ProjectStatementList* statements = nullptr;
     if(!parseProject(tokens, (void**)&statements, project)){
         avStringPrintf(AV_CSTR("Failed to parse project file %s\n"), projectFile);
@@ -413,6 +413,8 @@ Project* importProject(AvString projectFile, Project* baseProject){
     }
     avDynamicArrayDestroy(tokens);
     memcpy(&project->options, &baseProject->options, sizeof(struct ProjectOptions));
+    avStringFree(&projectFileName);
+    avStringDebugContextEnd;
     return project;
 
 processingFailed:
@@ -438,7 +440,7 @@ struct VariableDescription importVariable(struct ImportDescription import, Proje
         Project* element; 
         avDynamicArrayRead(&element, index, (project->importedProjects)); 
         { 
-            if(avStringEquals(import.importFile, element->name)){
+            if(avStringEquals(import.importFile, element->projectFileName)){
                 found = true;
                 break;
             }
