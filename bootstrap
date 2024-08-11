@@ -97,7 +97,7 @@ int main(int argC, char* argV[]) {
         SOURCE_FILE("src/AvUtils/memory",           "avDynamicAllocator"),
         SOURCE_FILE("src/AvUtils/memory",           "avLinearAllocator"),
         SOURCE_FILE("src/AvUtils/dataStructures",   "avStream"),
-        SOURCE_FILE("src/AvUtils/string",           "avRegex"),
+        SOURCE_FILE("src/AvUtils/environment",      "avEnvironment"),
         SOURCE_FILE("src/AvBuilder",                "avProjectLoader"),
         SOURCE_FILE("src/AvBuilder",                "avProjectTokenizer"),
         SOURCE_FILE("src/AvBuilder",                "avProjectParser"),

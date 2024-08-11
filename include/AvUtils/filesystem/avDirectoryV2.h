@@ -29,6 +29,9 @@ typedef struct AvPath {
 } AvPath;
 typedef struct AvPath* AvPathRef;
 
+bool32 avDirectoryExists(AvString location);
+uint32 avMakeDirectory(AvString location);
+uint32 avMakeDirectoryRecursive(AvString location);
 
 bool32 avDirectoryOpen(AvString location, AvPath* root, AvPathRef path);
 void avDirectoryClose(AvPathRef path);

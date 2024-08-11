@@ -10,6 +10,7 @@
 #include <stddef.h>
 #include <AvUtils/string/avRegex.h>
 #include <AvUtils/avProcess.h>
+#include <AvUtils/avEnvironment.h>
 
 #define AV_DYNAMIC_ARRAY_EXPOSE_MEMORY_LAYOUT
 #include <AvUtils/dataStructures/avDynamicArray.h>
@@ -344,20 +345,33 @@ void assignConstant(struct VariableDescription description, struct Value value, 
 void addVariableToContext(struct VariableDescription description, Project* project);
 
 
-Project* importProject(AvString projectFile, Project* baseProject){
+Project* importProject(AvString projectFile, bool32 local, Project* baseProject){
     avStringDebugContextStart;
+
+    AvString projectFileStr = AV_EMPTY;
+    if(!local){
+        AvString homeDir = AV_EMPTY;
+        if(!avGetEnvironmentVariable(AV_CSTR("HOME"), &homeDir)){
+            runtimeError(baseProject, "Could not get HOME environment variable");
+            return nullptr;
+        }
+        avStringJoin(&projectFileStr, homeDir, AV_CSTRA("/"), configPath, templatePath, projectFile);
+        avStringFree(&homeDir);
+    }else{
+        avStringClone(&projectFileStr, projectFile);
+    }
 
     AvString projectFileContent = AV_EMPTY;
     AvString projectFileName = AV_EMPTY;
-    if(!loadProjectFile(projectFile, &projectFileContent, &projectFileName)){
-        avStringPrintf(AV_CSTR("Failed to load project file %s\n"), projectFile);
+    if(!loadProjectFile(projectFileStr, &projectFileContent, &projectFileName)){
+        avStringPrintf(AV_CSTR("Failed to load project file %s\n"), projectFileStr);
         goto loadingFailed;
     }
 
     AV_DS(AvDynamicArray, Token) tokens = AV_EMPTY;
     avDynamicArrayCreate(0, sizeof(Token), &tokens);
     if(!tokenizeProject(projectFileContent, projectFileName, tokens)){
-        avStringPrintf(AV_CSTR("Failed to tokenize project file %s\n"), projectFile);
+        avStringPrintf(AV_CSTR("Failed to tokenize project file %s\n"), projectFileStr);
         goto tokenizingFailed;
     }
     //printTokenList(tokens);
@@ -365,15 +379,15 @@ Project* importProject(AvString projectFile, Project* baseProject){
     Project* project = avAllocatorAllocate(sizeof(Project), &baseProject->allocator);
     avDynamicArrayAdd(&project, baseProject->importedProjects);
 
-    projectCreate(project, projectFileName, projectFile, projectFileContent);
+    projectCreate(project, projectFileName, projectFileStr, projectFileContent);
     struct ProjectStatementList* statements = nullptr;
     if(!parseProject(tokens, (void**)&statements, project)){
-        avStringPrintf(AV_CSTR("Failed to parse project file %s\n"), projectFile);
+        avStringPrintf(AV_CSTR("Failed to parse project file %s\n"), projectFileStr);
         goto parsingFailed;
     }
     
     if(!processProject(statements, project)){
-        avStringPrintf(AV_CSTR("Failed to perform processing on project file %s\n"), projectFile);
+        avStringPrintf(AV_CSTR("Failed to perform processing on project file %s\n"), projectFileStr);
         goto processingFailed;
     }
 
@@ -412,6 +426,7 @@ Project* importProject(AvString projectFile, Project* baseProject){
         }
     }
     avDynamicArrayDestroy(tokens);
+    avStringFree(&projectFileStr);
     memcpy(&project->options, &baseProject->options, sizeof(struct ProjectOptions));
     avStringFree(&projectFileName);
     avStringDebugContextEnd;
@@ -425,7 +440,7 @@ tokenizingFailed:
 loadingFailed:
     avStringFree(&projectFileName); 
     avStringFree(&projectFileContent);
-
+    avStringFree(&projectFileStr);
     avStringDebugContextEnd;
     return nullptr;
 }
@@ -448,7 +463,7 @@ struct VariableDescription importVariable(struct ImportDescription import, Proje
     }
 
     if(!found){
-        extProject = importProject(import.importFile, project);
+        extProject = importProject(import.importFile, import.isLocalFile, project);
     }
     if(!extProject){
         runtimeError(project, "failed to import project file %s", import.importFile);
@@ -714,7 +729,7 @@ struct FunctionDescription importFunction(struct ImportDescription import, Proje
     }
 
     if(!found){
-        extProject = importProject(import.importFile, project);
+        extProject = importProject(import.importFile, import.isLocalFile, project);
     }
     if(!extProject){
         runtimeError(project, "failed to import project file %s", import.importFile);
@@ -1093,7 +1108,7 @@ void performCommand(struct CommandStatementBody_S command, Project* project){
     }
 
     struct VariableDescription commandVar = findVariable(AV_CSTR("command"), project);
-    if(commandVar.value!=nullptr && commandVar.value->type != VALUE_TYPE_STRING){
+    if(commandVar.value==nullptr || commandVar.value->type != VALUE_TYPE_STRING){
         runtimeError(project, "command value is not string");
         endLocalContext(project);
         return;

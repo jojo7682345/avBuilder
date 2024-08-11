@@ -506,6 +506,7 @@ bool32 processImportMapping(struct ImportMapping_S* map, struct DefinitionMappin
 struct Statement_S* processImportStatement(struct ImportStatement import, Project* project){
     struct Statement_S* statement = avAllocatorAllocate(sizeof(struct Statement_S), &project->allocator);
     statement->type = STATEMENT_TYPE_IMPORT;
+    statement->importStatement.local = import.local;
     memcpy(&statement->importStatement.importFile, &import.file, sizeof(AvString));
     uint64 mappingCount = 0;
     struct DefinitionMappingList* iterator = import.definitionMappingList;
@@ -609,6 +610,7 @@ bool32 processProject(void* statements, Project* project){
                             .chrs = import.importFile.chrs + 1,
                             .len = import.importFile.len - 2,
                         },
+                        .isLocalFile = import.local,
                     };
                     avDynamicArrayAdd(&external, project->externals);
                 }

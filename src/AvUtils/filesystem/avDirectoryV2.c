@@ -18,7 +18,30 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <errno.h>
+#include <linux/limits.h>
 #endif
+
+static int mkdirs(const char *dir, unsigned int mode) {
+    char tmp[PATH_MAX];
+    char *p = NULL;
+    size_t len;
+
+    snprintf(tmp, sizeof(tmp),"%s",dir);
+    len = strlen(tmp);
+    if (tmp[len - 1] == '/'){
+        tmp[len - 1] = 0;
+    }
+    for (p = tmp + 1; *p; p++){
+        if (*p == '/') {
+            *p = 0;
+            mkdir(tmp, mode);
+            *p = '/';
+        }
+    }
+    return mkdir(tmp, mode);
+}
 
 static AvPathNodeType pathGetType(AvString str) {
     AvString path = AV_EMPTY;
@@ -42,6 +65,39 @@ typeFound:
     return type;
 }
 
+bool32 avDirectoryExists(AvString location){
+    AvString tmpStr = AV_EMPTY;
+    avStringClone(&tmpStr, location);
+    bool32 ret = false;
+    DIR* dir = opendir(tmpStr.chrs);
+    if (dir) {
+        ret = true;
+        closedir(dir);
+    } else if (ENOENT == errno) {
+        ret = false;
+    } else {
+        avAssert(false, "opendir failed");
+    }
+    avStringFree(&tmpStr);
+    return ret;
+}
+
+uint32 avMakeDirectory(AvString location){
+    AvString tmpStr = AV_EMPTY;
+    avStringClone(&tmpStr, location);
+    int retCode = mkdir(tmpStr.chrs, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    avStringFree(&tmpStr);
+    return retCode;
+} 
+
+uint32 avMakeDirectoryRecursive(AvString location){
+    AvString tmpStr = AV_EMPTY;
+    avStringClone(&tmpStr, location);
+    int retCode = mkdirs(tmpStr.chrs, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    avStringFree(&tmpStr);
+    return retCode;
+}
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wjump-misses-init"
 bool32 avDirectoryOpen(AvString location, AvPath* root, AvPathRef pathRef){
@@ -58,6 +114,12 @@ bool32 avDirectoryOpen(AvString location, AvPath* root, AvPathRef pathRef){
         avStringClone(&fullPath, location);
     }
     avStringReplaceChar(&fullPath, '\\', '/');
+    AvString fullPathFixed = {
+        .chrs = fullPath.chrs,
+        .len = fullPath.len - (avStringEndsWith(fullPath, AV_CSTRA("/")) ? 1 : 0),
+        .memory = fullPath.memory,
+    };
+    avStringUnsafeCopy(&fullPath, &fullPathFixed);
     avStringCopyToAllocator(fullPath, &path.path, &path.allocator);
     if(pathGetType(fullPath)!=AV_PATH_NODE_TYPE_DIRECTORY){
         goto pathNotDirectory;

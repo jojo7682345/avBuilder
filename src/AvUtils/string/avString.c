@@ -587,6 +587,7 @@ uint64 avStringReplaceAll(AvStringRef dst, AvString str, uint32 count, uint64 st
 
 	if(totalCount==0){
 		avStringClone(dst, str);
+		avFree(counts);
 		return 0;
 	}
 
@@ -596,6 +597,7 @@ uint64 avStringReplaceAll(AvStringRef dst, AvString str, uint32 count, uint64 st
 		remainingLength -= counts[i] * ((AvString*)((byte*)sequences+(i*stride)))->len;
 		replacementLength += counts[i] * ((AvString*)((byte*)replacements+(i*stride)))->len;
 	}
+	avFree(counts);
 	uint64 newLength = remainingLength + replacementLength;
 	AvStringHeapMemory memory;
 	avStringMemoryHeapAllocate(newLength, &memory);
@@ -694,6 +696,10 @@ uint64 avStringReplace(AvStringRef dst, AvString str, AvString sequence, AvStrin
 
 	avStringFromMemory(dst, AV_STRING_WHOLE_MEMORY, memory);
 	return count;
+}
+
+void avStringUnsafeCopy(AvStringRef dst, AvStringRef src){
+	memcpy(dst, src, sizeof(AvString));
 }
 
 void avStringJoin_(AvStringRef dst, ...) {

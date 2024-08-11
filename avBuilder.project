@@ -1,6 +1,6 @@
 #!/usr/bin/avBuilder
 
-import "test/test.project" {
+import <test/test.project> {
     version;
     getVar;
 }

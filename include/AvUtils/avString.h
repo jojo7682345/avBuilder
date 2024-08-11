@@ -142,6 +142,8 @@ void avStringReplaceChar(AvStringRef str, char original, char replacement);
 uint64 avStringReplaceAll(AvStringRef dst, AvString str, uint32 count, uint64 stride, AvString* sequences, AvString* replacements);
 uint64 avStringReplace(AvStringRef dst, AvString str, AvString sequence, AvString replacement);
 
+void avStringUnsafeCopy(AvStringRef dst, AvStringRef src);
+
 void avStringJoin_(AvStringRef dst, ...);
 #define avStringJoin(dst, ...) avStringJoin_(dst,__VA_ARGS__, AV_STR((char*)AV_STRING_NULL, AV_STRING_NULL))
 

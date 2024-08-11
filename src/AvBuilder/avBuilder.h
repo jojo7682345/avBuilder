@@ -30,6 +30,7 @@
     TOKEN(PUNCTUATOR,   parenthese_open, "(")\
     TOKEN(PUNCTUATOR,   parenthese_close, ")")\
     TOKEN(PUNCTUATOR,   comma, ",")\
+    TOKEN(PUNCTUATOR,   dot, ".")\
     TOKEN(PUNCTUATOR,   plus, "+")\
     TOKEN(PUNCTUATOR,   minus, "-")\
     TOKEN(PUNCTUATOR,   divide, "/")\
@@ -49,14 +50,15 @@ typedef enum TokenTypeSpecifiers {
     LIST_OF_TOKENS
 }TokenTypeSpecifiers;
 #undef TOKEN
-#define TOKEN(type, token, symbol) TOKEN_TYPE_##type##_##token = (TOKEN_TYPE_SPECIFIER_##type##_##token<<5) | TOKEN_TYPE_##type,
+#define TOKEN(type, token, symbol) TOKEN_TYPE_##type##_##token = (TOKEN_TYPE_SPECIFIER_##type##_##token<<6) | TOKEN_TYPE_##type,
 typedef enum TokenType{
-    TOKEN_TYPE_NONE         = 0,
-    TOKEN_TYPE_KEYWORD      = 1<<0,
-    TOKEN_TYPE_STRING       = 1<<1,
-    TOKEN_TYPE_TEXT         = 1<<2,
-    TOKEN_TYPE_PUNCTUATOR   = 1<<3,
-    TOKEN_TYPE_NUMBER       = 1<<4,
+    TOKEN_TYPE_NONE             = 0,
+    TOKEN_TYPE_KEYWORD          = 1<<0,
+    TOKEN_TYPE_STRING           = 1<<1,
+    TOKEN_TYPE_TEXT             = 1<<2,
+    TOKEN_TYPE_PUNCTUATOR       = 1<<3,
+    TOKEN_TYPE_NUMBER           = 1<<4,
+    TOKEN_TYPE_SPECIAL_STRING   = 1<<5,
     LIST_OF_TOKENS
 }TokenType;
 #undef TOKEN
@@ -107,7 +109,8 @@ typedef struct Project {
     struct ProjectOptions options;
 } Project;
 
-
+extern const AvString configPath;
+extern const AvString templatePath;
 
 
 bool32 loadProjectFile(const AvString projectFilePath, AvStringRef projectFileContent, AvStringRef projectFileName);

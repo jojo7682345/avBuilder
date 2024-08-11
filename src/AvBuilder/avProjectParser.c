@@ -368,7 +368,7 @@ static struct CommandStatement* parseCommandStatement(TokenIterator* iterator){
     if(match(iterator, TOKEN_TYPE_KEYWORD_command)){
         struct VariableAssignment* var = avAllocatorAllocate(sizeof(struct VariableAssignment),iterator->allocator);
         var->variable = avAllocatorAllocate(sizeof(struct Variable), iterator->allocator);
-        memcpy(&var->variable->name, &keywords[(TOKEN_TYPE_KEYWORD_command>>5)-1], sizeof(AvString));
+        memcpy(&var->variable->name, &keywords[(TOKEN_TYPE_KEYWORD_command>>6)-1], sizeof(AvString));
         consume(iterator, TOKEN_TYPE_PUNCTUATOR_equals, "expected '='");
         var->expression = parseExpression(iterator);
         consume(iterator, TOKEN_TYPE_PUNCTUATOR_semicolon, "expected ';' after statement");
@@ -574,7 +574,15 @@ static struct DefinitionMappingList* parseDefinitionMappingList(TokenIterator* i
 
 static struct ImportStatement* parseImportStatement(TokenIterator* iterator){
     consume(iterator, TOKEN_TYPE_KEYWORD_import, "this should never trigger");
-    Token* fileName = consume(iterator, TOKEN_TYPE_STRING, "file name expected");
+
+    Token* fileName = nullptr;
+    if(match(iterator, TOKEN_TYPE_STRING, TOKEN_TYPE_SPECIAL_STRING)){
+        fileName = previous(iterator);
+    }else{
+        logParserError(iterator, TOKEN_TYPE_STRING, AV_CSTR("file name expected"));
+        return nullptr;
+    }
+
     struct ImportStatement* import = avAllocatorAllocate(sizeof(struct ImportStatement), iterator->allocator);
     memcpy(&(import->file), &(fileName->str), sizeof(AvString));
 
@@ -585,6 +593,8 @@ static struct ImportStatement* parseImportStatement(TokenIterator* iterator){
         import->definitionMappingList = avAllocatorAllocate(sizeof(struct DefinitionMappingList), iterator->allocator);
         import->definitionMappingList->definitionMapping = parseDefinitionMapping(iterator);
     }
+
+    import->local = fileName->type == TOKEN_TYPE_STRING;
 
     return import;
 }

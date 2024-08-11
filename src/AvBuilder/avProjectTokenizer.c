@@ -93,8 +93,8 @@ void consumeComments(uint64* const readIndex, uint32* const lineIndex, const AvS
 
 }
 
-bool32 consumeString(uint64 * const readIndex, const AvString projectFileContent){
-    if(projectFileContent.chrs[*readIndex]!='"'){
+bool32 consumeEnclosed(uint64* const readIndex, const AvString projectFileContent, char start, char end){
+    if(projectFileContent.chrs[*readIndex]!=start){
         return false;
     }
 
@@ -107,7 +107,7 @@ bool32 consumeString(uint64 * const readIndex, const AvString projectFileContent
             continue;
         }
 
-        if(chr == '"'){
+        if(chr == end){
             index++;
             break;
         }
@@ -115,6 +115,14 @@ bool32 consumeString(uint64 * const readIndex, const AvString projectFileContent
     }
     *readIndex = index;
     return true;
+}
+
+bool32 consumeString(uint64* const readIndex, const AvString projectFileContent){
+    return consumeEnclosed(readIndex, projectFileContent, '"', '"');
+}
+
+bool32 consumeSpecialString(uint64* const readIndex, const AvString projectFileContent){
+    return consumeEnclosed(readIndex, projectFileContent, '<', '>');
 }
 
 
@@ -232,6 +240,14 @@ bool32 consumeText(uint64 * const readIndex, const AvString projectFileContent){
 
 }
 
+__attribute__((unused))
+static void printTokenList(AvDynamicArray tokens){
+    avDynamicArrayForEachElement(Token, tokens, {
+        avStringPrintf(AV_CSTR("line %i type %i %s\n"), element.line, element.type, element.str);
+
+    });
+}
+
 bool32 tokenizeProject(const AvString projectFileContent, const AvString projectFileName, AvDynamicArray tokens){
 
     uint32 line = 1;
@@ -263,6 +279,11 @@ bool32 tokenizeProject(const AvString projectFileContent, const AvString project
 
         if(consumeString(&readIndex, projectFileContent)){
             tokenType = TOKEN_TYPE_STRING;
+            goto tokenFound;
+        }
+
+        if(consumeSpecialString(&readIndex, projectFileContent)){
+            tokenType = TOKEN_TYPE_SPECIAL_STRING;
             goto tokenFound;
         }
 
@@ -300,15 +321,9 @@ bool32 tokenizeProject(const AvString projectFileContent, const AvString project
             avDynamicArrayAdd(&token, tokens);
         }
     }
+
+    //printTokenList(tokens);
     return true;
-}
-
-__attribute__((unused))
-static void printTokenList(AvDynamicArray tokens){
-    avDynamicArrayForEachElement(Token, tokens, {
-        avStringPrintf(AV_CSTR("line %i type %i %s\n"), element.line, element.type, element.str);
-
-    });
 }
 
 

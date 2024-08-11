@@ -135,6 +135,7 @@ struct DefinitionMappingList{
 
 struct ImportStatement {
     AvString file;
+    bool32 local;
     struct DefinitionMappingList* definitionMappingList;
 };
 
@@ -427,6 +428,7 @@ struct ImportMapping_S{
 
 struct ImportStatement_S{
     AvString importFile;
+    bool32 local;
     uint32 mappingCount;
     struct ImportMapping_S* mappings;
 };
@@ -485,6 +487,7 @@ struct ImportDescription{
     AvString identifier;
     AvString importFile;
     AvString extIdentifier;
+    bool32 isLocalFile;
 };
 
 struct VariableDescription {
