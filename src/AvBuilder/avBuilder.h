@@ -37,7 +37,6 @@
     TOKEN(PUNCTUATOR,   colon, ":")
 #undef TOKEN
 
-//TOKEN(PUNCTUATOR,   dolar_sign, "$")\
 
 extern const AvString keywords[];
 extern const uint32 keywordCount;
