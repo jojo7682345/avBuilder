@@ -28,7 +28,7 @@ compile(source, includes, outDir) {
             ];
             objectFile = outDir + "/" + fileBaseName(sourceFile) + ".o";
             makeDirs(filePath(objectFile));
-            command="$compiler -c $sourceFile $args -o $objectFile";
+            command = "$compiler -c $sourceFile $args -o $objectFile";
             output[index]=objectFile;
         }
     }
@@ -72,3 +72,5 @@ avBuilder() {
         executable = link(objectFiles,[],libs,PROJECT_NAME, ".");
     }
 }
+
+
