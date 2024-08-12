@@ -153,6 +153,11 @@ struct CommandStatement {
 };
 
 struct CommandStatementList {
+    AvString retCodeVariable;
+    struct Expression* retCodeIndex;
+    AvString outputVariable;
+    struct Expression* outputVariableIndex;
+    struct Expression* pipeFile;
     struct CommandStatement* commandStatement;
     struct CommandStatementList* next;
 };
@@ -358,6 +363,11 @@ struct CommandStatement_S{
 };
 
 struct CommandStatementBody_S{
+    AvString retCodeVariable;
+    struct Expression_S* retCodeIndex;
+    AvString outputVariable;
+    struct Expression_S* outputVariableIndex;
+    struct Expression_S* pipeFile;
     uint32 statementCount;
     struct CommandStatement_S* statements;
 };

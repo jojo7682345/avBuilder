@@ -34,7 +34,10 @@
     TOKEN(PUNCTUATOR,   minus, "-")\
     TOKEN(PUNCTUATOR,   divide, "/")\
     TOKEN(PUNCTUATOR,   semicolon, ";")\
-    TOKEN(PUNCTUATOR,   colon, ":")
+    TOKEN(PUNCTUATOR,   colon, ":")\
+    TOKEN(PUNCTUATOR,   greater_than, ">")\
+    TOKEN(PUNCTUATOR,   pipe, "|")\
+    TOKEN(PUNCTUATOR,   error_pipe, "~")
 #undef TOKEN
 
 

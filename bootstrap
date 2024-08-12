@@ -85,6 +85,7 @@ int main(int argC, char* argV[]) {
         SOURCE_FILE("src/AvUtils/threading",        "avMutex"),
         SOURCE_FILE("src/AvUtils/memory",           "avMemory"),
         SOURCE_FILE("src/AvUtils/processes",        "avProcess"),
+        SOURCE_FILE("src/AvUtils/processes",        "avPipe"),
         SOURCE_FILE("src/AvUtils/logging",          "avAssert"),
         SOURCE_FILE("src/AvUtils/dataStructures",   "avDynamicArray"),
         SOURCE_FILE("src/AvUtils/dataStructures",   "avArray"),

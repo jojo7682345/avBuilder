@@ -21,7 +21,7 @@ libs=[
 compile(source, includes, outDir) {
     var output[arraySize(source)];
     foreach sourceFile[index] from source perform {
-        command {
+        command > file {
             args = [
                 "-I*includes",
                 "$flags"
@@ -30,8 +30,9 @@ compile(source, includes, outDir) {
             makeDirs(filePath(objectFile));
             command = "$compiler -c $sourceFile $args -o $objectFile";
             output[index]=objectFile;
-        }
-    }
+        };
+        print(file);
+    };
     return output;
 }
 
@@ -53,7 +54,11 @@ link(objects, libDirs, libs, executableName, outDir) {
 
 testEntry(){
     perform {
-        println(version);
+        var testVar;
+        command > testVar {
+            command = "gcc --version";
+        }
+        println(testVar[1,2,3,4]);
     }
 }
 

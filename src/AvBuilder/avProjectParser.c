@@ -388,6 +388,7 @@ static struct CommandStatementList* parseCommandStatementList(TokenIterator* ite
     struct CommandStatementList* l = list;
     do{
         l->commandStatement = parseCommandStatement(iterator);
+        while(match(iterator, TOKEN_TYPE_PUNCTUATOR_semicolon));
         if(!l->commandStatement){
             break;
         }
@@ -414,9 +415,41 @@ static struct PerformOperation* parsePerformOperation(TokenIterator* iterator) {
     struct PerformOperation* operation = avAllocatorAllocate(sizeof(struct PerformOperation), iterator->allocator);
     if(match(iterator, TOKEN_TYPE_KEYWORD_command)){
         operation->type = PERFORM_OPERATION_TYPE_COMMAND;
+        AvString retCodeVariable = AV_EMPTY_STRING;
+        AvString outputVariable = AV_EMPTY_STRING;
+        struct Expression* retCodeIndex = nullptr;
+        struct Expression* outputVariableIndex = nullptr;
+        struct Expression* pipeFile = nullptr;
+        if(match(iterator, TOKEN_TYPE_PUNCTUATOR_colon)){
+            Token* retVariable = consume(iterator, TOKEN_TYPE_TEXT, "expected variable for return code");
+            avStringUnsafeCopy(&retCodeVariable, &retVariable->str);
+            if(match(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_open)){
+                retCodeIndex = parseExpression(iterator); 
+                consume(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close, "expected ']'");
+            }
+        }
+        if(match(iterator, TOKEN_TYPE_PUNCTUATOR_greater_than)){
+            Token* outputVar = consume(iterator, TOKEN_TYPE_TEXT, "expected variable for output");
+            avStringUnsafeCopy(&outputVariable, &outputVar->str);
+            if(match(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_open)){
+                outputVariableIndex = parseExpression(iterator);
+                consume(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close, "expected ']'");
+            }
+        }
+        if(match(iterator, TOKEN_TYPE_SPECIFIER_PUNCTUATOR_pipe)){
+            pipeFile = parseExpression(iterator);
+        }
+
         consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_open, "expected body");
         operation->commandStatementList = parseCommandStatementList(iterator);
         consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_close, "expected end of body");
+
+        avStringUnsafeCopy(&operation->commandStatementList->retCodeVariable, &retCodeVariable);
+        avStringUnsafeCopy(&operation->commandStatementList->outputVariable, &outputVariable);
+        operation->commandStatementList->retCodeIndex = retCodeIndex;
+        operation->commandStatementList->outputVariableIndex = outputVariableIndex;
+        operation->commandStatementList->pipeFile = pipeFile;
+
         return operation;
     }
     if(match(iterator, TOKEN_TYPE_TEXT)){
@@ -448,6 +481,7 @@ static struct PerformOperationList* parsePerformOperationList(TokenIterator* ite
     struct PerformOperationList* l = list;
     do{
         l->performOperation = parsePerformOperation(iterator);
+        while(match(iterator, TOKEN_TYPE_PUNCTUATOR_semicolon));
         if(l->performOperation==nullptr){
             break;
         }
@@ -527,6 +561,7 @@ static struct FunctionStatementList* parseFunctionStatementList(TokenIterator* i
         if(l->functionStatement==nullptr){
             break;
         }
+        while(match(iterator, TOKEN_TYPE_PUNCTUATOR_semicolon));
         l->next = avAllocatorAllocate(sizeof(struct FunctionStatementList), iterator->allocator);
         l = l->next;
     }while(!check(iterator, TOKEN_TYPE_PUNCTUATOR_brace_close));
@@ -545,7 +580,6 @@ static struct FunctionDefinition* parseFunctionDefinition(TokenIterator* iterato
     consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_open, "expected function body");
     def->functionStatementList = parseFunctionStatementList(iterator);
     consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_close, "expected '}'");
-
     return def;
 }
 
@@ -568,6 +602,7 @@ static struct DefinitionMappingList* parseDefinitionMappingList(TokenIterator* i
         list->definitionMapping = parseDefinitionMapping(iterator);
         list->next = avAllocatorAllocate(sizeof(struct DefinitionMappingList), iterator->allocator);
         list = list->next;
+        while(match(iterator, TOKEN_TYPE_PUNCTUATOR_semicolon));
     }
     return definitionMapping;
 }
@@ -631,6 +666,7 @@ static struct ProjectStatementList* parseProjectStatementList(TokenIterator* ite
     struct ProjectStatementList* l = list;
     while(!isAtEnd(iterator)){
         l->statement = parseProjectStatement(iterator);
+        while(match(iterator, TOKEN_TYPE_PUNCTUATOR_semicolon));
         if(l->statement==nullptr){
             break;
         }

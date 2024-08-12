@@ -255,7 +255,16 @@ static bool32 executeProcess(AvProcessStartInfo info, AvProcess process) {
 
         
         //TODO: piping in and output
-
+        if(info.output){
+            close(STDOUT_FILENO); 
+            dup2(*info.output, STDOUT_FILENO);
+            close(*info.output);
+        }  
+        if(info.input){
+            close(STDIN_FILENO);   //closing stdin
+            dup2(*info.input, STDIN_FILENO); 
+            close(*info.input);  
+        }
         char** args = avCallocate(info.args.count+1, sizeof(char*), "args");
         for(uint32 i = 0; i < info.args.count; i++){
              args[i] = (char*)((AvString*)info.args.data)[i].chrs;
@@ -265,6 +274,18 @@ static bool32 executeProcess(AvProcessStartInfo info, AvProcess process) {
         if (execvp(args[0], args) < 0) {
             printf("Could not exec child process: %s: %s\n",
                   args[0], strerror(errno));
+            avFree(args);
+            exit(-1);
+        }
+
+        close(STDOUT_FILENO);
+        close(STDIN_FILENO);
+        close(STDERR_FILENO);
+        if(info.output){
+            close(*info.output);
+        }
+        if(info.input){
+            close(*info.input);
         }
 
         avFree(args);

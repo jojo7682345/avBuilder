@@ -7,10 +7,13 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <stddef.h>
+#include <unistd.h>
 #include <AvUtils/string/avRegex.h>
 #include <AvUtils/avProcess.h>
 #include <AvUtils/avEnvironment.h>
+#include <AvUtils/process/avPipe.h>
 
 #define AV_DYNAMIC_ARRAY_EXPOSE_MEMORY_LAYOUT
 #include <AvUtils/dataStructures/avDynamicArray.h>
@@ -826,9 +829,8 @@ struct Node {
     };
 };
 struct CommandDescription {
-    uint32 argumentCount;
-    AvString bin;
-    AvString args[];
+    AvDynamicArray args;
+    char* command;
 };
 
 uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
@@ -1063,31 +1065,14 @@ void parseCommandString(AvString str, struct CommandDescription** dst, Project* 
         avDynamicArrayAdd(&arg, args);
     }
 
-    
+    *dst = avAllocate(sizeof(struct CommandDescription), "commandDescription");
+    (*dst)->args = args;
+    (*dst)->command = buffer;
 
-    uint32 argCount = avDynamicArrayGetSize(args);
-    avDynamicArrayMakeContiguous(args);
-    AvString* strings = avDynamicArrayGetPageDataPtr(0, args);
-
-    AvProcessStartInfo info = AV_EMPTY;
-	avProcessStartInfoPopulateARR(&info, strings[0], (AvString)AV_EMPTY,argCount, strings);
-
-    AvProcess process = AV_EMPTY;
-	avProcessStart(info, &process);
-	int32 retCode = avProcessWaitExit(process);
-    avProcessDiscard(process);
-
-    avProcessStartInfoDestroy(&info);
-    
-    if(project->options.commandDebug){
-        avStringPrintf(AV_CSTR("%i = %s\n"), retCode, AV_CSTR(buffer));
-    }
-    avFree(buffer);
     avDynamicArrayDestroy(finalArg);
-
-    avDynamicArrayDestroy(args);
-    
 }
+
+void assignVariableIndexed(struct AvString identifier, uint32 index, struct Value value, Project* project);
 
 void performCommand(struct CommandStatementBody_S command, Project* project){
     startLocalContext(project, true);
@@ -1119,6 +1104,175 @@ void performCommand(struct CommandStatementBody_S command, Project* project){
     parseCommandString(commandUnformated, &commandDescription, project);
 
     endLocalContext(project);
+
+
+    uint32 argCount = avDynamicArrayGetSize(commandDescription->args);
+    avDynamicArrayMakeContiguous(commandDescription->args);
+    AvString* strings = avDynamicArrayGetPageDataPtr(0, commandDescription->args);
+
+    AvProcessStartInfo info = AV_EMPTY;
+	avProcessStartInfoPopulateARR(&info, strings[0], (AvString)AV_EMPTY, argCount, strings);
+
+    AvPipe pipe = AV_EMPTY;
+    if(command.outputVariable.len){
+        avPipeCreate(&pipe);
+        info.output = &pipe.write;
+    }
+
+    AvProcess process = AV_EMPTY;
+	avProcessStart(info, &process);
+    avPipeConsumeWriteChannel(&pipe);
+	int32 retCode = avProcessWaitExit(process);
+    avProcessDiscard(process);
+
+    avProcessStartInfoDestroy(&info);
+
+    if(command.outputVariable.len){
+        char buffer[4096] = {0};
+        AvDynamicArray data = AV_EMPTY;
+        avDynamicArrayCreate(0, 1, &data);
+        while(true){
+            int readBytes = read(pipe.read, buffer,  sizeof(buffer));
+            if(readBytes == -1){
+                runtimeError(project, "error reading from pipe");
+                return;
+            }
+            if(readBytes == 0){
+                break;
+            }
+            avDynamicArrayAddRange(buffer, readBytes, 0, 1, data);
+        }
+        avDynamicArrayMakeContiguous(data);
+        uint32 dataSize = avDynamicArrayGetSize(data);
+        char* strData = avAllocatorAllocate(dataSize+1, &project->allocator);
+        avDynamicArrayReadRange(strData, dataSize, 0, 1, 0, data);
+        avDynamicArrayDestroy(data);
+
+        if(command.outputVariableIndex){
+            struct Value indexValue = getValue(command.outputVariableIndex, project);
+            if(indexValue.type != VALUE_TYPE_NUMBER){
+                runtimeError(project, "cannot index with non number");
+                return;
+            }
+            uint32 index = indexValue.asNumber;
+            struct Value value = {
+                .type = VALUE_TYPE_STRING,
+                .asString = {
+                    .chrs = strData,
+                    .len = dataSize,
+                    .memory = nullptr,
+                },
+            };
+            assignVariableIndexed(command.outputVariable, index, value, project);
+        }else{
+            struct VariableDescription var = findVariable(command.outputVariable, project);
+            AvDynamicArray strs = AV_EMPTY;
+            avDynamicArrayCreate(0, sizeof(AvString), &strs);
+            uint32 start =  0;
+            uint32 end = 0;
+            for(; end < dataSize; end++){
+                char c = strData[end];
+                if(c=='\n'){
+                    AvString str = {
+                        .chrs = strData+start,
+                        .len = end - start,
+                        .memory = nullptr,
+                    };
+                    start = end+1;
+                    if(str.len != 0){
+                        avDynamicArrayAdd(&str, strs);
+                    }
+                }
+            }
+            if(start != dataSize){
+                AvString str = {
+                    .chrs = strData+start,
+                    .len = end - start,
+                    .memory = nullptr,
+                };
+                start = end+1;
+                avDynamicArrayAdd(&str, strs);
+            }
+
+            struct ConstValue* values = nullptr;
+            if(avDynamicArrayGetSize(strs)){
+                values = avAllocatorAllocate(sizeof(struct ConstValue) * avDynamicArrayGetSize(strs), &project->allocator);
+            }
+            for(uint32 i = 0; i < avDynamicArrayGetSize(strs); i++){
+                values[i].type = VALUE_TYPE_STRING;
+            }
+            avDynamicArrayReadRange(values, avDynamicArrayGetSize(strs), offsetof(struct ConstValue, asString), sizeof(struct ConstValue), 0, strs);
+            if(var.project){
+                assignVariable(var, (struct Value){
+                    .type = VALUE_TYPE_ARRAY,
+                    .asArray = {
+                        .count = avDynamicArrayGetSize(strs),
+                        .values = values,
+                    },
+                } ,project);
+            }else{
+                struct Value* value = avAllocatorAllocate(sizeof(struct Value), &project->allocator);
+                value->type = VALUE_TYPE_ARRAY,
+                value->asArray = (struct ArrayValue){
+                    .count = avDynamicArrayGetSize(strs),
+                    .values = values,
+                };
+                addVariableToContext((struct VariableDescription){
+                    .identifier = command.outputVariable,
+                    .project = project,
+                    .statement = -1,
+                    .value = value,
+                }, project);
+            }
+            avDynamicArrayDestroy(strs);
+        }
+
+        avPipeDestroy(&pipe);
+    }
+    
+    if(project->options.commandDebug){
+        avStringPrintf(AV_CSTR("%i = %s\n"), retCode, AV_CSTR(commandDescription->command));
+    }
+
+    avFree(commandDescription->command);
+    avDynamicArrayDestroy(commandDescription->args);
+    avFree(commandDescription);
+
+    if(command.retCodeVariable.len){
+        struct VariableDescription var = findVariable(command.retCodeVariable, project);
+        if(!var.project){
+            if(command.retCodeIndex){
+                runtimeError(project, "unable to index unknown variable %s", command.retCodeVariable);
+                return;
+            }
+
+            struct Value* retValue = avAllocatorAllocate(sizeof(struct Value), &project->allocator);
+            retValue->type= VALUE_TYPE_NUMBER;
+            retValue->asNumber = retCode;
+            addVariableToContext((struct VariableDescription){
+                .identifier= command.retCodeVariable, 
+                .project= project, 
+                .statement=-1,
+                .value = retValue,
+            }, project);
+        }else{
+            if(command.retCodeIndex){
+                struct Value index = getValue(command.retCodeIndex, project);
+                if(index.type != VALUE_TYPE_NUMBER){
+                    runtimeError(project, "can only index with number");
+                }
+                assignVariableIndexed(command.retCodeVariable,index.asNumber, (struct Value){.type=VALUE_TYPE_NUMBER, .asNumber=retCode}, project);
+            }else{
+                assignVariable((struct VariableDescription){
+                    .identifier = command.retCodeVariable,
+                    .project = project,
+                    .statement = -1,
+                }, (struct Value){.type=VALUE_TYPE_NUMBER, .asNumber=retCode}, project);
+            }
+        }
+
+    }
+
 }
 
 void addVariableToContext(struct VariableDescription description, Project* project);

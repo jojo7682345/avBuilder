@@ -351,6 +351,18 @@ bool32 processCommandStatementList(struct CommandStatementBody_S* body, struct C
         index++;
         iterator = iterator->next;
     }
+    avStringUnsafeCopy(&body->retCodeVariable, &statement->retCodeVariable);
+    avStringUnsafeCopy(&body->outputVariable, &statement->outputVariable);
+    
+    if(statement->retCodeIndex){
+        body->retCodeIndex = processExpression(statement->retCodeIndex, project);
+    }
+    if(statement->outputVariableIndex){
+        body->outputVariableIndex = processExpression(statement->outputVariableIndex, project);
+    }
+    if(statement->pipeFile){
+        body->pipeFile = processExpression(statement->pipeFile, project);
+    }
 
     body->statementCount = statementCount;
     body->statements = statements;
