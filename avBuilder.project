@@ -1,9 +1,4 @@
 #!/usr/bin/avBuilder
-
-import global "test/test.project" {
-    version;
-    getVar;
-}
 import "library/c/stdc.project" {
     build;
     getSourceFiles;
@@ -24,23 +19,6 @@ libs=[
 srcDir = [
     "src"
 ];
-
-testFunc(){
-    if(1) {
-        return 1;
-    } else if(1) {
-        return 2;
-    } else{
-        return 3;
-    }
-}
-
-testEntry(){
-    perform{
-         println(testFunc());   
-    }
-}
-
 
 avBuilder() {
     perform {

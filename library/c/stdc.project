@@ -1,6 +1,6 @@
 inherit compiler = "gcc";
 inherit linker = compiler;
-inherit validCextensions = [ ".c" , ".cpp" ];
+inherit validCextensions = [ ".c", ".C", ".s", ".S" ];
 
 compile(sources, outDir, flags, includes){
     var output[arraySize(sources)];
