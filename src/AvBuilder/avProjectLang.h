@@ -21,6 +21,21 @@ struct Primary {
     };
 };
 
+enum ComparisonOperator {
+    COMPARISON_OPERATOR_NONE = 0,
+    COMPARISON_OPERATOR_EQUALS,
+    COMPARISON_OPERATOR_NOT_EQUALS,
+    COMPARISON_OPERATOR_LESS_THAN,
+    COMPARISON_OPERATOR_LESS_THAN_OR_EQUAL,
+    COMPARISON_OPERATOR_GREATER_THAN,
+    COMPARISON_OPERATOR_GREATER_THAN_OR_EQUAL,
+};
+struct Comparison {
+    struct Array* left;
+    enum ComparisonOperator operator;
+    struct Array* right;
+};
+
 struct Array {
     struct Summation* expression;
     struct Array* next;
@@ -101,7 +116,7 @@ struct Grouping {
     struct Expression* expression;
 };
 struct Expression {
-    struct Array* array;
+    struct Comparison* comparison;
 };
 
 enum VariableAccessModifier{
@@ -139,16 +154,29 @@ struct ImportStatement {
     struct DefinitionMappingList* definitionMappingList;
 };
 
+struct InheritStatement {
+    AvString variable;
+    struct Expression* defaultValue;
+};
+
+struct IfCommandStatement{
+    struct Expression* check;
+    struct CommandStatementList* branch;
+    struct IfCommandStatement* alternativeBranch;
+};
+
 enum CommandStatementType {
     COMMAND_STATEMENT_NONE = 0,
     COMMAND_STATEMENT_VARIABLE_ASSIGNMENT,
     COMMAND_STATEMENT_FUNCTION_CALL,
+    COMMAND_STATEMENT_IF_STATEMENT,
 };
 struct CommandStatement {
     enum CommandStatementType type;
     union {
         struct VariableAssignment* variableAssignment;
         struct FunctionCallStatement* functionCall;
+        struct IfCommandStatement* ifStatement;
     };
 };
 
@@ -167,12 +195,20 @@ struct VariableDefinitionStatement {
     struct Expression* size;
 };
 
+// This a terrible way to do this, but to do it otherwise requires a total rewrite, (which is planned)
+struct IfPerformStatement{
+    struct Expression* check;
+    struct PerformOperationList* branch;
+    struct IfPerformStatement* alternativeBranch;
+};
+
 enum PerformOperationType {
     PERFORM_OPERATION_TYPE_NONE= 0,
     PERFORM_OPERATION_TYPE_COMMAND, 
     PERFORM_OPERATION_TYPE_VARIABLE_ASSIGNMENT,
     PERFORM_OPERATION_TYPE_FUNCTION_CALL,
     PERFORM_OPERATION_TYPE_VARIABLE_DEFINITION,
+    PERFORM_OPERATION_TYPE_IF_STATEMENT,
 };
 struct PerformOperation{
     enum PerformOperationType type;
@@ -181,6 +217,7 @@ struct PerformOperation{
         struct VariableAssignment* variableAssignment;
         struct FunctionCallStatement* functionCall;
         struct VariableDefinitionStatement* varStatement;
+        struct IfPerformStatement* ifStatement;
     };
 };
 
@@ -219,7 +256,15 @@ enum FunctionStatementType{
     FUNCTION_STATEMENT_TYPE_PERFORM,
     FUNCTION_STATEMENT_TYPE_RETURN,
     FUNCTION_STATEMENT_TYPE_VAR_DEFINITION,
+    FUNCTION_STATEMENT_TYPE_IF,
 };
+
+struct IfFunctionStatement{
+    struct Expression* check;
+    struct FunctionStatementList* branch;
+    struct IfFunctionStatement* alternativeBranch;
+};
+
 struct FunctionStatement{
     enum FunctionStatementType type;
     union {
@@ -227,6 +272,7 @@ struct FunctionStatement{
         struct PerformStatement* performStatement;
         struct ReturnStatement* returnStatement;
         struct VariableDefinitionStatement* varStatement;
+        struct IfFunctionStatement* ifStatement;
     };
 };
 
@@ -241,8 +287,9 @@ struct FunctionDefinition{
     struct FunctionStatementList* functionStatementList;
 };
 enum ProjectStatementType {
-    PROJECT_STATEMENT_TYPE_NONE=  0,
+    PROJECT_STATEMENT_TYPE_NONE = 0,
     PROJECT_STATEMENT_TYPE_INCLUDE,
+    PROJECT_STATEMENT_TYPE_INHERIT,
     PROJECT_STATEMENT_TYPE_VARIABLE_ASSIGNMENT,
     PROJECT_STATEMENT_TYPE_FUNCTION_DEFINITION,
 };
@@ -252,6 +299,7 @@ struct ProjectStatement{
         struct ImportStatement* importStatement;
         struct VariableAssignment* variableAssignment;
         struct FunctionDefinition* functionDefinition;
+        struct InheritStatement* inheritStatement;
     };
 };
 struct ProjectStatementList{
@@ -281,7 +329,6 @@ struct EnumerationExpression_S{
     bool8 recursive;
 };
 
-
 struct UnaryExpression_S{
     enum UnaryOperator operator;
     struct Expression_S* expression;
@@ -297,6 +344,12 @@ struct CallExpression_S{
     AvString function;
     uint32 argumentCount;
     struct Expression_S* arguments;
+};
+
+struct ComparisonExpression_S{
+    struct Expression_S* left;
+    enum ComparisonOperator operator;
+    struct Expression_S* right;
 };
 
 struct GroupExpression_S {
@@ -328,6 +381,7 @@ enum ExpressionType {
     EXPRESSION_TYPE_IDENTIFIER,
     EXPRESSION_TYPE_LITERAL,
     EXPRESSION_TYPE_NUMBER,
+    EXPRESSION_TYPE_COMPARISON,
 };
 
 struct Expression_S {
@@ -344,6 +398,7 @@ struct Expression_S {
         struct IdentifierExpression_S identifier;
         struct LiteralExpression_S literal;
         struct NumberExpression_S number;
+        struct ComparisonExpression_S comparison;
     };
 };
 
@@ -354,11 +409,24 @@ struct VariableAssignment_S {
     struct Expression_S* value;
 };
 
+struct IfCommandStatement_S {
+    struct Expression_S* check;
+    struct CommandStatementBody_S* branch;
+    struct IfCommandStatement_S* alternativeBranch;
+};
+
+struct IfPerformStatement_S {
+    struct Expression_S* check;
+    struct PerformStatementBody_S* branch;
+    struct IfPerformStatement_S* alternativeBranch;
+};
+
 struct CommandStatement_S{
     enum CommandStatementType type;
     union {
         struct VariableAssignment_S variableAssignment;
         struct CallExpression_S functionCall;
+        struct IfCommandStatement_S ifStatement;
     };
 };
 
@@ -383,6 +451,7 @@ enum PerformStatementType {
     PERFORM_STATEMENT_TYPE_VARIABLE_ASSIGNMENT,
     PERFORM_STATEMENT_TYPE_FUNCTION_CALL,
     PERFORM_STATEMENT_TYPE_VARIABLE_DEFINITION,
+    PERFORM_STATEMENT_TYPE_IF_STATEMENT,
 };
 
 struct PerformStatement_S {
@@ -392,6 +461,7 @@ struct PerformStatement_S {
         struct VariableAssignment_S variableAssignment;
         struct CallExpression_S functionCall;
         struct VariableDefinition_S variableDefinition;
+        struct IfPerformStatement_S ifStatement;
     };
 };
 
@@ -411,6 +481,11 @@ struct ReturnStatement_S{
     struct Expression_S* value;
 };
 
+struct IfFunctionStatement_S{
+    struct Expression_S* check;
+    struct FunctionBody_S* branch;
+    struct IfFunctionStatement_S* alternativeBranch;
+};
 
 struct FunctionStatement_S{
     enum FunctionStatementType type;
@@ -419,16 +494,21 @@ struct FunctionStatement_S{
         struct ForeachStatement_S foreachStatement;
         struct ReturnStatement_S returnStatement;
         struct VariableDefinition_S variableDefinition;
+        struct IfFunctionStatement_S ifStatement;
     };
 };
 
+
+struct FunctionBody_S{
+    uint32 statementCount;
+    struct FunctionStatement_S* statements;
+};
 
 struct FunctionDefinition_S{
     AvString functionName;
     uint32 parameterCount;
     AvString* parameters;
-    uint32 statementCount;
-    struct FunctionStatement_S* statements;
+    struct FunctionBody_S body;
 };
 
 struct ImportMapping_S{
@@ -443,11 +523,17 @@ struct ImportStatement_S{
     struct ImportMapping_S* mappings;
 };
 
+struct InheritStatement_S{
+    AvString variable;
+    struct Expression_S* defaultValue;
+};
+
 enum StatementType {
     STATEMENT_TYPE_NONE = 0,
     STATEMENT_TYPE_VARIABLE_ASSIGNMENT,
     STATEMENT_TYPE_FUNCTION_DEFINITION,
     STATEMENT_TYPE_IMPORT,
+    STATEMENT_TYPE_INHERIT,
 };
 
 struct Statement_S{
@@ -456,6 +542,7 @@ struct Statement_S{
         struct VariableAssignment_S variableAssignment;
         struct FunctionDefinition_S functionDefinition;
         struct ImportStatement_S importStatement;
+        struct InheritStatement_S inheritStatement;
     };
 };
 

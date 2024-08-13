@@ -40,5 +40,3 @@ and it should do its thing.
 ## Planned features
 - Fetching files from the internet
 - Refactor to reduce memory usage (it uses an excessive amount at the moment)
-- if statements
-- propper installation

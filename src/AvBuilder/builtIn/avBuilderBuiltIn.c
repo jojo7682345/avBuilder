@@ -1,5 +1,6 @@
 #include "avBuilderBuiltIn.h"
 #include <string.h>
+#include <AvUtils/avMemory.h>
 
 #define TS(str) sizeof(#str)
 
@@ -236,28 +237,53 @@ struct Value filter(Project* project, uint32 valueCount, struct Value* values){
 
     AvDynamicArray newValues = {0};
     avDynamicArrayCreate(0, sizeof(struct ConstValue), &newValues);
+    bool8* allowed = avCallocate(count, 1, "allowed");
 
-    for(uint32 i = 0; i < count; i++){
-        struct ConstValue value = vals[i];
-        AvString str = value.asString;
-        char buffer[256] = {0};
-        if(value.type == VALUE_TYPE_NUMBER){
-            avStringPrintfToBuffer(buffer, sizeof(buffer)-1, AV_CSTR("%i"), value.asNumber);
-            AvString tmpStr = AV_CSTR(buffer);
-            memcpy(&str, &tmpStr, sizeof(AvString));
+    struct ConstValue tmpFilter = {0};
+    uint32 filterCount = 1;
+    struct ConstValue* filters = &tmpFilter;
+    if(values[1].type == VALUE_TYPE_ARRAY){
+        filters = values[1].asArray.values;
+        filterCount = values[1].asArray.count;
+    }else{
+        toConstValue(values[1], &tmpFilter, project);
+    }
+
+    for(uint32 j = 0; j < filterCount; j++){
+        if(filters[j].type!=VALUE_TYPE_STRING){
+            runtimeError(project, "filter values can only contain strings");
+            return (struct Value){0};
         }
-        switch (filterType)
-        {
-        case FILTER_TYPE_ENDS_WITH:
-            if(avStringEndsWith(str,values[1].asString)){
-                avDynamicArrayAdd(&value, newValues);
+        AvString filterStr = filters[j].asString;
+        for(uint32 i = 0; i < count; i++){
+            struct ConstValue value = vals[i];
+            AvString str = value.asString;
+            char buffer[256] = {0};
+            if(value.type == VALUE_TYPE_NUMBER){
+                avStringPrintfToBuffer(buffer, sizeof(buffer)-1, AV_CSTR("%i"), value.asNumber);
+                AvString tmpStr = AV_CSTR(buffer);
+                memcpy(&str, &tmpStr, sizeof(AvString));
             }
-            break;
-        default:
-            runtimeError(project, "unsupported filter type");
-            break;
+            switch (filterType)
+            {
+            case FILTER_TYPE_ENDS_WITH:
+                if(avStringEndsWith(str,filterStr)){
+                    allowed[i] = true;
+                }
+                break;
+            default:
+                runtimeError(project, "unsupported filter type");
+                break;
+            }
         }
     }
+    for(uint32 i = 0; i < count; i++){
+        if(allowed[i]){
+            avDynamicArrayAdd(vals+i, newValues);
+        }
+    }
+    avFree(allowed);
+
     struct ConstValue* filteredValues = nullptr;
     uint32 allowedCount = avDynamicArrayGetSize(newValues);
     if(allowedCount > 0){

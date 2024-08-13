@@ -173,6 +173,7 @@ static uint32 printUsage(const int argC, const char* argV[]){
     printf("  save [project file] (location)        Save the specified file to the local templates directory within the specified subdirectory\n");
     printf("  find [project file]                   Print the location of a saved project file\n");
     printf("  open [project file] [editor]          Opens the project file with a specified editor\n");
+    printf("  remove [project file]                 Removes the specified project file\n");
     printf("  list                                  List the saved project files in the templates directory\n");
     printf("  help                                  Display this help message and exit\n");
     printf("\nExamples:\n");
@@ -217,7 +218,7 @@ static bool32 listInTree(AvPath path, AvString file, AvDynamicArray files){
     for(uint32 i = 0; i < path.contentCount; i++){
         AvPathNode node = path.content[i];
         if(node.type == AV_PATH_NODE_TYPE_FILE){
-            if(avStringEquals(node.name, file)){
+            if(avStringEndsWith(node.fullName, file)){
                 AvString fileStr = AV_EMPTY;
                 avStringClone(&fileStr, node.fullName);
                 avDynamicArrayAdd(&fileStr, files);
@@ -298,6 +299,65 @@ openFile:
     avStringPrintfToBuffer(buffer, 4095, AV_CSTR("%s %s"), AV_CSTR(argV[1]), fileStr);
     //avStringPrintln(AV_CSTR(buffer));
     ret = system(buffer);
+noFilesFound:
+    avDynamicArrayDestroy(files);
+unableToOpen:
+    avDirectoryClose(&templates);
+dirDoesNotExist:
+    avStringFree(&templatesDir);
+
+    avStringDebugContextEnd;
+    return ret;
+}
+
+static uint32 removeProject(const int argC, const char* argV[]){
+    uint32 ret = 0;
+    avStringDebugContextStart;
+    AvString projectFile = AV_CSTR(argV[0]);
+    AvString templatesDir = AV_EMPTY;
+    getInConfigFolder(&templatesDir, templatePath);
+    
+    if(!avDirectoryExists(templatesDir)){
+        avStringPrintf(AV_CSTR("Unable to find %s\n"), projectFile);
+        ret = -1;
+        goto dirDoesNotExist;
+    }
+    AvPath templates = AV_EMPTY;
+    if(!avDirectoryOpen(templatesDir, nullptr, &templates)){
+        avStringPrintf(AV_CSTR("Unable to find %s\n"), projectFile);
+        ret = -1;
+        goto unableToOpen;
+    }
+    AvDynamicArray files = AV_EMPTY;
+    avDynamicArrayCreate(0, sizeof(AvString), &files);
+    avDynamicArraySetDeallocateElementCallback(freeString, files);
+    if(!listInTree(templates, projectFile, files)){
+        avStringPrintf(AV_CSTR("Unable to find %s\n"), projectFile);
+        ret = -1;
+        goto noFilesFound;
+    }
+    uint32 count = avDynamicArrayGetSize(files);
+    uint32 file = 0;
+    if(count==1){
+        file = 0;
+        goto openFile;
+    }
+    avStringPrintln(AV_CSTR("Multiple files found with the same name, please specify which"));
+    for(uint32 index = 0; index < avDynamicArrayGetSize(files); index++) { 
+        AvString element; avDynamicArrayRead(&element, index, (files));
+        avStringPrintf(AV_CSTR("%i)  %s\n"), index, element);
+    };
+    avStringPrint(AV_CSTR("Enter file number: "));
+    if(!scanf("%i", &file) || file >= count){
+        avStringPrintln(AV_CSTR("Invalid number entered"));
+        ret = -1;
+        goto noFilesFound;
+    }
+
+openFile:
+    AvString fileStr = AV_EMPTY;
+    avDynamicArrayRead(&fileStr, file, files);
+    ret = remove(fileStr.chrs);
 noFilesFound:
     avDynamicArrayDestroy(files);
 unableToOpen:
@@ -393,7 +453,7 @@ static bool32 findInTree(AvPath path, AvString file, uint32 offset){
     for(uint32 i = 0; i < path.contentCount; i++){
         AvPathNode node = path.content[i];
         if(node.type == AV_PATH_NODE_TYPE_FILE){
-            if(avStringEquals(node.name, file)){
+            if(avStringEndsWith(node.fullName, file)){
                 AvString str = {
                     .chrs = node.fullName.chrs + offset,
                     .len = node.fullName.len - offset,
@@ -522,6 +582,7 @@ const struct Option{
     {AV_CSTRA("find"), findProject, 1},
     {AV_CSTRA("list"), listProjects, 0},
     {AV_CSTRA("open"), openProject, 2},
+    {AV_CSTRA("remove"), removeProject, 1},
     {AV_CSTRA("--help"), printUsage, 0},
     {AV_CSTRA("help"), printUsage, 0},
 };

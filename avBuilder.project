@@ -1,8 +1,12 @@
 #!/usr/bin/avBuilder
 
-import <test/test.project> {
+import global "test/test.project" {
     version;
     getVar;
+}
+import "library/c/stdc.project" {
+    build;
+    getSourceFiles;
 }
 
 compiler = "gcc";
@@ -17,64 +21,30 @@ includes=[
 libs=[
     "m"
 ];
+srcDir = [
+    "src"
+];
 
-compile(source, includes, outDir) {
-    var output[arraySize(source)];
-    foreach sourceFile[index] from source perform {
-        command > file {
-            args = [
-                "-I*includes",
-                "$flags"
-            ];
-            objectFile = outDir + "/" + fileBaseName(sourceFile) + ".o";
-            makeDirs(filePath(objectFile));
-            command = "$compiler -c $sourceFile $args -o $objectFile";
-            output[index]=objectFile;
-        };
-        print(file);
-    };
-    return output;
-}
-
-link(objects, libDirs, libs, executableName, outDir) {
-    var output;
-    perform {
-        command {
-            args = [
-                "-L*libDirs",
-                "-l*libs"
-            ];
-            outputExecutable = outDir + "/" + executableName;
-            command="$linker $args *objects -o $outputExecutable";
-            output = executableName;
-        }
+testFunc(){
+    if(1) {
+        return 1;
+    } else if(1) {
+        return 2;
+    } else{
+        return 3;
     }
-    return output;
 }
 
 testEntry(){
-    perform {
-        var testVar;
-        command > testVar {
-            command = "gcc --version";
-        }
-        println(testVar[1,2,3,4]);
+    perform{
+         println(testFunc());   
     }
 }
 
 
 avBuilder() {
     perform {
-        sourceDirs = [
-            "src"
-        ];
-        sourceFiles = filter(FILTER_TYPE_ENDS_WITH, ".c", files in sourceDirs recursive);
-        objectFiles = compile(
-            sourceFiles,
-            includes,
-            "out"
-        );
-        executable = link(objectFiles,[],libs,PROJECT_NAME, ".");
+        executable = build(getSourceFiles(srcDir), "build", flags, [], includes, [], libs, PROJECT_NAME, ".");
     }
 }
 

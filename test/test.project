@@ -1,5 +1,4 @@
-version = "0.0.1";
-compiler = "gcc";
+inherit compiler = "gcc";
 
 getVar(){
     return test();

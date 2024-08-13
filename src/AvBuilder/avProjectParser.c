@@ -164,38 +164,44 @@ static struct Call* parseCall(TokenIterator* iterator){
     return call;
 }
 static struct Summation* parseSummation(TokenIterator* iterator);
+static struct Comparison* parseComparison(TokenIterator* iterator);
 
 static struct Array* parseArray(TokenIterator* iterator){
-    if(check(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close)){
-        return nullptr;
-    }
     struct Array* array = avAllocatorAllocate(sizeof(struct Array), iterator->allocator);
-    struct Array* arr = array;
-    while(true){
-        arr->expression = parseSummation(iterator);
-        if(match(iterator, TOKEN_TYPE_PUNCTUATOR_comma)){
+    if(match(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_open)){
+        if(match(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close)){
+            return avAllocatorAllocate(sizeof(struct Array), iterator->allocator);
+        }
+        struct Array* arr = array;
+        while(true){
+            arr->expression = parseSummation(iterator);
+            if(match(iterator, TOKEN_TYPE_PUNCTUATOR_comma)){
+                if(check(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close)){
+                    break;
+                }
+                struct Array* next = avAllocatorAllocate(sizeof(struct Array), iterator->allocator);
+                arr->next = next;
+                arr = next;
+                continue;
+            }
             if(check(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close)){
                 break;
             }
-            struct Array* next = avAllocatorAllocate(sizeof(struct Array), iterator->allocator);
-            arr->next = next;
-            arr = next;
-            continue;
-        }
-        if(check(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close)){
             break;
         }
-        break;
+        consume(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close, " expected ']'");
+        return array;
+    }else{
+        array->expression = parseSummation(iterator);
+        return array;
     }
-    return array;
 }
 
 static struct ArrayList* parseArrayList(TokenIterator* iterator){
     struct ArrayList* arrayList = avAllocatorAllocate(sizeof(struct ArrayList), iterator->allocator);
     struct ArrayList* array = arrayList;
-    while(match(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_open)){
+    while(check(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_open)){
         array->array = parseArray(iterator);
-        consume(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close, "Expected ']' after expression.");
         if(check(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_open)){
             array->next = avAllocatorAllocate(sizeof(struct ArrayList), iterator->allocator);
             array = array->next;
@@ -284,16 +290,51 @@ static struct Summation* parseSummation(TokenIterator* iterator){
     return summation;
 }
 
+static struct Comparison* parseComparison(TokenIterator* iterator){
+    struct Comparison* comparison = avAllocatorAllocate(sizeof(struct Comparison), iterator->allocator);
+    comparison->left = parseArray(iterator);
+
+    if(match(iterator, 
+        TOKEN_TYPE_PUNCTUATOR_comparison, 
+        TOKEN_TYPE_PUNCTUATOR_not_equals,
+        TOKEN_TYPE_PUNCTUATOR_greater_than,
+        TOKEN_TYPE_PUNCTUATOR_less_than,
+        TOKEN_TYPE_PUNCTUATOR_greater_than_or_equal,
+        TOKEN_TYPE_PUNCTUATOR_less_than_or_equal
+        
+    )){
+        switch(previous(iterator)->type){
+            case TOKEN_TYPE_PUNCTUATOR_comparison :
+                comparison->operator = COMPARISON_OPERATOR_EQUALS;
+                break;
+            case TOKEN_TYPE_PUNCTUATOR_not_equals :
+                comparison->operator = COMPARISON_OPERATOR_NOT_EQUALS;
+                break;
+            case TOKEN_TYPE_PUNCTUATOR_greater_than :
+                comparison->operator = COMPARISON_OPERATOR_GREATER_THAN;
+                break;
+            case TOKEN_TYPE_PUNCTUATOR_less_than :
+                comparison->operator = COMPARISON_OPERATOR_LESS_THAN;
+                break;
+            case TOKEN_TYPE_PUNCTUATOR_greater_than_or_equal :
+                comparison->operator = COMPARISON_OPERATOR_GREATER_THAN_OR_EQUAL;
+                break;
+            case TOKEN_TYPE_PUNCTUATOR_less_than_or_equal :
+                comparison->operator = COMPARISON_OPERATOR_LESS_THAN_OR_EQUAL;
+                break;
+            default:
+                avAssert(false, "shoud not reach here");
+                break;
+        }
+        comparison->right = parseArray(iterator);
+    }
+    return comparison;
+}
+
 
 static struct Expression* parseExpression(TokenIterator* iterator){
     struct Expression* expression = avAllocatorAllocate(sizeof(struct Expression), iterator->allocator);
-    if(match(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_open)){
-        expression->array = parseArray(iterator);
-        consume(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close, "expected ']'");
-    }else{
-        expression->array = avAllocatorAllocate(sizeof(struct Array), iterator->allocator);
-        expression->array->expression = parseSummation(iterator);
-    }
+    expression->comparison = parseComparison(iterator);
     return expression;
 }
 
@@ -348,6 +389,30 @@ static struct ParameterList* parseParameterList(TokenIterator* iterator){
     return list;
 }
 
+static struct CommandStatementList* parseCommandStatementList(TokenIterator* iterator);
+
+static struct IfCommandStatement* parseIfCommandStatement(TokenIterator* iterator){
+    struct IfCommandStatement* stat = avAllocatorAllocate(sizeof(struct IfCommandStatement), iterator->allocator);
+    consume(iterator, TOKEN_TYPE_PUNCTUATOR_parenthese_open, "expected '('");
+    stat->check = parseExpression(iterator);
+    consume(iterator, TOKEN_TYPE_PUNCTUATOR_parenthese_close, "expected ')'");
+    consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_open, "expected '{'");
+    stat->branch = parseCommandStatementList(iterator);
+    consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_close, "expected '}'");
+    
+    if(match(iterator, TOKEN_TYPE_KEYWORD_else)){
+        if(match(iterator, TOKEN_TYPE_KEYWORD_if)){
+            stat->alternativeBranch = parseIfCommandStatement(iterator);
+        }else{
+            stat->alternativeBranch = avAllocatorAllocate(sizeof(struct IfCommandStatement), iterator->allocator);
+            consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_open, "expected '{'");
+            stat->alternativeBranch->branch = parseCommandStatementList(iterator);
+            consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_close, "expected '}'");
+        }
+    }
+    return stat;
+}
+
 static struct CommandStatement* parseCommandStatement(TokenIterator* iterator){
     struct CommandStatement* stat = avAllocatorAllocate(sizeof(struct CommandStatement), iterator->allocator);
 
@@ -365,6 +430,12 @@ static struct CommandStatement* parseCommandStatement(TokenIterator* iterator){
             return stat;
         }
     }
+    if(match(iterator, TOKEN_TYPE_KEYWORD_if)){
+        stat->ifStatement = parseIfCommandStatement(iterator);
+        stat->type = COMMAND_STATEMENT_IF_STATEMENT;
+        return stat;
+    }
+
     if(match(iterator, TOKEN_TYPE_KEYWORD_command)){
         struct VariableAssignment* var = avAllocatorAllocate(sizeof(struct VariableAssignment),iterator->allocator);
         var->variable = avAllocatorAllocate(sizeof(struct Variable), iterator->allocator);
@@ -408,6 +479,29 @@ static struct VariableDefinitionStatement* parseVariableDefinition(TokenIterator
         consume(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close, "expected ']' after array definition");
     }
     consume(iterator, TOKEN_TYPE_PUNCTUATOR_semicolon, "expected ';' after expression");
+    return stat;
+}
+
+static struct PerformOperationList* parsePerformOperationList(TokenIterator* iterator);
+static struct IfPerformStatement* parseIfPerformStatement(TokenIterator* iterator){
+    struct IfPerformStatement* stat = avAllocatorAllocate(sizeof(struct IfPerformStatement), iterator->allocator);
+    consume(iterator, TOKEN_TYPE_PUNCTUATOR_parenthese_open, "expected '('");
+    stat->check = parseExpression(iterator);
+    consume(iterator, TOKEN_TYPE_PUNCTUATOR_parenthese_close, "expected ')'");
+    consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_open, "expected '{'");
+    stat->branch = parsePerformOperationList(iterator);
+    consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_close, "expected '}'");
+    
+    if(match(iterator, TOKEN_TYPE_KEYWORD_else)){
+        if(match(iterator, TOKEN_TYPE_KEYWORD_if)){
+            stat->alternativeBranch = parseIfPerformStatement(iterator);
+        }else{
+            stat->alternativeBranch = avAllocatorAllocate(sizeof(struct IfPerformStatement), iterator->allocator);
+            consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_open, "expected '{'");
+            stat->alternativeBranch->branch = parsePerformOperationList(iterator);
+            consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_close, "expected '}'");
+        }
+    }
     return stat;
 }
 
@@ -462,6 +556,11 @@ static struct PerformOperation* parsePerformOperation(TokenIterator* iterator) {
         recede(iterator);
         operation->type = PERFORM_OPERATION_TYPE_VARIABLE_ASSIGNMENT;
         operation->variableAssignment = parseVariableAssignment(iterator);
+        return operation;
+    }
+    if(match(iterator, TOKEN_TYPE_KEYWORD_if)){
+        operation->ifStatement = parseIfPerformStatement(iterator);
+        operation->type = PERFORM_OPERATION_TYPE_IF_STATEMENT;
         return operation;
     }
     if(match(iterator, TOKEN_TYPE_KEYWORD_var)){
@@ -524,6 +623,30 @@ static struct ReturnStatement* parseReturnStatement(TokenIterator* iterator){
     consume(iterator, TOKEN_TYPE_PUNCTUATOR_semicolon, "expected ';' after expression");
     return ret;
 }
+static struct FunctionStatementList* parseFunctionStatementList(TokenIterator* iterator);
+
+static struct IfFunctionStatement* parseIfFunctionStatement(TokenIterator* iterator){
+    struct IfFunctionStatement* stat = avAllocatorAllocate(sizeof(struct IfFunctionStatement), iterator->allocator);
+    consume(iterator, TOKEN_TYPE_PUNCTUATOR_parenthese_open, "expected '('");
+    stat->check = parseExpression(iterator);
+    consume(iterator, TOKEN_TYPE_PUNCTUATOR_parenthese_close, "expected ')'");
+    consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_open, "expected '{'");
+    stat->branch = parseFunctionStatementList(iterator);
+    consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_close, "expected '}'");
+    
+    if(match(iterator, TOKEN_TYPE_KEYWORD_else)){
+        if(match(iterator, TOKEN_TYPE_KEYWORD_if)){
+            stat->alternativeBranch = parseIfFunctionStatement(iterator);
+        }else{
+            stat->alternativeBranch = avAllocatorAllocate(sizeof(struct IfFunctionStatement), iterator->allocator);
+            consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_open, "expected '{'");
+            stat->alternativeBranch->branch = parseFunctionStatementList(iterator);
+            consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_close, "expected '}'");
+        }
+    }
+    return stat;
+}
+
 
 static struct FunctionStatement* parseFunctionStatement(TokenIterator* iterator){
     struct FunctionStatement* statement = avAllocatorAllocate(sizeof(struct FunctionStatement), iterator->allocator);    
@@ -540,6 +663,11 @@ static struct FunctionStatement* parseFunctionStatement(TokenIterator* iterator)
     if(match(iterator, TOKEN_TYPE_KEYWORD_return)){
         statement->returnStatement = parseReturnStatement(iterator);
         statement->type = FUNCTION_STATEMENT_TYPE_RETURN;
+        return statement;
+    }
+    if(match(iterator, TOKEN_TYPE_KEYWORD_if)){
+        statement->ifStatement = parseIfFunctionStatement(iterator);
+        statement->type = FUNCTION_STATEMENT_TYPE_IF;
         return statement;
     }
     if(match(iterator, TOKEN_TYPE_KEYWORD_var)){
@@ -607,11 +735,28 @@ static struct DefinitionMappingList* parseDefinitionMappingList(TokenIterator* i
     return definitionMapping;
 }
 
+static struct InheritStatement* parseInheritStatement(TokenIterator* iterator){
+    consume(iterator, TOKEN_TYPE_KEYWORD_inherit, "this should never trigger");
+    Token* variable = consume(iterator, TOKEN_TYPE_TEXT, "expected variable name");
+    struct Expression* expression = nullptr;
+    if(match(iterator, TOKEN_TYPE_PUNCTUATOR_equals)){
+        expression = parseExpression(iterator);
+    }
+    struct InheritStatement* inherit = avAllocatorAllocate(sizeof(struct InheritStatement), iterator->allocator);
+    avStringUnsafeCopy(&inherit->variable, &variable->str);
+    inherit->defaultValue = expression;
+    consume(iterator, TOKEN_TYPE_PUNCTUATOR_semicolon, "expected ';' after statement");
+    return inherit;
+}
+
 static struct ImportStatement* parseImportStatement(TokenIterator* iterator){
     consume(iterator, TOKEN_TYPE_KEYWORD_import, "this should never trigger");
-
+    bool32 global = false;
+    if(match(iterator, TOKEN_TYPE_KEYWORD_global)){
+        global = true;
+    }
     Token* fileName = nullptr;
-    if(match(iterator, TOKEN_TYPE_STRING, TOKEN_TYPE_SPECIAL_STRING)){
+    if(match(iterator, TOKEN_TYPE_STRING)){
         fileName = previous(iterator);
     }else{
         logParserError(iterator, TOKEN_TYPE_STRING, AV_CSTR("file name expected"));
@@ -620,7 +765,7 @@ static struct ImportStatement* parseImportStatement(TokenIterator* iterator){
 
     struct ImportStatement* import = avAllocatorAllocate(sizeof(struct ImportStatement), iterator->allocator);
     memcpy(&(import->file), &(fileName->str), sizeof(AvString));
-
+    import->local = !global;
     if(match(iterator, TOKEN_TYPE_PUNCTUATOR_brace_open)){
         import->definitionMappingList = parseDefinitionMappingList(iterator);
         consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_close, "expected '}' after statement");
@@ -628,8 +773,6 @@ static struct ImportStatement* parseImportStatement(TokenIterator* iterator){
         import->definitionMappingList = avAllocatorAllocate(sizeof(struct DefinitionMappingList), iterator->allocator);
         import->definitionMappingList->definitionMapping = parseDefinitionMapping(iterator);
     }
-
-    import->local = fileName->type == TOKEN_TYPE_STRING;
 
     return import;
 }
@@ -640,6 +783,12 @@ static struct ProjectStatement* parseProjectStatement(TokenIterator* iterator){
     if(check(iterator, TOKEN_TYPE_KEYWORD_import)){
         stat->type = PROJECT_STATEMENT_TYPE_INCLUDE;
         stat->importStatement = parseImportStatement(iterator);
+        return stat;
+    }
+
+    if(check(iterator, TOKEN_TYPE_KEYWORD_inherit)){
+        stat->type = PROJECT_STATEMENT_TYPE_INHERIT;
+        stat->inheritStatement = parseInheritStatement(iterator);
         return stat;
     }
 

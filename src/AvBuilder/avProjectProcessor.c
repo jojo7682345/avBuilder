@@ -19,6 +19,7 @@ struct Expression_S* processFilterExpression(struct Expression_S* expr, struct F
 struct Expression_S* processUnaryExpression(struct Expression_S* expr, struct Unary* unary, Project* project);
 struct Expression_S* processEnumerationExpression(struct Expression_S* expr, struct Enumeration* enumeration, Project* project);
 struct Expression_S* processSummationExpression(struct Expression_S* expr, struct Summation* summation, Project* project);
+struct Expression_S* processComparisonExpression(struct Expression_S* expr, struct Comparison* summation, Project* project);
 struct Expression_S* processMultiplicationExpression(struct Expression_S* expr, struct Multiplication* multiplication, Project* project);
 struct Expression_S* processArrayExpression(struct Expression_S* expr, struct Array* array, Project* project);
 struct Expression_S* processExpressionExpression(struct Expression_S* expr, struct Expression* expression, Project* project);
@@ -26,14 +27,17 @@ struct Expression_S* processExpressionExpression(struct Expression_S* expr, stru
 struct ArrayExpression_S processArray(struct Array* array, Project* project){
     uint64 length = 0;
     struct Array* iterator = array;
-    while(iterator){
+    while(iterator && iterator->expression){
         length++;
         iterator = iterator->next;
     }
-    struct Expression_S* elements = avAllocatorAllocate(sizeof(struct Expression_S)*length, &project->allocator);
+    struct Expression_S* elements = nullptr;
+    if(length){
+        elements = avAllocatorAllocate(sizeof(struct Expression_S)*length, &project->allocator);
+    }
     iterator = array;
     uint32 index = 0;
-    while(iterator){
+    while(iterator && iterator->expression){
         processSummationExpression(elements + index, iterator->expression, project);
         index++;
         iterator = iterator->next;
@@ -68,7 +72,17 @@ struct SummationExpression_S processSummation(struct Summation* summation, Proje
     };
 }
 
-
+struct ComparisonExpression_S processComparison(struct Comparison* comparison, Project* project){
+    struct Expression_S* left = avAllocatorAllocate(sizeof(struct Expression_S)*2, &project->allocator);
+    struct Expression_S* right = left +1;
+    left = processArrayExpression(left, comparison->left, project);
+    right = processArrayExpression(right, comparison->right, project);
+    return (struct ComparisonExpression_S){
+        .left=  left,
+        .operator = comparison->operator,
+        .right = right,
+    };
+}
 
 struct EnumerationExpression_S processEnumeration(struct Enumeration* enumeration, Project* project){
     struct Expression_S* dir = avAllocatorAllocate(sizeof(struct Expression_S), &project->allocator);
@@ -247,6 +261,15 @@ struct Expression_S* processSummationExpression(struct Expression_S* expr, struc
     return processMultiplicationExpression(expr, summation->left, project);
 }
 
+struct Expression_S* processComparisonExpression(struct Expression_S* expr, struct Comparison* comparison, Project* project){
+    if(comparison->operator != COMPARISON_OPERATOR_NONE){
+        expr->type = EXPRESSION_TYPE_COMPARISON;
+        expr->comparison = processComparison(comparison, project);
+        return expr;
+    }
+    return processArrayExpression(expr, comparison->left, project);
+}
+
 struct Expression_S* processArrayExpression(struct Expression_S* expr, struct Array* array, Project* project){
     if(!array){
         return nullptr;
@@ -256,13 +279,18 @@ struct Expression_S* processArrayExpression(struct Expression_S* expr, struct Ar
         expr->array = processArray(array, project);
         return expr;
     }
-    
-    return processSummationExpression(expr, array->expression, project);
+    if(array->expression){
+        return processSummationExpression(expr, array->expression, project);
+    }else{
+        expr-> type = EXPRESSION_TYPE_ARRAY;
+        expr->array = processArray(array, project);
+        return expr;
+    }
 }
 
 //This function is only to keep everything unified
 struct Expression_S* processExpressionExpression(struct Expression_S* expr, struct Expression* expression, Project* project){
-    return processArrayExpression(expr, expression->array, project);
+    return processComparisonExpression(expr, expression->comparison, project);
 }
 
 struct Expression_S* processExpression(struct Expression* expression, Project* project){
@@ -318,6 +346,20 @@ bool32 processFunctionCall(struct CallExpression_S* call, struct Call* callState
     call->arguments = parameters;
     return true;
 }
+bool32 processCommandStatementList(struct CommandStatementBody_S* body, struct CommandStatementList* statement, Project* project);
+bool32 processIfCommandStatement(struct IfCommandStatement_S* stat, struct IfCommandStatement* statement, Project* project){
+    if(statement->check){
+        stat->check = processExpression(statement->check, project);
+    }
+    if(statement->alternativeBranch){
+        stat->alternativeBranch = avAllocatorAllocate(sizeof(struct IfCommandStatement_S), &project->allocator);
+        if(!processIfCommandStatement(stat->alternativeBranch, statement->alternativeBranch, project)){
+            return false;
+        }
+    }
+    stat->branch = avAllocatorAllocate(sizeof(struct CommandStatementBody_S), &project->allocator);
+    return processCommandStatementList(stat->branch, statement->branch, project);;
+}
 
 bool32 processCommandStatement(struct CommandStatement_S* stat, struct CommandStatement* statement, Project* project){
     if(statement->type == COMMAND_STATEMENT_VARIABLE_ASSIGNMENT){
@@ -327,6 +369,10 @@ bool32 processCommandStatement(struct CommandStatement_S* stat, struct CommandSt
     if(statement->type == COMMAND_STATEMENT_FUNCTION_CALL){
         stat->type = COMMAND_STATEMENT_FUNCTION_CALL;
         return processFunctionCall(&stat->functionCall, statement->functionCall->call, project);
+    }
+    if(statement->type == COMMAND_STATEMENT_IF_STATEMENT){
+        stat->type = COMMAND_STATEMENT_IF_STATEMENT;
+        return processIfCommandStatement(&stat->ifStatement, statement->ifStatement, project);
     }
     return false;
 }
@@ -376,6 +422,20 @@ bool32 processVariableDefinitionStatement(struct VariableDefinition_S* stat, str
     }
     return true;
 }
+bool32 processPerformStatementBody(struct PerformStatementBody_S* stat, struct PerformStatement* statement, Project* project);
+bool32 processIfPerformStatement(struct IfPerformStatement_S* stat, struct IfPerformStatement* statement, Project* project){
+    if(statement->check){
+        stat->check = processExpression(statement->check, project);
+    }
+    if(statement->alternativeBranch){
+        stat->alternativeBranch = avAllocatorAllocate(sizeof(struct IfPerformStatement_S), &project->allocator);
+        if(!processIfPerformStatement(stat->alternativeBranch, statement->alternativeBranch, project)){
+            return false;
+        }
+    }
+    stat->branch = avAllocatorAllocate(sizeof(struct PerformStatementBody_S), &project->allocator);
+    return processPerformStatementBody(stat->branch, &(struct PerformStatement){.performOperationList =statement->branch}, project);
+}
 
 bool32 processPerformStatement(struct PerformStatement_S* stat, struct PerformOperation* statement, Project* project){
     
@@ -386,6 +446,10 @@ bool32 processPerformStatement(struct PerformStatement_S* stat, struct PerformOp
     if(statement->type==PERFORM_OPERATION_TYPE_VARIABLE_ASSIGNMENT){
         stat->type = PERFORM_STATEMENT_TYPE_VARIABLE_ASSIGNMENT;
         return processVariableStatement(&stat->variableAssignment, statement->variableAssignment, project);
+    }
+    if(statement->type == PERFORM_OPERATION_TYPE_IF_STATEMENT){
+        stat->type = PERFORM_STATEMENT_TYPE_IF_STATEMENT;
+        return processIfPerformStatement(&stat->ifStatement, statement->ifStatement, project);
     }
     if(statement->type==PERFORM_OPERATION_TYPE_FUNCTION_CALL){
         stat->type = PERFORM_STATEMENT_TYPE_FUNCTION_CALL;
@@ -432,6 +496,42 @@ bool32 processReturnStatement(struct ReturnStatement_S* stat, struct ReturnState
     stat->value = processExpression(statement->value, project);
     return true;
 }
+struct FunctionStatement_S* processFunctionStatement(struct FunctionStatement_S* stat, struct FunctionStatement* statement, Project* project);
+bool32 processFunctionStatementBody(struct FunctionBody_S* body, struct FunctionStatementList* list, Project* project){
+
+        uint64 statementCount = 0;
+        struct FunctionStatementList* iterator = list;
+        while(iterator && iterator->functionStatement){
+            statementCount++;
+            iterator = iterator->next;
+        }
+        struct FunctionStatement_S* statements = avAllocatorAllocate(sizeof(struct FunctionStatement_S)*statementCount, &project->allocator);
+        uint64 index = 0;
+        iterator = list;
+        while(iterator && iterator->functionStatement){
+            processFunctionStatement(statements+index, iterator->functionStatement, project);
+            index++;
+            iterator = iterator->next;
+        }
+        body->statementCount = statementCount;
+        body->statements = statements;
+
+        return true;
+}
+
+bool32 processIfFunctionStatement(struct IfFunctionStatement_S* stat, struct IfFunctionStatement* statement, Project* project){
+    if(statement->check){
+        stat->check = processExpression(statement->check, project);
+    }
+    if(statement->alternativeBranch){
+        stat->alternativeBranch = avAllocatorAllocate(sizeof(struct IfFunctionStatement_S),&project->allocator);
+        if(!processIfFunctionStatement(stat->alternativeBranch, statement->alternativeBranch, project)){
+            return false;
+        }
+    }
+    stat->branch = avAllocatorAllocate(sizeof(struct FunctionBody_S), &project->allocator);
+    return processFunctionStatementBody(stat->branch, statement->branch, project);;
+}
 
 struct FunctionStatement_S* processFunctionStatement(struct FunctionStatement_S* stat, struct FunctionStatement* statement, Project* project){
     if(statement->type == FUNCTION_STATEMENT_TYPE_FOREACH){
@@ -449,6 +549,11 @@ struct FunctionStatement_S* processFunctionStatement(struct FunctionStatement_S*
         processReturnStatement(&stat->returnStatement, statement->returnStatement, project);
         return stat;
     }
+    if(statement->type == FUNCTION_STATEMENT_TYPE_IF){
+        stat->type = FUNCTION_STATEMENT_TYPE_IF;
+        processIfFunctionStatement(&stat->ifStatement, statement->ifStatement, project);
+        return stat;
+    }
     if(statement->type == FUNCTION_STATEMENT_TYPE_VAR_DEFINITION){
         stat->type = FUNCTION_STATEMENT_TYPE_VAR_DEFINITION;
         processVariableDefinitionStatement(&stat->variableDefinition, statement->varStatement, project);
@@ -457,6 +562,8 @@ struct FunctionStatement_S* processFunctionStatement(struct FunctionStatement_S*
     avAssert(false, "invalid statement");
     return nullptr;
 }
+
+
 
 struct Statement_S* processFunctionDefinitionStatement(struct FunctionDefinition function, Project* project){
     struct Statement_S* statement = avAllocatorAllocate(sizeof(struct Statement_S), &project->allocator);
@@ -483,25 +590,8 @@ struct Statement_S* processFunctionDefinitionStatement(struct FunctionDefinition
         }
         statement->functionDefinition.parameterCount = parameterCount;
     }
-    {
-        uint64 statementCount = 0;
-        struct FunctionStatementList* iterator = function.functionStatementList;
-        while(iterator && iterator->functionStatement){
-            statementCount++;
-            iterator = iterator->next;
-        }
-        struct FunctionStatement_S* statements = avAllocatorAllocate(sizeof(struct FunctionStatement_S)*statementCount, &project->allocator);
-        uint64 index = 0;
-        iterator = function.functionStatementList;
-        while(iterator && iterator->functionStatement){
-            processFunctionStatement(statements+index, iterator->functionStatement, project);
-            index++;
-            iterator = iterator->next;
-        }
-        statement->functionDefinition.statementCount = statementCount;
-        statement->functionDefinition.statements = statements;
-    }
-
+    
+    processFunctionStatementBody(&statement->functionDefinition.body, function.functionStatementList, project);
     return statement;
 }
 
@@ -513,6 +603,16 @@ bool32 processImportMapping(struct ImportMapping_S* map, struct DefinitionMappin
         memcpy(&map->alias, &mapping->symbol, sizeof(AvString));
     }
     return true;
+}
+
+struct Statement_S* processInheritStatement(struct InheritStatement inherit, Project* project){
+    struct Statement_S* statement = avAllocatorAllocate(sizeof(struct Statement_S), &project->allocator);
+    statement->type = STATEMENT_TYPE_INHERIT;
+    avStringUnsafeCopy(&statement->inheritStatement.variable, &inherit.variable);
+    if(inherit.defaultValue){
+        statement->inheritStatement.defaultValue = processExpression(inherit.defaultValue, project);
+    }
+    return statement;
 }
 
 struct Statement_S* processImportStatement(struct ImportStatement import, Project* project){
@@ -586,6 +686,9 @@ bool32 processProject(void* statements, Project* project){
             case PROJECT_STATEMENT_TYPE_INCLUDE:
                 stat = processImportStatement(*statement.importStatement, project);
                 break;
+            case PROJECT_STATEMENT_TYPE_INHERIT:
+                stat = processInheritStatement(*statement.inheritStatement, project);
+                break;
             case PROJECT_STATEMENT_TYPE_VARIABLE_ASSIGNMENT:
                 stat = processVariableAssignmentStatement(*statement.variableAssignment, project);
                 break;
@@ -642,6 +745,7 @@ bool32 processProject(void* statements, Project* project){
                 avDynamicArrayAdd(&func, project->functions);
                 break;
             }
+            case STATEMENT_TYPE_INHERIT:
             case STATEMENT_TYPE_VARIABLE_ASSIGNMENT:
             break;
             default:

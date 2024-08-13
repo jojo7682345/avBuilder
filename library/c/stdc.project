@@ -1,0 +1,69 @@
+inherit compiler = "gcc";
+inherit linker = compiler;
+inherit validCextensions = [ ".c" , ".cpp" ];
+
+compile(sources, outDir, flags, includes){
+    var output[arraySize(sources)];
+    var retCodes[arraySize(sources)];
+    var failed;
+    foreach sourceFile[index] from sources perform {
+        command : retCodes[index] {
+            args = [
+                "$flags",
+                "-I*includes"
+            ];
+            objectFile = outDir + "/" + fileBaseName(sourceFile) + ".o";
+            makeDirs(filePath(objectFile));
+            command = "$compiler -c $sourceFile $args -o $objectFile";
+            output[index]=objectFile;
+        };
+        if(retCodes[index]!=0){
+            print("compiling ");
+            print(sourceFile);
+            println(" failed!");
+            failed = 1;
+        }
+    };
+    if(failed){
+        return [];
+    }
+    return output;
+}
+
+link(objects, outDir, executableName, flags, libDirs, libs){
+    var output;
+    var retCode;
+    perform {
+        command : retCode {
+            args = [
+                "-L*libDirs",
+                "-l*libs"
+            ];
+            outputExecutable = outDir + "/" + executableName;
+            command = "$linker $args *objects -o $outputExecutable";
+            output = executableName;
+        }
+    }
+    return output;
+}
+
+build(sources, buildDir, compileFlags, linkFlags, includes, libDirs, libs, executableName, outDir){
+    var executable;
+    var failed;
+    perform{
+        objects = compile(sources, buildDir, compileFlags, includes);
+        if(arraySize(objects)!=0){
+            executable = link(objects, outDir, executableName, linkFlags, libDirs, libs); 
+            print("Successfully build ");
+            println(executableName);
+        }else{
+            executable = [];
+            print("Building ");print(executableName);println(" failed");
+        }
+    }
+    return executable;
+}
+
+getSourceFiles(dir){
+    return filter(FILTER_TYPE_ENDS_WITH, validCextensions, files in dir recursive);
+}

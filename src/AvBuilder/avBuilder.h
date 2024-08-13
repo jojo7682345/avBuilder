@@ -10,9 +10,13 @@
 #define LIST_OF_TOKENS \
     TOKEN(KEYWORD,      foreach,    "foreach")\
     TOKEN(KEYWORD,      command,    "command")\
+    TOKEN(KEYWORD,      global,     "global")\
     TOKEN(KEYWORD,      perform,    "perform")\
     TOKEN(KEYWORD,      import,     "import")\
+    TOKEN(KEYWORD,      inherit,    "inherit")\
     TOKEN(KEYWORD,      files,      "files")\
+    TOKEN(KEYWORD,      if,         "if")\
+    TOKEN(KEYWORD,      else,       "else")\
     TOKEN(KEYWORD,      from,       "from")\
     TOKEN(KEYWORD,      in,         "in")\
     TOKEN(KEYWORD,      as,         "as")\
@@ -20,6 +24,10 @@
     TOKEN(KEYWORD,      recursive,  "recursive")\
     TOKEN(KEYWORD,      var,        "var")\
     \
+    TOKEN(PUNCTUATOR,   less_than_or_equal, "<=")\
+    TOKEN(PUNCTUATOR,   greater_than_or_equal, ">=")\
+    TOKEN(PUNCTUATOR,   comparison, "==")\
+    TOKEN(PUNCTUATOR,   not_equals, "!=")\
     TOKEN(PUNCTUATOR,   bracket_open, "[")\
     TOKEN(PUNCTUATOR,   bracket_close, "]")\
     TOKEN(PUNCTUATOR,   star, "*")\
@@ -35,9 +43,10 @@
     TOKEN(PUNCTUATOR,   divide, "/")\
     TOKEN(PUNCTUATOR,   semicolon, ";")\
     TOKEN(PUNCTUATOR,   colon, ":")\
-    TOKEN(PUNCTUATOR,   greater_than, ">")\
     TOKEN(PUNCTUATOR,   pipe, "|")\
-    TOKEN(PUNCTUATOR,   error_pipe, "~")
+    TOKEN(PUNCTUATOR,   error_pipe, "~")\
+    TOKEN(PUNCTUATOR,   less_than, "<")\
+    TOKEN(PUNCTUATOR,   greater_than, ">")
 #undef TOKEN
 
 

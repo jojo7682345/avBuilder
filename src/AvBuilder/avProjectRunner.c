@@ -212,7 +212,7 @@ void toValue(struct ConstValue value, struct Value* val){
 struct ArrayValue getArray(struct ArrayExpression_S array, Project* project){
     struct ArrayValue arr = { 
         .count = array.length, 
-        .values = avAllocatorAllocate(sizeof(struct ConstValue)*array.length, &project->allocator),
+        .values = array.length ? avAllocatorAllocate(sizeof(struct ConstValue)*array.length, &project->allocator) : nullptr,
     };
     avDynamicArrayAdd(&arr.values, project->arrays);
     for(uint32 i = 0; i < array.length; i++){
@@ -271,6 +271,171 @@ struct Value concatenateStrings(struct Value left, struct Value right, Project* 
     return (struct Value){
         .type= VALUE_TYPE_STRING,
         .asString = str,
+    };
+}
+
+struct Value performComparison(struct ComparisonExpression_S expression, Project* project){
+    struct Value left = getValue(expression.left, project);
+    struct Value right = getValue(expression.right, project);
+
+    if((left.type & (VALUE_TYPE_STRING|VALUE_TYPE_NUMBER)) != (right.type & (VALUE_TYPE_STRING|VALUE_TYPE_NUMBER)) && left.type != VALUE_TYPE_ARRAY){
+        runtimeError(project, "Comparing two different types is not allowed");
+        return (struct Value){
+            .type = VALUE_TYPE_NUMBER,
+            .asNumber = 0,
+        };
+    }
+    if(left.type == VALUE_TYPE_NONE){
+        runtimeError(project, "comparing null value");
+        return (struct Value){
+            .type = VALUE_TYPE_NUMBER,
+            .asNumber = 0,
+        };
+    }
+    if(right.type == VALUE_TYPE_ARRAY){
+        runtimeError(project, "Arrays must be the left operant");
+        return (struct Value){
+            .type = VALUE_TYPE_NUMBER,
+            .asNumber = 0,
+        };
+    }
+    if(left.type == VALUE_TYPE_ARRAY && left.type == right.type){
+        runtimeError(project, "Comparing two arrays is not allowed");
+        return (struct Value){
+            .type = VALUE_TYPE_NUMBER,
+            .asNumber = 0,
+        };
+    }
+    if(left.type == VALUE_TYPE_ARRAY){
+        struct ArrayValue array = left.type==VALUE_TYPE_ARRAY?left.asArray:right.asArray;
+        struct Value val = left.type==VALUE_TYPE_ARRAY?right:left;
+        if(array.count == 0){
+            return (struct Value){
+                .type = VALUE_TYPE_NUMBER,
+                .asNumber = 0,
+            }; 
+        }
+        struct ConstValue* values = avAllocatorAllocate(sizeof(struct ConstValue)*array.count, &project->allocator);
+        for(uint32 i = 0; i < array.count; i++){
+            struct ConstValue v = array.values[i];
+            uint32 value = 0;
+            if(v.type != val.type){
+                runtimeError(project, "Comparing two different types is not allowed");
+                continue;
+            }
+            switch(val.type){
+                case VALUE_TYPE_NUMBER:
+                    switch(expression.operator){
+                        case COMPARISON_OPERATOR_EQUALS:
+                            value = v.asNumber==val.asNumber;
+                            break;
+                        case COMPARISON_OPERATOR_NOT_EQUALS:
+                            value = v.asNumber!=val.asNumber;
+                            break;
+                        case COMPARISON_OPERATOR_LESS_THAN:
+                            value = v.asNumber<val.asNumber;
+                            break;
+                        case COMPARISON_OPERATOR_GREATER_THAN:
+                            value = v.asNumber>val.asNumber;
+                            break;
+                        case COMPARISON_OPERATOR_LESS_THAN_OR_EQUAL:
+                            value = v.asNumber<=val.asNumber;
+                            break;
+                        case COMPARISON_OPERATOR_GREATER_THAN_OR_EQUAL:
+                            value = v.asNumber>=val.asNumber;
+                            break;
+                        default:
+                            runtimeError(project, "invalid comparison operator");
+                            break;
+                    }
+                    values[i].type = VALUE_TYPE_NUMBER;
+                    values[i].asNumber = value;
+                    continue;   
+                case VALUE_TYPE_STRING:
+                    switch(expression.operator){
+                        case COMPARISON_OPERATOR_EQUALS:
+                            value = avStringEquals(v.asString, val.asString);
+                            break;
+                        case COMPARISON_OPERATOR_NOT_EQUALS:
+                            value = !avStringEquals(v.asString, val.asString);
+                            break;
+                        default:
+                            runtimeError(project, "invalid comparison operator");
+                            break;
+                    }
+                    values[i].type = VALUE_TYPE_NUMBER;
+                    values[i].asNumber = value;
+                    continue;
+                default:
+                    runtimeError(project, "invalid value");
+                    return (struct Value){
+                        .type = VALUE_TYPE_NUMBER,
+                        .asNumber = 0,
+                    };
+            }
+        }
+        return (struct Value){
+            .type = VALUE_TYPE_ARRAY,
+            .asArray = {
+                .count = array.count,
+                .values = values,
+            },
+        };
+    }
+
+    if(left.type == VALUE_TYPE_NUMBER){
+        uint32 value = 0;
+        switch(expression.operator){
+            case COMPARISON_OPERATOR_EQUALS:
+                value = left.asNumber==right.asNumber;
+                break;
+            case COMPARISON_OPERATOR_NOT_EQUALS:
+                value = left.asNumber!=right.asNumber;
+                break;
+            case COMPARISON_OPERATOR_LESS_THAN:
+                value = left.asNumber<right.asNumber;
+                break;
+            case COMPARISON_OPERATOR_GREATER_THAN:
+                value = left.asNumber>right.asNumber;
+                break;
+            case COMPARISON_OPERATOR_LESS_THAN_OR_EQUAL:
+                value = left.asNumber<=right.asNumber;
+                break;
+            case COMPARISON_OPERATOR_GREATER_THAN_OR_EQUAL:
+                value = left.asNumber>=right.asNumber;
+                break;
+            default:
+                runtimeError(project, "invalid comparison operator");
+                break;
+        }
+        return (struct Value){
+            .type = VALUE_TYPE_NUMBER,
+            .asNumber = value,
+        };
+    }
+    if(left.type == VALUE_TYPE_STRING){
+        uint32 value = 0;
+        switch(expression.operator){
+            case COMPARISON_OPERATOR_EQUALS:
+                value = avStringEquals(left.asString, right.asString);
+                break;
+            case COMPARISON_OPERATOR_NOT_EQUALS:
+                value = !avStringEquals(left.asString, right.asString);
+                break;
+            default:
+                runtimeError(project, "invalid comparison operator");
+                break;
+        }
+        return (struct Value){
+            .type = VALUE_TYPE_NUMBER,
+            .asNumber = value,
+        };
+    }
+
+    runtimeError(project, "logic error");
+    return (struct Value){
+        .type = VALUE_TYPE_NUMBER,
+        .asNumber = 0,
     };
 }
 
@@ -345,8 +510,12 @@ struct Value performMultiplication(struct MultiplicationExpression_S expression,
 }
 
 void assignConstant(struct VariableDescription description, struct Value value, Project* project);
-void addVariableToContext(struct VariableDescription description, Project* project);
+void assignVariable(struct VariableDescription description, struct Value value, Project* project);
 
+void addVariableToContext(struct VariableDescription description, Project* project);
+void addVariableToGlobalContext(struct VariableDescription description, Project* project);
+
+struct VariableDescription findVariableInGlobalScope(AvString identifier, Project* project);
 
 Project* importProject(AvString projectFile, bool32 local, Project* baseProject){
     avStringDebugContextStart;
@@ -415,6 +584,37 @@ Project* importProject(AvString projectFile, bool32 local, Project* baseProject)
             case STATEMENT_TYPE_IMPORT:
             case STATEMENT_TYPE_FUNCTION_DEFINITION:
                 break;
+            case STATEMENT_TYPE_INHERIT:
+                struct VariableDescription var = findVariableInGlobalScope(statement->inheritStatement.variable, baseProject);
+                if(var.project){
+                    if(!var.value){
+                        if(!statement->inheritStatement.defaultValue){
+                            runtimeError(project, "inheriting variable %s defined in parent project, but has no value", var.identifier);
+                            break;
+                        }
+                        assignVariable(var, getValue(statement->inheritStatement.defaultValue, project), project);
+                        break;
+                    }
+                    addVariableToGlobalContext((struct VariableDescription){
+                        .identifier = statement->inheritStatement.variable,
+                        .project = project,
+                        .statement = i,
+                        .value = var.value,
+                    }, project);
+                    break;
+                }else{
+                    if(statement->inheritStatement.defaultValue){
+                        assignVariable((struct VariableDescription){
+                            .identifier = statement->inheritStatement.variable,
+                            .project = project,
+                            .statement = i,
+                        }, getValue(statement->inheritStatement.defaultValue, project), project);
+                        break;
+                    }
+                    runtimeError(project, "inheriting variable %s but not defined in parent project", var.identifier);
+                    break;
+                }
+                break;
             case STATEMENT_TYPE_VARIABLE_ASSIGNMENT:
                 addVariableToContext((struct VariableDescription){
                     .identifier = statement->variableAssignment.variableName,
@@ -476,24 +676,7 @@ struct VariableDescription importVariable(struct ImportDescription import, Proje
     return findVariable(import.extIdentifier, extProject);
 }
 
-struct VariableDescription findVariable(AvString identifier, Project* project){
-
-    LocalContext* context = project->localContext;
-    while(context){
-        uint32 localVariableCount = avDynamicArrayGetSize(context->variables);
-        for(uint32 i = 0; i < localVariableCount; i++){
-            struct VariableDescription var = (struct VariableDescription){0};
-            avDynamicArrayRead(&var, i, context->variables);
-            if(avStringEquals(identifier, var.identifier)){
-                return var;
-            }
-        }
-        if(!context->inherit){
-            break;
-        }
-        context = context->previous;
-    }
-
+struct VariableDescription findVariableInGlobalScope(AvString identifier, Project* project){
     uint32 existingVariableCount = avDynamicArrayGetSize(project->variables);
     for(uint32 i = 0; i < existingVariableCount; i++){
         struct VariableDescription var = (struct VariableDescription){0};
@@ -519,6 +702,27 @@ struct VariableDescription findVariable(AvString identifier, Project* project){
         }
     }
     return (struct VariableDescription){0};
+}
+
+struct VariableDescription findVariable(AvString identifier, Project* project){
+
+    LocalContext* context = project->localContext;
+    while(context){
+        uint32 localVariableCount = avDynamicArrayGetSize(context->variables);
+        for(uint32 i = 0; i < localVariableCount; i++){
+            struct VariableDescription var = (struct VariableDescription){0};
+            avDynamicArrayRead(&var, i, context->variables);
+            if(avStringEquals(identifier, var.identifier)){
+                return var;
+            }
+        }
+        if(!context->inherit){
+            break;
+        }
+        context = context->previous;
+    }
+
+    return findVariableInGlobalScope(identifier, project);
 }
 
 struct Value retrieveVariableValue(struct IdentifierExpression_S identifier, Project* project){
@@ -1074,6 +1278,66 @@ void parseCommandString(AvString str, struct CommandDescription** dst, Project* 
 
 void assignVariableIndexed(struct AvString identifier, uint32 index, struct Value value, Project* project);
 
+void runIfCommandStatement(struct IfCommandStatement_S statement, Project* project){
+    struct Value value = getValue(statement.check, project);
+    bool32 pass = false;
+    switch(value.type){
+        case VALUE_TYPE_NONE:
+            runtimeError(project, "encountered null value in if statement");
+            return;
+        case VALUE_TYPE_NUMBER:
+            pass = value.asNumber != 0;
+            break;
+        case VALUE_TYPE_STRING:
+            pass = value.asString.len != 0;
+            break;
+        case VALUE_TYPE_ARRAY:
+            pass = value.asArray.count != 0;
+            break;
+    }
+    if(pass){
+        for(uint32 i = 0; i < statement.branch->statementCount; i++){
+            struct CommandStatement_S stat = statement.branch->statements[i];
+            switch(stat.type){
+                case COMMAND_STATEMENT_FUNCTION_CALL:
+                    callFunction(stat.functionCall, project);
+                    break;
+                case COMMAND_STATEMENT_VARIABLE_ASSIGNMENT:
+                    runVariableAssignment(stat.variableAssignment, -1, project);
+                    break;
+                case COMMAND_STATEMENT_IF_STATEMENT:
+                    runIfCommandStatement(stat.ifStatement, project);
+                    break;
+                case COMMAND_STATEMENT_NONE:
+                    avAssert(false, "logic error");
+                    break;
+            }
+        }
+    }else{
+        if(statement.alternativeBranch->check==nullptr){
+            for(uint32 i = 0; i < statement.alternativeBranch->branch->statementCount; i++){
+                struct CommandStatement_S stat = statement.alternativeBranch->branch->statements[i];
+                switch(stat.type){
+                    case COMMAND_STATEMENT_FUNCTION_CALL:
+                        callFunction(stat.functionCall, project);
+                        break;
+                    case COMMAND_STATEMENT_VARIABLE_ASSIGNMENT:
+                        runVariableAssignment(stat.variableAssignment, -1, project);
+                        break;
+                    case COMMAND_STATEMENT_IF_STATEMENT:
+                        runIfCommandStatement(stat.ifStatement, project);
+                        break;
+                    case COMMAND_STATEMENT_NONE:
+                        avAssert(false, "logic error");
+                        break;
+                }
+            }
+        }else{
+            runIfCommandStatement(*statement.alternativeBranch, project);
+        }
+    }
+}
+
 void performCommand(struct CommandStatementBody_S command, Project* project){
     startLocalContext(project, true);
 
@@ -1085,6 +1349,9 @@ void performCommand(struct CommandStatementBody_S command, Project* project){
                 break;
             case COMMAND_STATEMENT_VARIABLE_ASSIGNMENT:
                 runVariableAssignment(statement.variableAssignment, -1, project);
+                break;
+            case COMMAND_STATEMENT_IF_STATEMENT:
+                runIfCommandStatement(statement.ifStatement, project);
                 break;
             case COMMAND_STATEMENT_NONE:
                 avAssert(false, "logic error");
@@ -1330,6 +1597,81 @@ void performVariableDefinition(struct VariableDefinition_S variable, Project* pr
     }, project);
 }
 
+void runIfPerformStatement(struct IfPerformStatement_S statement, Project* project){
+    struct Value value = getValue(statement.check, project);
+    bool32 pass = false;
+    switch(value.type){
+        case VALUE_TYPE_NONE:
+            runtimeError(project, "encountered null value in if statement");
+            return;
+        case VALUE_TYPE_NUMBER:
+            pass = value.asNumber != 0;
+            break;
+        case VALUE_TYPE_STRING:
+            pass = value.asString.len != 0;
+            break;
+        case VALUE_TYPE_ARRAY:
+            pass = value.asArray.count != 0;
+            break;
+    }
+    if(pass){
+        for(uint32 i = 0; i < statement.branch->statementCount; i++){
+            struct PerformStatement_S stat = statement.branch->statements[i];
+            switch(stat.type){
+                case PERFORM_OPERATION_TYPE_FUNCTION_CALL:
+                    callFunction(stat.functionCall, project);
+                    break;
+                case PERFORM_OPERATION_TYPE_VARIABLE_ASSIGNMENT:
+                    runVariableAssignment(stat.variableAssignment, -1, project);
+                    break;
+                case PERFORM_OPERATION_TYPE_COMMAND:
+                    performCommand(stat.commandStatement, project);
+                    break;
+                case PERFORM_OPERATION_TYPE_VARIABLE_DEFINITION:
+                    performVariableDefinition(stat.variableDefinition, project);
+                    break;
+                case PERFORM_OPERATION_TYPE_IF_STATEMENT:
+                    runIfPerformStatement(stat.ifStatement, project);
+                    break;
+                case PERFORM_OPERATION_TYPE_NONE:
+                    avAssert(false, "logic error");
+                    break;
+            }
+        }
+    }else{
+        if(!statement.alternativeBranch){
+            return;
+        }
+        if(statement.alternativeBranch->check==nullptr){
+            for(uint32 i = 0; i < statement.alternativeBranch->branch->statementCount; i++){
+                struct PerformStatement_S stat = statement.alternativeBranch->branch->statements[i];
+                switch(stat.type){
+                    case PERFORM_OPERATION_TYPE_FUNCTION_CALL:
+                        callFunction(stat.functionCall, project);
+                        break;
+                    case PERFORM_OPERATION_TYPE_VARIABLE_ASSIGNMENT:
+                        runVariableAssignment(stat.variableAssignment, -1, project);
+                        break;
+                    case PERFORM_OPERATION_TYPE_COMMAND:
+                        performCommand(stat.commandStatement, project);
+                        break;
+                    case PERFORM_OPERATION_TYPE_VARIABLE_DEFINITION:
+                        performVariableDefinition(stat.variableDefinition, project);
+                        break;
+                    case PERFORM_OPERATION_TYPE_IF_STATEMENT:
+                        runIfPerformStatement(stat.ifStatement, project);
+                        break;
+                    case PERFORM_OPERATION_TYPE_NONE:
+                        avAssert(false, "logic error");
+                        break;
+                }
+            }
+        }else{
+            runIfPerformStatement(*statement.alternativeBranch, project);
+        }
+    }
+}
+
 void performPerform(struct PerformStatementBody_S perform, Project* project){
     startLocalContext(project, true);
 
@@ -1349,6 +1691,9 @@ void performPerform(struct PerformStatementBody_S perform, Project* project){
             case PERFORM_OPERATION_TYPE_VARIABLE_DEFINITION:
                 performVariableDefinition(statement.variableDefinition, project);
                 break;
+            case PERFORM_OPERATION_TYPE_IF_STATEMENT:
+                runIfPerformStatement(statement.ifStatement, project);
+                break;
             case PERFORM_OPERATION_TYPE_NONE:
                 avAssert(false, "logic error");
                 break;
@@ -1358,11 +1703,111 @@ void performPerform(struct PerformStatementBody_S perform, Project* project){
     endLocalContext(project);
 }
 
+struct Value runIfFunctionStatement(struct IfFunctionStatement_S statement, bool32* returned, Project* project){
+    struct Value check = getValue(statement.check, project);
+    bool32 pass = false;
+    switch(check.type){
+        case VALUE_TYPE_NONE:
+            runtimeError(project, "encountered null value in if statement");
+            return NULL_VALUE;
+        case VALUE_TYPE_NUMBER:
+            pass = check.asNumber != 0;
+            break;
+        case VALUE_TYPE_STRING:
+            pass = check.asString.len != 0;
+            break;
+        case VALUE_TYPE_ARRAY:
+            pass = check.asArray.count != 0;
+            break;
+    }
+    struct Value value = NULL_VALUE;
+    if(pass){
+        for(uint32 i = 0; i < statement.branch->statementCount; i++){
+            struct FunctionStatement_S stat = statement.branch->statements[i];
+            switch(stat.type){
+                case FUNCTION_STATEMENT_TYPE_FOREACH:
+                    performForeach(stat.foreachStatement, project);
+                    break;
+                case FUNCTION_STATEMENT_TYPE_PERFORM:
+                    performPerform(stat.performStatement, project);
+                    break;
+                case FUNCTION_STATEMENT_TYPE_RETURN:{
+                    struct Value returnValue = getValue(stat.returnStatement.value, project);
+                    memcpy(&value, &returnValue, sizeof(struct Value));
+                    *returned = true;
+                    break;
+                }
+                case FUNCTION_STATEMENT_TYPE_IF:
+                    bool32 rett = false;
+                    struct Value retValue = runIfFunctionStatement(stat.ifStatement, &rett, project);
+                    if(rett){
+                        memcpy(&value, &retValue, sizeof(struct Value));
+                        *returned = true;
+                    }
+                    break;
+                case FUNCTION_STATEMENT_TYPE_VAR_DEFINITION:
+                    performVariableDefinition(stat.variableDefinition, project);
+                    break;
+                case FUNCTION_STATEMENT_TYPE_NONE:
+                    avAssert(false, "invalid statement");
+                    break;
+            }
+            if(*returned){
+                break;
+            } 
+        }
+    }else{
+        if(!statement.alternativeBranch){
+            return NULL_VALUE;
+        }
+        if(statement.alternativeBranch->check==nullptr){
+            for(uint32 i = 0; i < statement.alternativeBranch->branch->statementCount; i++){
+                struct FunctionStatement_S stat = statement.alternativeBranch->branch->statements[i];
+                switch(stat.type){
+                    case FUNCTION_STATEMENT_TYPE_FOREACH:
+                        performForeach(stat.foreachStatement, project);
+                        break;
+                    case FUNCTION_STATEMENT_TYPE_PERFORM:
+                        performPerform(stat.performStatement, project);
+                        break;
+                    case FUNCTION_STATEMENT_TYPE_RETURN:{
+                        struct Value returnValue = getValue(stat.returnStatement.value, project);
+                        memcpy(&value, &returnValue, sizeof(struct Value));
+                        *returned = true;
+                        break;
+                    }
+                    case FUNCTION_STATEMENT_TYPE_IF:
+                        bool32 rett = false;
+                        struct Value retValue = runIfFunctionStatement(stat.ifStatement, &rett, project);
+                        if(rett){
+                            memcpy(&value, &retValue, sizeof(struct Value));
+                            *returned = true;
+                        }
+                        break;
+                    case FUNCTION_STATEMENT_TYPE_VAR_DEFINITION:
+                        performVariableDefinition(stat.variableDefinition, project);
+                        break;
+
+                    case FUNCTION_STATEMENT_TYPE_NONE:
+                        avAssert(false, "invalid statement");
+                        break;
+                }
+                if(*returned){
+                    break;
+                } 
+            }
+        }else{
+            return runIfFunctionStatement(*statement.alternativeBranch, returned, project);
+        }
+    }
+    return value;
+}
+
 struct Value runFunction(struct FunctionDefinition_S function, Project* project){
     struct Value value = {.type=VALUE_TYPE_NUMBER, .asNumber=0 };
     bool32 done = false;
-    for(uint32 i = 0; i < function.statementCount; i++){
-        struct FunctionStatement_S statement = function.statements[i];
+    for(uint32 i = 0; i < function.body.statementCount; i++){
+        struct FunctionStatement_S statement = function.body.statements[i];
         switch(statement.type){
             case FUNCTION_STATEMENT_TYPE_FOREACH:
                 performForeach(statement.foreachStatement, project);
@@ -1376,6 +1821,14 @@ struct Value runFunction(struct FunctionDefinition_S function, Project* project)
                 done = true;
                 break;
             }
+            case FUNCTION_STATEMENT_TYPE_IF:
+                bool32 returned = false;
+                struct Value retValue = runIfFunctionStatement(statement.ifStatement, &returned, project);
+                if(returned){
+                    memcpy(&value, &retValue, sizeof(struct Value));
+                    done = true;
+                }
+                break;
             case FUNCTION_STATEMENT_TYPE_VAR_DEFINITION:
                 performVariableDefinition(statement.variableDefinition, project);
                 break;
@@ -1503,6 +1956,8 @@ struct Value getValue(struct Expression_S* expression, Project* project){
             return performUnary(expression->unary, project);
         case EXPRESSION_TYPE_SUMMATION:
             return performSummation(expression->summation, project);
+        case EXPRESSION_TYPE_COMPARISON:
+            return performComparison(expression->comparison, project);
         case EXPRESSION_TYPE_MULTIPLICATION:
             return performMultiplication(expression->multiplication, project);
         case EXPRESSION_TYPE_IDENTIFIER:
@@ -1517,6 +1972,22 @@ struct Value getValue(struct Expression_S* expression, Project* project){
     return NULL_VALUE;
 }
 void addVariableToContext(struct VariableDescription description, Project* project);
+
+void assignVariableInGlobalScope(struct VariableDescription description, struct Value value, Project* project){
+    avDynamicArrayForEachElement(struct VariableDescription, project->variables, {
+        if(avStringEquals(description.identifier, element.identifier)){
+            avDynamicArrayWrite(&description, index, project->variables);
+            return;
+        }
+    });
+    avDynamicArrayForEachElement(struct VariableDescription, project->constants, {
+        if(avStringEquals(description.identifier, element.identifier)){
+            runtimeError(project, "Cant write to constant");
+            return;
+        }
+    });
+    addVariableToContext(description, project);
+}
 
 void assignVariable(struct VariableDescription description, struct Value value, Project* project){
     struct Value* val = avAllocatorAllocate(sizeof(struct Value), &project->allocator);
@@ -1535,19 +2006,7 @@ void assignVariable(struct VariableDescription description, struct Value value, 
         }
         context = context->previous;
     }
-    avDynamicArrayForEachElement(struct VariableDescription, project->variables, {
-        if(avStringEquals(description.identifier, element.identifier)){
-            avDynamicArrayWrite(&description, index, project->variables);
-            return;
-        }
-    });
-    avDynamicArrayForEachElement(struct VariableDescription, project->constants, {
-        if(avStringEquals(description.identifier, element.identifier)){
-            runtimeError(project, "Cant write to constant");
-            return;
-        }
-    });
-    addVariableToContext(description, project);
+    assignVariableInGlobalScope(description, value, project);
 }
 
 void assignConstant(struct VariableDescription description, struct Value value, Project* project){
@@ -1651,6 +2110,10 @@ void assignVariableIndexed(struct AvString identifier, uint32 index, struct Valu
     memcpy(variable->value->asArray.values+index, &val, sizeof(struct ConstValue));
 }
 
+void addVariableToGlobalContext(struct VariableDescription description, Project* project){
+    avDynamicArrayAdd(&description, project->variables);
+}
+
 void addVariableToContext(struct VariableDescription description, Project* project){
     if(!project->localContext){
         avDynamicArrayAdd(&description, project->variables);
@@ -1745,6 +2208,19 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
         switch(statement->type){
             case STATEMENT_TYPE_IMPORT:
             case STATEMENT_TYPE_FUNCTION_DEFINITION:
+                break;
+            case STATEMENT_TYPE_INHERIT:
+                if(!statement->inheritStatement.defaultValue){
+                    struct Value* value = avAllocatorAllocate(sizeof(struct Value), &project->allocator);
+                    struct Value tmpValue = getValue(statement->inheritStatement.defaultValue, project);
+                    memcpy(value, &tmpValue, sizeof(AvString));
+                    addVariableToContext((struct VariableDescription){
+                        .identifier = statement->inheritStatement.variable,
+                        .project = project,
+                        .statement = i,
+                        .value = value,
+                    }, project);
+                }
                 break;
             case STATEMENT_TYPE_VARIABLE_ASSIGNMENT:
                 runVariableAssignment(statement->variableAssignment, i, project);

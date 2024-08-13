@@ -43,6 +43,32 @@ bool32 consumeToken(uint64* const readIndex, const AvString projectFileContent, 
     return true;
 }
 
+bool32 consumePunctuator(uint64* const readIndex, const AvString projectFileContent, const uint32 tokenCount, const AvString * const tokens){
+    uint32 keywordLength = 0;
+    uint32 longestKeyword = -1;
+    for(uint32 i = 0; i < tokenCount; i++){
+        const AvString keyword = tokens[i];
+        const uint64 remainingLength = projectFileContent.len - *readIndex;
+        if(!avStringEquals(keyword, AV_STR(projectFileContent.chrs+*readIndex, AV_MIN(keyword.len, remainingLength)))){
+            continue;
+        }
+        if(keyword.len == remainingLength){
+            (*readIndex)++;
+            return true;
+        }            
+
+        if(keyword.len > keywordLength){
+            keywordLength = keyword.len;
+            longestKeyword = i;
+        }
+    }
+    if(longestKeyword == -1){
+        return false;
+    }
+    *readIndex += keywordLength;
+    return true;
+}
+
 void consumeComments(uint64* const readIndex, uint32* const lineIndex, const AvString projectFileContent){
 
     uint64 index = *readIndex;
@@ -122,7 +148,7 @@ bool32 consumeString(uint64* const readIndex, const AvString projectFileContent)
 }
 
 bool32 consumeSpecialString(uint64* const readIndex, const AvString projectFileContent){
-    return consumeEnclosed(readIndex, projectFileContent, '<', '>');
+    return consumeEnclosed(readIndex, projectFileContent, '\'', '\'');
 }
 
 
@@ -272,18 +298,13 @@ bool32 tokenizeProject(const AvString projectFileContent, const AvString project
             tokenType = TOKEN_TYPE_KEYWORD;
             goto tokenFound;
         }
-        if(consumeToken(&readIndex, projectFileContent, punctuatorCount, punctuators)){
+        if(consumePunctuator(&readIndex, projectFileContent, punctuatorCount, punctuators)){
             tokenType = TOKEN_TYPE_PUNCTUATOR;
             goto tokenFound;
         }
 
         if(consumeString(&readIndex, projectFileContent)){
             tokenType = TOKEN_TYPE_STRING;
-            goto tokenFound;
-        }
-
-        if(consumeSpecialString(&readIndex, projectFileContent)){
-            tokenType = TOKEN_TYPE_SPECIAL_STRING;
             goto tokenFound;
         }
 
@@ -310,6 +331,9 @@ bool32 tokenizeProject(const AvString projectFileContent, const AvString project
                 .line = line,
                 .character = tokenStart,
             };
+            if(token.str.len==0){
+                return false;
+            }
 
             #define TOKEN(tokenType, tokenName, symbol) \
             if(avStringEquals(token.str, AV_CSTR(symbol))) { \
