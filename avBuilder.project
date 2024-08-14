@@ -1,6 +1,6 @@
 #!/usr/bin/avBuilder
 import "library/c/stdc.project" {
-    build;
+    buildExecutable as build;
     getSourceFiles;
 }
 
@@ -11,10 +11,16 @@ flags=[
     "-ggdb"
 ];
 includes=[
-    "./include"
+    "./include",
+    "lib/AvUtils/include"
+];
+
+libDirs=[
+    "lib/AvUtils/lib"
 ];
 libs=[
-    "m"
+    "m",
+    "avUtils"
 ];
 srcDir = [
     "src"
@@ -22,7 +28,7 @@ srcDir = [
 
 avBuilder() {
     perform {
-        executable = build(getSourceFiles(srcDir), "build", flags, [], includes, [], libs, PROJECT_NAME, ".");
+        executable = build(getSourceFiles(srcDir), "build", flags, [], includes, libDirs, libs, PROJECT_NAME, ".");
     }
 }
 

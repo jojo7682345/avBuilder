@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <unistd.h>
-#include <AvUtils/string/avRegex.h>
 #include <AvUtils/avProcess.h>
 #include <AvUtils/avEnvironment.h>
 #include <AvUtils/process/avPipe.h>
@@ -576,7 +575,7 @@ Project* importProject(AvString projectFile, bool32 local, Project* baseProject)
             .identifier = AV_CSTR("PROJECT_NAME"),
             .project = project,
             .statement = -1,
-    }, (struct Value){.type=VALUE_TYPE_STRING,.asString=baseProject->name}, project);
+    }, (struct Value){.type=VALUE_TYPE_STRING,.asString=project->name}, project);
 
     for(uint32 i = 0; i < project->statementCount; i++){
         struct Statement_S* statement = (project->statements)[i];
@@ -660,6 +659,7 @@ struct VariableDescription importVariable(struct ImportDescription import, Proje
         { 
             if(avStringEquals(import.importFile, element->projectFileName)){
                 found = true;
+                extProject = element;
                 break;
             }
         }
@@ -928,8 +928,9 @@ struct FunctionDescription importFunction(struct ImportDescription import, Proje
         Project* element; 
         avDynamicArrayRead(&element, index, (project->importedProjects)); 
         { 
-            if(avStringEquals(import.importFile, element->name)){
+            if(avStringEquals(import.importFile, element->projectFileName)){
                 found = true;
+                extProject = element;
                 break;
             }
         }

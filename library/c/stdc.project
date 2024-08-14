@@ -1,5 +1,6 @@
 inherit compiler = "gcc";
 inherit linker = compiler;
+inherit archiver = "ar";
 inherit validCextensions = [ ".c", ".C", ".s", ".S" ];
 
 compile(sources, outDir, flags, includes){
@@ -30,21 +31,17 @@ compile(sources, outDir, flags, includes){
     return output;
 }
 
-link(objects, outDir, executableName, flags, libDirs, libs){
+archiveLibrary(outDir, libraryName, flags, objects){
     var output;
     var retCode;
-    perform {
-        command : retCode {
-            outputExecutable = outDir + "/" + executableName;
-            command = "$linker $flags *objects -L*libDirs -l*libs -o $outputExecutable";
-            output = executableName;
-        }
+    perform command : retCode {
+        command = "$archiver $flags -o $outDir/$libraryName *objects";
+        output=outDir + "/" + libraryName;
     }
-    
-    if(retCode!=0) {
+    if(retCode){
         perform{
             print("linking ");
-            print(executableName);
+            print(libraryName);
             println(" failed!");
         }
         return [];
@@ -52,13 +49,35 @@ link(objects, outDir, executableName, flags, libDirs, libs){
     return output;
 }
 
-build(sources, buildDir, compileFlags, linkFlags, includes, libDirs, libs, executableName, outDir){
+linkExecutable(objects, outDir, libraryName, flags, libDirs, libs){
+    var output;
+    var retCode;
+    perform {
+        command : retCode {
+            outputExecutable = outDir + "/" + libraryName;
+            command = "$linker $flags *objects -L*libDirs -l*libs -o $outputExecutable";
+            output = libraryName;
+        }
+    }
+    
+    if(retCode!=0) {
+        perform{
+            print("linking ");
+            print(libraryName);
+            println(" failed!");
+        }
+        return [];
+    }
+    return output;
+}
+
+buildExecutable(sources, buildDir, compileFlags, linkFlags, includes, libDirs, libs, executableName, outDir){
     var executable;
     var failed;
     perform{
         objects = compile(sources, buildDir, compileFlags, includes);
         if(arraySize(objects)!=0){
-            executable = link(objects, outDir, executableName, linkFlags, libDirs, libs);
+            executable = linkExecutable(objects, outDir, executableName, linkFlags, libDirs, libs);
             if(arraySize(executable)!=0){ 
                 print("Successfully build ");
                 println(executableName);
@@ -71,6 +90,39 @@ build(sources, buildDir, compileFlags, linkFlags, includes, libDirs, libs, execu
         }
     }
     return executable;
+}
+
+buildStaticLibrary(sources, buildDir, compileFlags, archiveFlags, includes, additionalObjects, libraryName, outDir){
+    var library;
+    var objects;
+    perform {
+        objects = compile(sources, buildDir, compileFlags, includes);
+    }
+    if(arraySize(objects)==0){
+        perform{
+            print("compilation failed");
+        }
+        return [];
+    }
+    var totalObjects[arraySize(objects) + arraySize(additionalObjects)];
+    foreach object[index] from objects perform {
+        totalObjects[index] = object;
+    }
+    foreach additionalObject[index] from additionalObjects perform {
+        totalObjects[index + arraySize(objects)] = additionalObject;
+    }
+    perform {
+        library = archiveLibrary(outDir, "lib" + libraryName + ".a", archiveFlags, totalObjects);
+    }
+    if(library){
+        return library;
+    }
+    perform{
+        print("builing static library ");
+        print(libraryName);
+        println("failed!");
+    }
+    return [];
 }
 
 getSourceFiles(dir){
