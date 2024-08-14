@@ -16,11 +16,11 @@ includes=[
 ];
 
 libDirs=[
-    "lib/AvUtils/lib"
+    //"lib/AvUtils/lib"
 ];
 libs=[
     "m",
-    "avUtils"
+    //"avUtils"
 ];
 srcDir = [
     "src"
