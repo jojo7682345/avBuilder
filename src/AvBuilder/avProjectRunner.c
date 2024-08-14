@@ -562,6 +562,22 @@ Project* importProject(AvString projectFile, bool32 local, Project* baseProject)
         goto processingFailed;
     }
 
+    uint32 providesCount = avDynamicArrayGetSize(baseProject->libraryAliases);
+    for(uint32 i = 0; i < providesCount; i++){
+        struct ImportDescription* description = avDynamicArrayGetPtr(i, baseProject->libraryAliases);
+        if(!avStringEquals(projectFile, description->importFile)){
+            continue;
+        }
+        uint32 libraryImportCount = avDynamicArrayGetSize(project->externals);
+        for(uint32 j = 0; j < libraryImportCount; j++){
+            struct ImportDescription* mapping = avDynamicArrayGetPtr(j, project->externals);
+            if(avStringEquals(mapping->importFile, description->extIdentifier)){
+                avStringFree(&mapping->importFile);
+                avStringUnsafeCopy(&mapping->importFile, &description->identifier);
+            }
+        }
+    }
+
     for(uint32 i = 0; i < builtInVariableCount; i++){
         struct BuiltInVariableDescription var = builtInVariables[i];
         assignConstant((struct VariableDescription){

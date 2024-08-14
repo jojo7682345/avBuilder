@@ -605,6 +605,7 @@ bool32 processImportMapping(struct ImportMapping_S* map, struct DefinitionMappin
     }else{
         memcpy(&map->alias, &mapping->symbol, sizeof(AvString));
     }
+    map->type = mapping->type;
     return true;
 }
 
@@ -717,6 +718,16 @@ bool32 processProject(void* statements, Project* project){
                 struct ImportStatement_S import = statement->importStatement;
                 for(uint32 j = 0; j < import.mappingCount; j++){
                     struct ImportMapping_S mapping = import.mappings[j];
+                    if(mapping.type==DEFINITION_MAPPING_PROVIDE){
+                        struct ImportDescription external = (struct ImportDescription){
+                            .identifier = {.chrs = mapping.alias.chrs+1, .len= mapping.alias.len-2 },
+                            .extIdentifier = { .chrs = mapping.symbol.chrs+1, .len= mapping.symbol.len-2 },
+                            .importFile = { .chrs = import.importFile.chrs+1, .len = import.importFile.len-2 },
+                            .isLocalFile = import.local,
+                        };
+                        avDynamicArrayAdd(&external, project->libraryAliases);
+                        continue;
+                    }
                     if(checkPreviouslyDefined(mapping.alias, project)){
                         avStringPrintf(AV_CSTR("Multiple Definitions found of %s\n"), mapping.alias);
                         return false;

@@ -142,6 +142,7 @@ void projectCreate(struct Project* project, AvString name, AvString file, AvStri
     avDynamicArrayCreate(0, sizeof(struct VariableDescription), &project->constants);
     avDynamicArrayCreate(0, sizeof(struct FunctionDescription), &project->functions);
     avDynamicArrayCreate(0, sizeof(struct ImportDescription), &project->externals);
+    avDynamicArrayCreate(0, sizeof(struct ImportDescription), &project->libraryAliases);
     avDynamicArrayCreate(0, sizeof(Project*), &project->importedProjects);
     avDynamicArrayCreate(0, sizeof(struct ConstValue*), &project->arrays);
     avStringClone(&project->name, name);
@@ -155,6 +156,7 @@ void projectDestroy(struct Project* project){
     avDynamicArrayDestroy(project->constants);
     avDynamicArrayDestroy(project->functions);
     avDynamicArrayDestroy(project->externals);
+    avDynamicArrayDestroy(project->libraryAliases);
     avDynamicArrayForEachElement(Project*, project->importedProjects, {
         projectDestroy(element);
     });

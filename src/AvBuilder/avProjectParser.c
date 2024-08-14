@@ -713,11 +713,21 @@ static struct FunctionDefinition* parseFunctionDefinition(TokenIterator* iterato
 
 static struct DefinitionMapping* parseDefinitionMapping(TokenIterator* iterator){
     struct DefinitionMapping* mapping = avAllocatorAllocate(sizeof(struct DefinitionMapping), iterator->allocator);
-    Token* symbol = consume(iterator, TOKEN_TYPE_TEXT, "expected symbol name");
-    memcpy(&(mapping->symbol), &(symbol->str),sizeof(AvString));
-    if(match(iterator, TOKEN_TYPE_KEYWORD_as)){
-        Token* alias = consume(iterator, TOKEN_TYPE_TEXT, "expected alias");
+    if(match(iterator, TOKEN_TYPE_KEYWORD_provide)){
+        Token* libraryFile = consume(iterator, TOKEN_TYPE_STRING, "expected library");
+        memcpy(&(mapping->symbol), &(libraryFile->str),sizeof(AvString));
+        consume(iterator, TOKEN_TYPE_KEYWORD_as, "expected 'as'");
+        Token* alias = consume(iterator, TOKEN_TYPE_STRING, "expected library alias");
         memcpy(&(mapping->symbolAlias),&(alias->str),sizeof(AvString));
+        mapping->type = DEFINITION_MAPPING_PROVIDE;
+    }else{
+        Token* symbol = consume(iterator, TOKEN_TYPE_TEXT, "expected symbol name");
+        memcpy(&(mapping->symbol), &(symbol->str),sizeof(AvString));
+        if(match(iterator, TOKEN_TYPE_KEYWORD_as)){
+            Token* alias = consume(iterator, TOKEN_TYPE_TEXT, "expected alias");
+            memcpy(&(mapping->symbolAlias),&(alias->str),sizeof(AvString));
+        }
+        mapping->type = DEFINITION_MAPPING_DEFAULT;
     }
     consume(iterator, TOKEN_TYPE_PUNCTUATOR_semicolon, "expected ';' after statement");
     return mapping;

@@ -14,6 +14,7 @@
     TOKEN(KEYWORD,      perform,    "perform")\
     TOKEN(KEYWORD,      import,     "import")\
     TOKEN(KEYWORD,      inherit,    "inherit")\
+    TOKEN(KEYWORD,      provide,    "provide")\
     TOKEN(KEYWORD,      files,      "files")\
     TOKEN(KEYWORD,      if,         "if")\
     TOKEN(KEYWORD,      else,       "else")\
@@ -111,6 +112,7 @@ typedef struct Project {
     AV_DS(AvDynamicArray, struct VariableDescription) constants;
     AV_DS(AvDynamicArray, struct ImportDescription) externals;
     AV_DS(AvDynamicArray, Project*) importedProjects;
+    AV_DS(AvDynamicArray, struct ImportDescription) libraryAliases;
     AV_DS(AvDynamicArray, struct ConstValue*) arrays;
     uint32 statementCount;
     struct Statement_S** statements;

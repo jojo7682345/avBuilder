@@ -138,7 +138,13 @@ struct FunctionCallStatement {
     struct Call* call;
 };
 
+enum DefinitionMappingType {
+    DEFINITION_MAPPING_DEFAULT,
+    DEFINITION_MAPPING_PROVIDE,
+};
+
 struct DefinitionMapping{
+    enum DefinitionMappingType type;
     AvString symbol;
     AvString symbolAlias;
 };
@@ -512,6 +518,7 @@ struct FunctionDefinition_S{
 };
 
 struct ImportMapping_S{
+    enum DefinitionMappingType type;
     AvString symbol;
     AvString alias;
 };
