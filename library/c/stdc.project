@@ -35,14 +35,19 @@ link(objects, outDir, executableName, flags, libDirs, libs){
     var retCode;
     perform {
         command : retCode {
-            args = [
-                "-L*libDirs",
-                "-l*libs"
-            ];
             outputExecutable = outDir + "/" + executableName;
-            command = "$linker $args *objects -o $outputExecutable";
+            command = "$linker $flags *objects -L*libDirs -l*libs -o $outputExecutable";
             output = executableName;
         }
+    }
+    
+    if(retCode!=0) {
+        perform{
+            print("linking ");
+            print(executableName);
+            println(" failed!");
+        }
+        return [];
     }
     return output;
 }
@@ -53,9 +58,13 @@ build(sources, buildDir, compileFlags, linkFlags, includes, libDirs, libs, execu
     perform{
         objects = compile(sources, buildDir, compileFlags, includes);
         if(arraySize(objects)!=0){
-            executable = link(objects, outDir, executableName, linkFlags, libDirs, libs); 
-            print("Successfully build ");
-            println(executableName);
+            executable = link(objects, outDir, executableName, linkFlags, libDirs, libs);
+            if(arraySize(executable)!=0){ 
+                print("Successfully build ");
+                println(executableName);
+            }else{
+                print("Building ");print(executableName);println(" failed");
+            }
         }else{
             executable = [];
             print("Building ");print(executableName);println(" failed");
