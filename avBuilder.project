@@ -4,6 +4,11 @@ import "library/c/stdc.project" {
     getSourceFiles;
 }
 
+import "avUtils.project" {
+    avUtils as buildAvUtils;
+    provide "std/c/stdc.lib" as "library/c/stdc.project";
+}
+
 compiler = "gcc";
 linker = "gcc";
 
@@ -16,18 +21,29 @@ includes=[
 ];
 
 libDirs=[
-    //"lib/AvUtils/lib"
+    "lib/AvUtils/lib"
 ];
 libs=[
     "m",
-    //"avUtils"
+    "avUtils"
 ];
 srcDir = [
     "src"
 ];
 
 avBuilder() {
+    perform{
+        changeDir("lib/AvUtils");
+    }
+    if(!buildAvUtils()){
+        perform{
+            println("building AvUtils failed");
+        }
+        return -1;
+    }
     perform {
+        println("building AvUtils successfull");
+        changeDir(PROJECT_DIR);
         executable = build(getSourceFiles(srcDir), "build", flags, [], includes, libDirs, libs, PROJECT_NAME, ".");
     }
 }
