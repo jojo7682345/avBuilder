@@ -481,3 +481,58 @@ struct Value makeDirs(Project* project, uint32 valueCount, struct Value* values)
     avStringFree(&dir);
     return values[0];
 }
+
+struct Value compileString(Project* project, uint32 valueCount, struct Value* values){
+    struct Value result = {.type=VALUE_TYPE_ARRAY, .asArray={.count=0}};
+    
+    struct ConstValue tmpValue = {0};
+    uint32 count = 1;
+    struct ConstValue* vals = &tmpValue;
+    if(values[0].type == VALUE_TYPE_ARRAY){
+        count = values[0].asArray.count;
+        vals = values[0].asArray.values;
+    }else{
+        toConstValue(values[0], vals, project);
+    }
+    if(count == 0){
+        return result;
+    }
+
+    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*count, &project->allocator);
+
+    for(uint32 i = 0; i < count; i++){
+        if(vals[i].type!=VALUE_TYPE_STRING){
+            runtimeError(project, "invalid type");
+            return result;
+        }
+        AvDynamicArray finalArg = AV_EMPTY;
+        avDynamicArrayCreate(0, sizeof(char), &finalArg);
+
+        processArg(vals[i].asString, finalArg, project);
+
+        uint32 count = avDynamicArrayGetSize(finalArg);
+        char* buffer = avAllocatorAllocate(count+1, &project->allocator);
+        avDynamicArrayReadRange(buffer, count, 0, 1, 0, finalArg);
+        avDynamicArrayDestroy(finalArg);
+
+        struct ConstValue res = {
+            .type = VALUE_TYPE_STRING,
+            .asString = AV_CSTR(buffer),
+        };
+        memcpy(results+i, &res, sizeof(struct ConstValue));
+    }
+
+    if(count == 1){
+        struct Value res = {0};
+        toValue(results[0], &res);
+        return res;
+    }else{
+        return (struct Value){
+            .type=VALUE_TYPE_ARRAY,
+            .asArray = {
+                .count = count,
+                .values = results,
+            },
+        };
+    }
+}

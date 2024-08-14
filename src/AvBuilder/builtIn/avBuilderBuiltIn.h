@@ -12,6 +12,7 @@
 void runtimeError(Project* project, const char* message, ...);
 void toConstValue(struct Value value, struct ConstValue* val, Project* project);
 void toValue(struct ConstValue value, struct Value* val);
+uint32 processArg(AvString arg, AvDynamicArray chars, Project* project);
 
 
 #define BUILT_IN_FUNC(func, ...) struct Value func(Project* project, uint32 valueCount, struct Value* values);

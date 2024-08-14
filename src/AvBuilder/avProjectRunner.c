@@ -1157,7 +1157,7 @@ uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
             }
             if(value.type == VALUE_TYPE_ARRAY){
                 uint32 count = value.asArray.count;
-                struct ConstValue* values = value.asArray.values;\
+                struct ConstValue* values = value.asArray.values;
                 uint32 left = i;
                 uint32 right = j;
                 for(; left != -1; left--){
