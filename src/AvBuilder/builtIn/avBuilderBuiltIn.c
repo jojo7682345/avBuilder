@@ -1,6 +1,7 @@
 #include "avBuilderBuiltIn.h"
 #include <string.h>
 #include <AvUtils/avMemory.h>
+#include <unistd.h>
 
 #define TS(str) sizeof(#str)
 
@@ -640,4 +641,70 @@ struct Value toLowercase(Project* project, uint32 valueCount, struct Value* valu
             },
         };
     }
+}
+
+struct Value changeDir(Project* project, uint32 valueCount, struct Value* values){
+    struct Value result = {.type=VALUE_TYPE_ARRAY, .asArray={.count=0}};
+    
+    struct ConstValue tmpValue = {0};
+    uint32 count = 1;
+    struct ConstValue* vals = &tmpValue;
+    if(values[0].type == VALUE_TYPE_ARRAY){
+        count = values[0].asArray.count;
+        vals = values[0].asArray.values;
+    }else{
+        toConstValue(values[0], vals, project);
+    }
+    if(count == 0){
+        return result;
+    }
+
+    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*count, &project->allocator);
+
+    for(uint32 i = 0; i < count; i++){
+        if(vals[i].type!=VALUE_TYPE_STRING){
+            runtimeError(project, "invalid type");
+            return result;
+        }
+        
+        AvString str =vals[i].asString;
+        
+        struct ConstValue res = {
+            .type = VALUE_TYPE_NUMBER,
+            .asNumber = chdir(str.chrs),
+        };
+        memcpy(results+i, &res, sizeof(struct ConstValue));
+    }
+
+    if(count == 1){
+        struct Value res = {0};
+        toValue(results[0], &res);
+        return res;
+    }else{
+        return (struct Value){
+            .type=VALUE_TYPE_ARRAY,
+            .asArray = {
+                .count = count,
+                .values = results,
+            },
+        };
+    }
+}
+
+struct Value currentDir(Project* project, uint32 valueCount, struct Value* values){
+    
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        struct Value res = {
+            .type= VALUE_TYPE_STRING,
+        };
+        avStringCopyToAllocator(AV_CSTR(cwd), &res.asString, &project->allocator);
+        return res;
+    } else {
+        runtimeError(project, "getcwd() error");
+        return (struct Value) {
+            .type = VALUE_TYPE_ARRAY,
+        };
+    }
+
 }

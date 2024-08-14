@@ -63,6 +63,7 @@ struct Call{
 enum UnaryOperator {
     UNARY_OPERATOR_NONE = 0,
     UNARY_OPERATOR_MINUS,
+    UNARY_OPERATOR_NOT,
 };
 enum UnaryType {
     UNARY_TYPE_NONE = 0,

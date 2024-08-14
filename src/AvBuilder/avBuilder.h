@@ -40,6 +40,7 @@
     TOKEN(PUNCTUATOR,   comma, ",")\
     TOKEN(PUNCTUATOR,   dot, ".")\
     TOKEN(PUNCTUATOR,   plus, "+")\
+    TOKEN(PUNCTUATOR,   not, "!")\
     TOKEN(PUNCTUATOR,   minus, "-")\
     TOKEN(PUNCTUATOR,   divide, "/")\
     TOKEN(PUNCTUATOR,   semicolon, ";")\

@@ -102,7 +102,7 @@ struct UnaryExpression_S processUnary(struct Unary* unary, Project* project){
     }
     return (struct UnaryExpression_S){
         .expression = val,
-        .operator = UNARY_OPERATOR_MINUS,
+        .operator = unary->operator,
     };
 }
 

@@ -221,10 +221,18 @@ static struct Filter* parseFilter(TokenIterator* iterator){
 
 static struct Unary* parseUnary(TokenIterator* iterator){
     struct Unary* unary = avAllocatorAllocate(sizeof(struct Unary), iterator->allocator);
-    if(match(iterator, TOKEN_TYPE_PUNCTUATOR_minus)){
+    if(match(iterator, TOKEN_TYPE_PUNCTUATOR_minus, TOKEN_TYPE_PUNCTUATOR_not)){
         Token* operator = previous(iterator);
-        (void)operator; // NOTE: when multiple operators added, find the operator using this
-        unary->operator = UNARY_OPERATOR_MINUS;
+        switch(operator->type){
+            case TOKEN_TYPE_PUNCTUATOR_minus:
+                unary->operator = UNARY_OPERATOR_MINUS;
+                break;
+            case TOKEN_TYPE_PUNCTUATOR_not:
+                unary->operator = UNARY_OPERATOR_NOT;
+                break;
+            default:
+                break;
+        }
         unary->type = UNARY_TYPE_UNARY;
         unary->unary = parseUnary(iterator);
         return unary;

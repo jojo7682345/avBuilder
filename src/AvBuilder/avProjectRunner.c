@@ -233,6 +233,33 @@ struct Value performUnary(struct UnaryExpression_S expression, Project* project)
             value.asNumber = -value.asNumber;
             return value;
         }
+        case UNARY_OPERATOR_NOT:{
+            struct Value value = getValue(expression.expression, project);
+            if(value.type == VALUE_TYPE_NUMBER){
+                value.asNumber = -value.asNumber;
+                return value;
+            }
+            if(value.type==VALUE_TYPE_ARRAY){
+                return (struct Value) {
+                    .type = VALUE_TYPE_NUMBER,
+                    .asNumber = (value.asArray.count==0)
+                };
+            }
+            if(value.type==VALUE_TYPE_ARRAY){
+                return (struct Value) {
+                    .type = VALUE_TYPE_NUMBER,
+                    .asNumber = (value.asArray.count==0)
+                };
+            }
+            if(value.type==VALUE_TYPE_STRING){
+                return (struct Value) {
+                    .type = VALUE_TYPE_NUMBER,
+                    .asNumber = (value.asString.len==0)
+                };
+            }
+            runtimeError( project,"unary minus operator not defined for types other than number");
+            return (struct Value){0};
+        }
         case UNARY_OPERATOR_NONE:
             avAssert(false, "should not reach here");
             break;
@@ -2219,6 +2246,12 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
             .project = project,
             .statement = -1,
     }, (struct Value){.type=VALUE_TYPE_STRING,.asString=project->name}, project);
+
+    assignConstant((struct VariableDescription){
+            .identifier = AV_CSTR("PROJECT_DIR"),
+            .project = project,
+            .statement = -1,
+    }, currentDir(project, 0, nullptr), project);
 
     for(uint32 i = 0; i < project->statementCount; i++){
         struct Statement_S* statement = (project->statements)[i];
