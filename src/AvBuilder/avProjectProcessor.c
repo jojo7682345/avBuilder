@@ -505,7 +505,10 @@ bool32 processFunctionStatementBody(struct FunctionBody_S* body, struct Function
             statementCount++;
             iterator = iterator->next;
         }
-        struct FunctionStatement_S* statements = avAllocatorAllocate(sizeof(struct FunctionStatement_S)*statementCount, &project->allocator);
+        struct FunctionStatement_S* statements =nullptr;
+        if(statementCount){
+            statements = avAllocatorAllocate(sizeof(struct FunctionStatement_S)*statementCount, &project->allocator);
+        }
         uint64 index = 0;
         iterator = list;
         while(iterator && iterator->functionStatement){
