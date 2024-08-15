@@ -175,10 +175,36 @@ struct Value fileName(Project* project, uint32 valueCount, struct Value* values)
         .len = len,
         .memory = nullptr,
     };
+    AvString tmpStr = AV_EMPTY;
+    avStringCopyToAllocator(str, &tmpStr, &project->allocator);
+    avArrayFree(&filePaths);
 
     return (struct Value){
         .type = VALUE_TYPE_STRING,
-        .asString = str,
+        .asString = tmpStr,
+    };
+}
+
+struct Value fileFullName(Project* project, uint32 valueCount, struct Value* values){
+    AvString file = values[0].asString;
+    AvArray filePaths = AV_EMPTY;
+    avStringSplitOnChar(&filePaths, '/', file);
+    AvString fileName = AV_EMPTY;
+    avArrayRead(&fileName, filePaths.count-1, &filePaths);
+
+    AvString str = {
+        .chrs = fileName.chrs,
+        .len = fileName.len,
+        .memory = nullptr,
+    };
+    AvString tmpStr = AV_EMPTY;
+    avStringCopyToAllocator(str, &tmpStr, &project->allocator);
+    avArrayFree(&filePaths);
+
+
+    return (struct Value){
+        .type = VALUE_TYPE_STRING,
+        .asString = tmpStr,
     };
 }
 
@@ -193,7 +219,6 @@ struct Value fileBaseName(Project* project, uint32 valueCount, struct Value* val
     avArrayRead(&fileName, filePaths.count-1, &filePaths);
     avArrayFree(&filePaths);
 
-
     strOffset dot = avStringFindFirstOccranceOfChar(fileName, '.');
     uint64 len = (dot==AV_STRING_NULL ? fileName.len : dot);
 
@@ -204,10 +229,13 @@ struct Value fileBaseName(Project* project, uint32 valueCount, struct Value* val
         .len = file.len - extLen,
         .memory = nullptr,
     };
+    AvString tmpStr = AV_EMPTY;
+    avStringCopyToAllocator(str, &tmpStr, &project->allocator);
+    avArrayFree(&filePaths);
 
     return (struct Value){
         .type = VALUE_TYPE_STRING,
-        .asString = str,
+        .asString = tmpStr,
     };
 }
 
@@ -669,11 +697,14 @@ struct Value changeDir(Project* project, uint32 valueCount, struct Value* values
         }
         
         AvString str =vals[i].asString;
+        AvString tmpStr = AV_EMPTY;
+        avStringClone(&tmpStr, str);
         
         struct ConstValue res = {
             .type = VALUE_TYPE_NUMBER,
-            .asNumber = chdir(str.chrs),
+            .asNumber = chdir(tmpStr.chrs),
         };
+        avStringFree(&tmpStr);
         memcpy(results+i, &res, sizeof(struct ConstValue));
     }
 
@@ -740,7 +771,7 @@ struct Value callExtern(Project* project, uint32 valueCount, struct Value* value
 
     struct FunctionDefinition_S function = statement->functionDefinition;
     
-    if(valueCount - 2 >= function.parameterCount){
+    if(valueCount - 2 > function.parameterCount){
         runtimeError(project, "invalid number of arguments");
         return (struct Value) {.type=VALUE_TYPE_ARRAY};
     }
@@ -755,7 +786,7 @@ struct Value callExtern(Project* project, uint32 valueCount, struct Value* value
         };
         assignVariable(variable, value, func.project);
     }
-    avFree(values);
+    
     struct Value returnValue = runFunction(function, func.project);
     endLocalContext(func.project);
 

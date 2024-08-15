@@ -5,8 +5,11 @@ import "library/c/stdc.project" {
 }
 
 import "avUtils.project" {
-    avUtils as buildAvUtils;
     provide "std/c/stdc.project" as "../../library/c/stdc.project";
+}
+
+import "library/project/import.project"{
+    runFunctionFromProject as buildLib;
 }
 
 compiler = "gcc";
@@ -32,10 +35,8 @@ srcDir = [
 ];
 
 avBuilder() {
-    perform{
-        changeDir("lib/AvUtils");
-    }
-    if(buildAvUtils()!=0){
+ 
+    if(buildLib("lib/AvUtils/avUtils.project", "avUtils")!=0){
         perform{
             println("building AvUtils failed");
         }

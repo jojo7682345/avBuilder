@@ -1,6 +1,13 @@
 
-
-
 runFunctionFromProject(projectFile, function) {
-
+    var ret;
+    perform{
+        currDir = currentDir();
+        projectName = fileFullName(projectFile);
+        projectPath =filePath(projectFile); 
+        changeDir(projectPath);
+        ret = callExtern(projectName, function);
+        changeDir(currDir);
+    }
+    return ret;
 }

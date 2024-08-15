@@ -5,6 +5,7 @@
 
 #define BUILT_IN_FUNCS \
     BUILT_IN_FUNC(fileName, {VALUE_TYPE_STRING})\
+    BUILT_IN_FUNC(fileFullName, {VALUE_TYPE_STRING})\
     BUILT_IN_FUNC(fileBaseName, {VALUE_TYPE_STRING})\
     BUILT_IN_FUNC(filePath, {VALUE_TYPE_STRING})\
     BUILT_IN_FUNC(arraySize, {VALUE_TYPE_ALL})\
