@@ -1,3 +1,6 @@
+[submodule]
+	recurse = true
 [submodule "lib/AvUtils"]
 	path = lib/AvUtils
 	url = https://github.com/jojo7682345/avUtils.git
+	
