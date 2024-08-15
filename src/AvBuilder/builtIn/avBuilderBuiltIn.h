@@ -13,7 +13,12 @@ void runtimeError(Project* project, const char* message, ...);
 void toConstValue(struct Value value, struct ConstValue* val, Project* project);
 void toValue(struct ConstValue value, struct Value* val);
 uint32 processArg(AvString arg, AvDynamicArray chars, Project* project);
-
+Project* importProject(AvString projectFile, bool32 local, Project* baseProject);
+struct VariableDescription findVariable(AvString identifier, Project* project);
+struct FunctionDescription findFunction(AvString identifier, Project* project);
+struct FunctionDescription importFunction(struct ImportDescription import, Project* project);
+struct Value runFunction(struct FunctionDefinition_S function, Project* project);
+void assignVariable(struct VariableDescription description, struct Value value, Project* project);
 
 #define BUILT_IN_FUNC(func, ...) struct Value func(Project* project, uint32 valueCount, struct Value* values);
 BUILT_IN_FUNCS

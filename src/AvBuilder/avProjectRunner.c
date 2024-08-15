@@ -691,7 +691,7 @@ loadingFailed:
     return nullptr;
 }
 
-struct VariableDescription findVariable(AvString identifier, Project* project);
+
 
 struct VariableDescription importVariable(struct ImportDescription import, Project* project){
 
@@ -1889,7 +1889,7 @@ struct Value runFunction(struct FunctionDefinition_S function, Project* project)
     return value;
 }
 
-void assignVariable(struct VariableDescription description, struct Value value, Project* project);
+
 
 struct Value callFunction(struct CallExpression_S call, Project* project){
 

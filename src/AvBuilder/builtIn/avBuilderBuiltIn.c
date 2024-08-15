@@ -135,7 +135,8 @@ void getUsage(AvStringRef str, AvString funcName, uint32 argCount, enum ValueTyp
 
 struct Value callBuiltInFunction(struct BuiltInFunctionDescription description, uint32 argumentCount, struct Value* values, Project* project){
 
-    if(description.argumentCount != argumentCount){
+    if(description.argumentCount < argumentCount){
+
         AvString usage = AV_EMPTY;
         getUsage(&usage, description.identifier, description.argumentCount, description.argTypes);
         runtimeError(project, 
@@ -706,5 +707,58 @@ struct Value currentDir(Project* project, uint32 valueCount, struct Value* value
             .type = VALUE_TYPE_ARRAY,
         };
     }
+
+}
+
+
+struct Value callExtern(Project* project, uint32 valueCount, struct Value* values){
+    AvString projectFile = values[0].asString;
+    AvString functionName = values[1].asString;
+
+    struct FunctionDescription func = importFunction((struct ImportDescription) {
+        .extIdentifier=functionName,
+        .importFile = projectFile,
+        .isLocalFile = true,
+        .identifier = functionName,
+    }, project);
+
+    if(!func.project){
+        runtimeError(project, "unable to import %s from %s", functionName, projectFile);
+        return (struct Value) {.type=VALUE_TYPE_ARRAY};
+    }
+
+    if(func.statement >= func.project->statementCount){
+        runtimeError(project, "malformed import %s", functionName);
+        return (struct Value) {.type=VALUE_TYPE_ARRAY};
+    }
+
+    struct Statement_S* statement = func.project->statements[func.statement];
+    if(statement->type!=STATEMENT_TYPE_FUNCTION_DEFINITION){
+        runtimeError(project, "malformed import %s", functionName);
+        return (struct Value) {.type=VALUE_TYPE_ARRAY};
+    }
+
+    struct FunctionDefinition_S function = statement->functionDefinition;
+    
+    if(valueCount - 2 >= function.parameterCount){
+        runtimeError(project, "invalid number of arguments");
+        return (struct Value) {.type=VALUE_TYPE_ARRAY};
+    }
+    
+    startLocalContext(func.project, false);
+    for(uint32 i = 0; i < function.parameterCount; i++){
+        struct Value value = values[i+2];
+        struct VariableDescription variable = {
+            .identifier = function.parameters[i],
+            .project = func.project,
+            .statement = func.statement,
+        };
+        assignVariable(variable, value, func.project);
+    }
+    avFree(values);
+    struct Value returnValue = runFunction(function, func.project);
+    endLocalContext(func.project);
+
+    return returnValue;
 
 }
