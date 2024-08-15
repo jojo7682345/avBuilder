@@ -718,12 +718,12 @@ bool32 processProject(void* statements, Project* project){
                 struct ImportStatement_S import = statement->importStatement;
                 for(uint32 j = 0; j < import.mappingCount; j++){
                     struct ImportMapping_S mapping = import.mappings[j];
-                    if(mapping.type==DEFINITION_MAPPING_PROVIDE){
+                    if(mapping.type & DEFINITION_MAPPING_PROVIDE){
                         struct ImportDescription external = (struct ImportDescription){
                             .identifier = {.chrs = mapping.alias.chrs+1, .len= mapping.alias.len-2 },
                             .extIdentifier = { .chrs = mapping.symbol.chrs+1, .len= mapping.symbol.len-2 },
                             .importFile = { .chrs = import.importFile.chrs+1, .len = import.importFile.len-2 },
-                            .isLocalFile = import.local,
+                            .isLocalFile = !(mapping.type & DEFINITION_MAPPING_GLOBAL),
                         };
                         avDynamicArrayAdd(&external, project->libraryAliases);
                         continue;

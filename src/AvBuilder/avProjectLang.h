@@ -140,8 +140,9 @@ struct FunctionCallStatement {
 };
 
 enum DefinitionMappingType {
-    DEFINITION_MAPPING_DEFAULT,
-    DEFINITION_MAPPING_PROVIDE,
+    DEFINITION_MAPPING_DEFAULT          = 0b00,
+    DEFINITION_MAPPING_PROVIDE          = 0b10,
+    DEFINITION_MAPPING_GLOBAL           = 0b01,
 };
 
 struct DefinitionMapping{

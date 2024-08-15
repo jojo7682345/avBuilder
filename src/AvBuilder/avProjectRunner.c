@@ -236,7 +236,7 @@ struct Value performUnary(struct UnaryExpression_S expression, Project* project)
         case UNARY_OPERATOR_NOT:{
             struct Value value = getValue(expression.expression, project);
             if(value.type == VALUE_TYPE_NUMBER){
-                value.asNumber = -value.asNumber;
+                value.asNumber = !value.asNumber;
                 return value;
             }
             if(value.type==VALUE_TYPE_ARRAY){
@@ -601,6 +601,7 @@ Project* importProject(AvString projectFile, bool32 local, Project* baseProject)
             if(avStringEquals(mapping->importFile, description->extIdentifier)){
                 avStringFree(&mapping->importFile);
                 avStringUnsafeCopy(&mapping->importFile, &description->identifier);
+                mapping->isLocalFile = description->isLocalFile;
             }
         }
     }

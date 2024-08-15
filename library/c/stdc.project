@@ -35,6 +35,7 @@ archiveLibrary(outDir, libraryName, flags, objects){
     var output;
     var retCode;
     perform command : retCode {
+        makeDirs(outDir);
         command = "$archiver $flags -o $outDir/$libraryName *objects";
         output=outDir + "/" + libraryName;
     }
@@ -120,7 +121,7 @@ buildStaticLibrary(sources, buildDir, compileFlags, archiveFlags, includes, addi
     perform{
         print("builing static library ");
         print(libraryName);
-        println("failed!");
+        println(" failed!");
     }
     return [];
 }

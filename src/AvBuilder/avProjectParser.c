@@ -725,9 +725,12 @@ static struct DefinitionMapping* parseDefinitionMapping(TokenIterator* iterator)
         Token* libraryFile = consume(iterator, TOKEN_TYPE_STRING, "expected library");
         memcpy(&(mapping->symbol), &(libraryFile->str),sizeof(AvString));
         consume(iterator, TOKEN_TYPE_KEYWORD_as, "expected 'as'");
+        mapping->type = DEFINITION_MAPPING_PROVIDE;
+        if(match(iterator, TOKEN_TYPE_KEYWORD_global)){
+            mapping->type |= DEFINITION_MAPPING_GLOBAL;
+        }
         Token* alias = consume(iterator, TOKEN_TYPE_STRING, "expected library alias");
         memcpy(&(mapping->symbolAlias),&(alias->str),sizeof(AvString));
-        mapping->type = DEFINITION_MAPPING_PROVIDE;
     }else{
         Token* symbol = consume(iterator, TOKEN_TYPE_TEXT, "expected symbol name");
         memcpy(&(mapping->symbol), &(symbol->str),sizeof(AvString));
