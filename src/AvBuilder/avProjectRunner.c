@@ -2221,6 +2221,62 @@ void printValue(struct Value value){
     }
 }
 
+void performInherit(struct InheritStatement_S inheritStatement, uint32 i, Project* project){
+
+    struct VariableDescription description = findVariableInGlobalScope(inheritStatement.variable, project);
+    if(description.project){
+        if(description.value){
+            addVariableToContext((struct VariableDescription){
+                .identifier = inheritStatement.variable,
+                .project = project,
+                .statement = i,
+                .value = description.value,
+            }, project);
+        }else{
+            if(description.statement==-1){
+                runtimeError(project, "could not import variable %s", inheritStatement.variable);
+                return;
+            }
+            if(description.project->statementCount <= description.statement){
+                runtimeError(project, "invalid statement");
+                return;
+            }
+            struct Statement_S* stat = description.project->statements[description.statement];
+            if(stat->type != STATEMENT_TYPE_VARIABLE_ASSIGNMENT || stat->type != STATEMENT_TYPE_INHERIT){
+                runtimeError(project, "invalid statement");
+                return;
+            }
+            if(stat->type == STATEMENT_TYPE_VARIABLE_ASSIGNMENT){
+                struct Value* value = avAllocatorAllocate(sizeof(struct Value), &project->allocator);
+                struct Value tmpValue = getValue(stat->variableAssignment.value, description.project);
+                memcpy(value, &tmpValue, sizeof(AvString));
+                addVariableToGlobalContext((struct VariableDescription){
+                    .identifier = inheritStatement.variable,
+                    .project = project,
+                    .statement = i,
+                    .value = value,
+                }, project);
+                return;
+            }
+            if(stat->type == STATEMENT_TYPE_INHERIT){
+                performInherit(stat->inheritStatement, i, description.project);
+            }
+        }
+    }else if(inheritStatement.defaultValue){
+        struct Value* value = avAllocatorAllocate(sizeof(struct Value), &project->allocator);
+        struct Value tmpValue = getValue(inheritStatement.defaultValue, project);
+        memcpy(value, &tmpValue, sizeof(AvString));
+        addVariableToGlobalContext((struct VariableDescription){
+            .identifier = inheritStatement.variable,
+            .project = project,
+            .statement = i,
+            .value = value,
+        }, project);
+    }else{
+        runtimeError(project, "inheriting variable %s but not specified", inheritStatement.variable);
+        return;
+    }
+}
 void printHelp(struct FunctionDefinition_S function){
 
     avStringPrint(AV_CSTR("Invalid number of arguments\nUsage:\n\t"));
@@ -2261,17 +2317,7 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
             case STATEMENT_TYPE_FUNCTION_DEFINITION:
                 break;
             case STATEMENT_TYPE_INHERIT:
-                if(!statement->inheritStatement.defaultValue){
-                    struct Value* value = avAllocatorAllocate(sizeof(struct Value), &project->allocator);
-                    struct Value tmpValue = getValue(statement->inheritStatement.defaultValue, project);
-                    memcpy(value, &tmpValue, sizeof(AvString));
-                    addVariableToContext((struct VariableDescription){
-                        .identifier = statement->inheritStatement.variable,
-                        .project = project,
-                        .statement = i,
-                        .value = value,
-                    }, project);
-                }
+                performInherit(statement->inheritStatement, i , project);
                 break;
             case STATEMENT_TYPE_VARIABLE_ASSIGNMENT:
                 runVariableAssignment(statement->variableAssignment, i, project);
