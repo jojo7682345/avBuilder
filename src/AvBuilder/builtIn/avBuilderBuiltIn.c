@@ -135,7 +135,7 @@ void getUsage(AvStringRef str, AvString funcName, uint32 argCount, enum ValueTyp
 
 struct Value callBuiltInFunction(struct BuiltInFunctionDescription description, uint32 argumentCount, struct Value* values, Project* project){
 
-    if(description.argumentCount < argumentCount){
+    if(description.argumentCount > argumentCount){
 
         AvString usage = AV_EMPTY;
         getUsage(&usage, description.identifier, description.argumentCount, description.argTypes);
