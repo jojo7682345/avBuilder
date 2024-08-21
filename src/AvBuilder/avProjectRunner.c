@@ -28,7 +28,7 @@ void runtimeError(Project* project, const char* message, ...){
     va_list args;
     va_start(args, message);
 
-    avStringPrintf(AV_CSTR("Runtime Error:\n\t"));
+    avStringPrintf(AV_CSTR("Runtime Error in project %s:\n\t"), project->name);
     avStringPrintfVA(AV_CSTR(message), args);
 
     avStringPrintf(AV_CSTR("\nVariables: [\n"));
@@ -543,7 +543,7 @@ void addVariableToGlobalContext(struct VariableDescription description, Project*
 
 struct VariableDescription findVariableInGlobalScope(AvString identifier, Project* project);
 
-void performInherit(struct InheritStatement_S inheritStatement, uint32 i, Project* project);
+void performInherit(struct InheritStatement_S inheritStatement, uint32 i, Project* project, Project* baseProject);
 
 Project* importProject(AvString projectFile, bool32 local, Project* baseProject){
     avStringDebugContextStart;
@@ -630,7 +630,7 @@ Project* importProject(AvString projectFile, bool32 local, Project* baseProject)
             case STATEMENT_TYPE_FUNCTION_DEFINITION:
                 break;
             case STATEMENT_TYPE_INHERIT:
-                performInherit(statement->inheritStatement, i, project);
+                performInherit(statement->inheritStatement, i, project, baseProject);
                 break;
             case STATEMENT_TYPE_VARIABLE_ASSIGNMENT:
                 addVariableToContext((struct VariableDescription){
@@ -2195,17 +2195,13 @@ void printValue(struct Value value){
     }
 }
 
-void performInherit(struct InheritStatement_S inheritStatement, uint32 i, Project* project){
+void performInherit(struct InheritStatement_S inheritStatement, uint32 i, Project* project, Project* baseProject){
 
-    struct VariableDescription description = findVariableInGlobalScope(inheritStatement.variable, project);
+    struct VariableDescription description = findVariableInGlobalScope(inheritStatement.variable, baseProject);
     if(description.project){
         if(description.value){
-            addVariableToContext((struct VariableDescription){
-                .identifier = inheritStatement.variable,
-                .project = project,
-                .statement = i,
-                .value = description.value,
-            }, project);
+            addVariableToContext(description, project);
+            return;
         }else{
             if(description.statement==-1){
                 runtimeError(project, "could not import variable %s", inheritStatement.variable);
@@ -2229,11 +2225,11 @@ void performInherit(struct InheritStatement_S inheritStatement, uint32 i, Projec
                     .project = project,
                     .statement = i,
                     .value = value,
-                }, project);
+                }, baseProject);
                 return;
             }
             if(stat->type == STATEMENT_TYPE_INHERIT){
-                performInherit(stat->inheritStatement, i, description.project);
+                performInherit(stat->inheritStatement, i, description.project, project);
             }
         }
     }else if(inheritStatement.defaultValue){
@@ -2291,7 +2287,7 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
             case STATEMENT_TYPE_FUNCTION_DEFINITION:
                 break;
             case STATEMENT_TYPE_INHERIT:
-                performInherit(statement->inheritStatement, i , project);
+                performInherit(statement->inheritStatement, i , project, project);
                 break;
             case STATEMENT_TYPE_VARIABLE_ASSIGNMENT:
                 runVariableAssignment(statement->variableAssignment, i, project);
