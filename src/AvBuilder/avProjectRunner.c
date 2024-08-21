@@ -1077,7 +1077,6 @@ uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
             struct VariableDescription var = findVariable(varName, project);
             if(!var.value){
                 if(!var.project){
-                    runtimeError(project, "unable to find variable %s", varName);
                     goto invalidValue;
                 }
                 if(var.statement >= var.project->statementCount){
