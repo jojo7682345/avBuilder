@@ -2212,7 +2212,7 @@ void performInherit(struct InheritStatement_S inheritStatement, uint32 i, Projec
                 return;
             }
             struct Statement_S* stat = description.project->statements[description.statement];
-            if(stat->type != STATEMENT_TYPE_VARIABLE_ASSIGNMENT || stat->type != STATEMENT_TYPE_INHERIT){
+            if(stat->type != STATEMENT_TYPE_VARIABLE_ASSIGNMENT && stat->type != STATEMENT_TYPE_INHERIT){
                 runtimeError(project, "invalid statement");
                 return;
             }
@@ -2222,10 +2222,10 @@ void performInherit(struct InheritStatement_S inheritStatement, uint32 i, Projec
                 memcpy(value, &tmpValue, sizeof(AvString));
                 addVariableToGlobalContext((struct VariableDescription){
                     .identifier = inheritStatement.variable,
-                    .project = project,
+                    .project = description.project,
                     .statement = i,
                     .value = value,
-                }, baseProject);
+                }, project);
                 return;
             }
             if(stat->type == STATEMENT_TYPE_INHERIT){
