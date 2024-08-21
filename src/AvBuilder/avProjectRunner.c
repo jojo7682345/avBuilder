@@ -1063,37 +1063,62 @@ uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
         char c = arg.chrs[i];
         if(c=='$' && !ignoreNext){
             uint32 j = i+1;
+            uint32 w = i;
+            bool32 important = false;
+            if(j < arg.len && arg.chrs[j] == '!'){
+                important = true;
+                j++;
+                w++;
+            }
             for(; j < arg.len; j++){
                 char chr = arg.chrs[j];
-                if(!(avCharIsLetter(chr) || (j-i > 2 && avCharIsNumber(chr)) || chr=='_')){
+                if(!(avCharIsLetter(chr) || (j-w > 2 && avCharIsNumber(chr)) || chr=='_')){
                     break;
                 }
             }
             AvString varName = {
-                .chrs = arg.chrs + i + 1,
-                .len = j - i - 1,
+                .chrs = arg.chrs + w + 1,
+                .len = j - w - 1,
                 .memory = nullptr,
             };
+            if(varName.len == 0){
+                goto invalidValue;
+            }
             struct VariableDescription var = findVariable(varName, project);
+            
             if(!var.value){
+                AvString msg[] = {
+                    AV_CSTRA("but was not found"),
+                    AV_CSTRA("but was invalid"),
+                };
+                uint32 msgIndex = 0;
                 if(!var.project){
+                    msgIndex = 0;
                     goto invalidValue;
                 }
                 if(var.statement >= var.project->statementCount){
+                    msgIndex = 1;
                     goto invalidValue;
                 }
                 struct Statement_S* statement = var.project->statements[var.statement];
                 if(statement->type != STATEMENT_TYPE_VARIABLE_ASSIGNMENT){
+                    msgIndex = 1;
                     goto invalidValue;
                 }
                 if(!statement->variableAssignment.value){
+                    msgIndex = 1;
                     goto invalidValue;
                 }
                 struct Value* value = avAllocatorAllocate(sizeof(struct Value), &project->allocator);
                 struct Value tmpValue = getValue(statement->variableAssignment.value, project);
                 memcpy(value, &tmpValue, sizeof(struct Value));
                 var.value = value;
-                invalidValue:
+                goto validValue;
+            invalidValue:
+                    if(important){
+                        runtimeError(project,"Variable %s was marked important %s", varName, msg[msgIndex]);
+                    }
+            validValue:
             }
             if(!var.project || var.value==nullptr || var.value->type==VALUE_TYPE_NONE){
                 avDynamicArrayAddRange((char*)varName.chrs-1, varName.len+1, 0, 1, chars);
@@ -1233,10 +1258,16 @@ uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
             }
             continue;
         }
-        ignoreNext = false;
+        
         if(c=='\\'){
-            ignoreNext = true;
-            continue;
+            if(!ignoreNext){
+                ignoreNext = true;
+                continue;
+            }else{
+                ignoreNext = false;
+            }
+        }else{
+            ignoreNext = false;
         }
 
         avDynamicArrayAdd(&c, chars);
