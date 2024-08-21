@@ -543,6 +543,8 @@ void addVariableToGlobalContext(struct VariableDescription description, Project*
 
 struct VariableDescription findVariableInGlobalScope(AvString identifier, Project* project);
 
+void performInherit(struct InheritStatement_S inheritStatement, uint32 i, Project* project);
+
 Project* importProject(AvString projectFile, bool32 local, Project* baseProject){
     avStringDebugContextStart;
 
@@ -628,35 +630,7 @@ Project* importProject(AvString projectFile, bool32 local, Project* baseProject)
             case STATEMENT_TYPE_FUNCTION_DEFINITION:
                 break;
             case STATEMENT_TYPE_INHERIT:
-                struct VariableDescription var = findVariableInGlobalScope(statement->inheritStatement.variable, baseProject);
-                if(var.project){
-                    if(!var.value){
-                        if(!statement->inheritStatement.defaultValue){
-                            runtimeError(project, "inheriting variable %s defined in parent project, but has no value", var.identifier);
-                            break;
-                        }
-                        assignVariable(var, getValue(statement->inheritStatement.defaultValue, project), project);
-                        break;
-                    }
-                    addVariableToGlobalContext((struct VariableDescription){
-                        .identifier = statement->inheritStatement.variable,
-                        .project = project,
-                        .statement = i,
-                        .value = var.value,
-                    }, project);
-                    break;
-                }else{
-                    if(statement->inheritStatement.defaultValue){
-                        assignVariable((struct VariableDescription){
-                            .identifier = statement->inheritStatement.variable,
-                            .project = project,
-                            .statement = i,
-                        }, getValue(statement->inheritStatement.defaultValue, project), project);
-                        break;
-                    }
-                    runtimeError(project, "inheriting variable %s but not defined in parent project", var.identifier);
-                    break;
-                }
+                performInherit(statement->inheritStatement, i, project);
                 break;
             case STATEMENT_TYPE_VARIABLE_ASSIGNMENT:
                 addVariableToContext((struct VariableDescription){
