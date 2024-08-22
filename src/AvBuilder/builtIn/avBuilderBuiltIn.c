@@ -136,7 +136,6 @@ void getUsage(AvStringRef str, AvString funcName, uint32 argCount, enum ValueTyp
 struct Value callBuiltInFunction(struct BuiltInFunctionDescription description, uint32 argumentCount, struct Value* values, Project* project){
 
     if(description.argumentCount > argumentCount){
-
         AvString usage = AV_EMPTY;
         getUsage(&usage, description.identifier, description.argumentCount, description.argTypes);
         runtimeError(project, 
@@ -145,7 +144,7 @@ struct Value callBuiltInFunction(struct BuiltInFunctionDescription description, 
         avStringFree(&usage);
     }
 
-    for(uint32 i = 0; i < argumentCount; i++){
+    for(uint32 i = 0; i < description.argumentCount; i++){
         if((description.argTypes[i] & values[i].type) == 0){
             AvString usage = AV_EMPTY;
             getUsage(&usage, description.identifier, description.argumentCount, description.argTypes);

@@ -1022,6 +1022,7 @@ void performForeach(struct ForeachStatement_S foreach, Project* project){
     }
     for(uint32 i = 0; i < count; i++){
         startLocalContext(project, true);
+        addVariableToContext(collectionVar, project);
         struct Value value = NULL_VALUE;
         toValue(values[i], &value);
         assignVariable(collectionVar, value, project);

@@ -618,7 +618,11 @@ static struct ForeachStatement* parseForeachStatement(TokenIterator* iterator){
         memcpy(&(stat->index), &(consume(iterator, TOKEN_TYPE_TEXT, "expected variable name")->str), sizeof(AvString));
         consume(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close, "expected ']'");
     }
-    consume(iterator, TOKEN_TYPE_KEYWORD_from, "expected keyword 'from'");
+    if(check(iterator, TOKEN_TYPE_KEYWORD_from)){
+        consume(iterator, TOKEN_TYPE_KEYWORD_from, "expected keyword 'in' or 'from'");
+    }else{
+        consume(iterator, TOKEN_TYPE_KEYWORD_in, "expected keyword 'in' or 'from'");
+    }
     stat->collection = parseExpression(iterator);
     consume(iterator, TOKEN_TYPE_KEYWORD_perform, "expected keyword 'perform'");
     stat->performStatement = parsePerformStatement(iterator);
