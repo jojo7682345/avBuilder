@@ -550,11 +550,19 @@ Project* importProject(AvString projectFile, bool32 local, Project* baseProject)
 
     AvString projectFileStr = AV_EMPTY;
     if(!local){
+#ifndef _WIN32    
         AvString homeDir = AV_EMPTY;
         if(!avGetEnvironmentVariable(AV_CSTR("HOME"), &homeDir)){
             runtimeError(baseProject, "Could not get HOME environment variable");
             return nullptr;
         }
+#else
+        AvString homeDir = AV_EMPTY;
+        if(!avGetEnvironmentVariable(AV_CSTR("USERPROFILE"), &homeDir)){
+            runtimeError(baseProject, "Could not get USERPROFILE environment variable");
+            return nullptr;
+        }
+#endif
         avStringJoin(&projectFileStr, homeDir, AV_CSTRA("/"), configPath, templatePath, projectFile);
         avStringFree(&homeDir);
     }else{
@@ -590,6 +598,9 @@ Project* importProject(AvString projectFile, bool32 local, Project* baseProject)
         avStringPrintf(AV_CSTR("Failed to perform processing on project file %s\n"), projectFileStr);
         goto processingFailed;
     }
+    AvDynamicArray tmpArray = AV_EMPTY;
+    avDynamicArrayClone(baseProject->libraryAliases, &tmpArray);
+    avDynamicArrayAppend(project->libraryAliases, &tmpArray); 
 
     uint32 providesCount = avDynamicArrayGetSize(baseProject->libraryAliases);
     for(uint32 i = 0; i < providesCount; i++){
@@ -1428,7 +1439,7 @@ void performCommand(struct CommandStatementBody_S command, Project* project){
     AvString* strings = avDynamicArrayGetPageDataPtr(0, commandDescription->args);
 
     AvProcessStartInfo info = AV_EMPTY;
-	avProcessStartInfoPopulateARR(&info, strings[0], (AvString)AV_EMPTY, argCount, strings);
+	avProcessStartInfoPopulateARR(&info, strings[0], (AvString)AV_EMPTY, argCount-1, strings+1);
 
     AvPipe pipe = AV_EMPTY;
     if(command.outputVariable.len){
@@ -1436,11 +1447,10 @@ void performCommand(struct CommandStatementBody_S command, Project* project){
         info.output = &pipe.write;
     }
 
-    AvProcess process = AV_EMPTY;
-	avProcessStart(info, &process);
+    //AvProcess process = AV_EMPTY;
+	int32 retCode = avProcessRun(info);
     avPipeConsumeWriteChannel(&pipe);
-	int32 retCode = avProcessWaitExit(process);
-    avProcessDiscard(process);
+
 
     avProcessStartInfoDestroy(&info);
 
@@ -1548,7 +1558,11 @@ void performCommand(struct CommandStatementBody_S command, Project* project){
     }
     
     if(project->options.commandDebug){
+#ifndef _WIN32
         avStringPrintf(AV_CSTR("%i = %s\n"), retCode, AV_CSTR(commandDescription->command));
+#else 
+        avStringPrintln(AV_CSTR(commandDescription->command));
+#endif
     }
 
     avFree(commandDescription->command);

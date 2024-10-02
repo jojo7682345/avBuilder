@@ -1,7 +1,11 @@
 #include "avBuilderBuiltIn.h"
 #include <string.h>
 #include <AvUtils/avMemory.h>
+#include <AvUtils/filesystem/avDirectoryV2.h>
+
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 #define TS(str) sizeof(#str)
 
@@ -441,11 +445,12 @@ struct Value println(Project* project, uint32 valueCount, struct Value* values){
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <errno.h>
+#include <AvUtils/filesystem/avDirectoryV2.h>
 
 struct Value makeDir(Project* project, uint32 valueCount, struct Value* values){
     AvString dir = AV_EMPTY;
     avStringClone(&dir, values[0].asString);
-    int ret = mkdir(dir.chrs, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    int ret = avMakeDirectory(dir);
     if(ret == -1){
         avStringFree(&dir);
         struct ConstValue* vals = avAllocatorAllocate(sizeof(struct ConstValue)*2, &project->allocator);
@@ -464,33 +469,19 @@ struct Value makeDir(Project* project, uint32 valueCount, struct Value* values){
     avStringFree(&dir);
     return values[0];
 }
+#ifndef _WIN32
 #include <linux/limits.h>
+#else
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+#endif
 #include <stdio.h>
-
-static int _mkdir(const char *dir, unsigned int mode) {
-    char tmp[PATH_MAX];
-    char *p = NULL;
-    size_t len;
-
-    snprintf(tmp, sizeof(tmp),"%s",dir);
-    len = strlen(tmp);
-    if (tmp[len - 1] == '/'){
-        tmp[len - 1] = 0;
-    }
-    for (p = tmp + 1; *p; p++){
-        if (*p == '/') {
-            *p = 0;
-            mkdir(tmp, mode);
-            *p = '/';
-        }
-    }
-    return mkdir(tmp, mode);
-}
 
 struct Value makeDirs(Project* project, uint32 valueCount, struct Value* values){
     AvString dir = AV_EMPTY;
     avStringClone(&dir, values[0].asString);
-    int ret = _mkdir(dir.chrs, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    int ret = avMakeDirectoryRecursive(dir);
     if(ret == -1){
         avStringFree(&dir);
         struct ConstValue* vals = avAllocatorAllocate(sizeof(struct ConstValue)*2, &project->allocator);
@@ -701,7 +692,7 @@ struct Value changeDir(Project* project, uint32 valueCount, struct Value* values
         
         struct ConstValue res = {
             .type = VALUE_TYPE_NUMBER,
-            .asNumber = chdir(tmpStr.chrs),
+            .asNumber = avChangeCurrentDir(tmpStr),
         };
         avStringFree(&tmpStr);
         memcpy(results+i, &res, sizeof(struct ConstValue));
@@ -725,7 +716,7 @@ struct Value changeDir(Project* project, uint32 valueCount, struct Value* values
 struct Value currentDir(Project* project, uint32 valueCount, struct Value* values){
     
     char cwd[PATH_MAX];
-    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+    if (avGetCurrentDir(sizeof(cwd), cwd) != NULL) {
         struct Value res = {
             .type= VALUE_TYPE_STRING,
         };
