@@ -524,7 +524,7 @@ static struct PerformOperation* parsePerformOperation(TokenIterator* iterator) {
         struct Expression* pipeFile = nullptr;
         if(match(iterator, TOKEN_TYPE_PUNCTUATOR_colon)){
             Token* retVariable = consume(iterator, TOKEN_TYPE_TEXT, "expected variable for return code");
-            avStringUnsafeCopy(&retCodeVariable, &retVariable->str);
+            avStringUnsafeCopy(&retCodeVariable, retVariable->str);
             if(match(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_open)){
                 retCodeIndex = parseExpression(iterator); 
                 consume(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close, "expected ']'");
@@ -532,7 +532,7 @@ static struct PerformOperation* parsePerformOperation(TokenIterator* iterator) {
         }
         if(match(iterator, TOKEN_TYPE_PUNCTUATOR_greater_than)){
             Token* outputVar = consume(iterator, TOKEN_TYPE_TEXT, "expected variable for output");
-            avStringUnsafeCopy(&outputVariable, &outputVar->str);
+            avStringUnsafeCopy(&outputVariable, outputVar->str);
             if(match(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_open)){
                 outputVariableIndex = parseExpression(iterator);
                 consume(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close, "expected ']'");
@@ -546,8 +546,8 @@ static struct PerformOperation* parsePerformOperation(TokenIterator* iterator) {
         operation->commandStatementList = parseCommandStatementList(iterator);
         consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_close, "expected end of body");
 
-        avStringUnsafeCopy(&operation->commandStatementList->retCodeVariable, &retCodeVariable);
-        avStringUnsafeCopy(&operation->commandStatementList->outputVariable, &outputVariable);
+        avStringUnsafeCopy(&operation->commandStatementList->retCodeVariable, retCodeVariable);
+        avStringUnsafeCopy(&operation->commandStatementList->outputVariable, outputVariable);
         operation->commandStatementList->retCodeIndex = retCodeIndex;
         operation->commandStatementList->outputVariableIndex = outputVariableIndex;
         operation->commandStatementList->pipeFile = pipeFile;
@@ -768,7 +768,7 @@ static struct InheritStatement* parseInheritStatement(TokenIterator* iterator){
         expression = parseExpression(iterator);
     }
     struct InheritStatement* inherit = avAllocatorAllocate(sizeof(struct InheritStatement), iterator->allocator);
-    avStringUnsafeCopy(&inherit->variable, &variable->str);
+    avStringUnsafeCopy(&inherit->variable, variable->str);
     inherit->defaultValue = expression;
     consume(iterator, TOKEN_TYPE_PUNCTUATOR_semicolon, "expected ';' after statement");
     return inherit;

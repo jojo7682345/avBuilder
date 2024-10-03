@@ -194,7 +194,7 @@ static void getInConfigFolder(AvStringRef dest, AvString subDir){
     AvString tmpStr = AV_EMPTY;
     if(!avStringEndsWithChar(subDir, '/')){
         AvString str = AV_CSTRA("/");
-        avStringUnsafeCopy(&tmpStr, &str);
+        avStringUnsafeCopy(&tmpStr, str);
     }
     avStringJoin(dest, homeDir, AV_CSTRA("/"), configPath, subDir, tmpStr);
     avStringFree(&homeDir);

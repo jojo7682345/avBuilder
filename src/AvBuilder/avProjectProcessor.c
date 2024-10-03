@@ -397,8 +397,8 @@ bool32 processCommandStatementList(struct CommandStatementBody_S* body, struct C
         index++;
         iterator = iterator->next;
     }
-    avStringUnsafeCopy(&body->retCodeVariable, &statement->retCodeVariable);
-    avStringUnsafeCopy(&body->outputVariable, &statement->outputVariable);
+    avStringUnsafeCopy(&body->retCodeVariable, statement->retCodeVariable);
+    avStringUnsafeCopy(&body->outputVariable, statement->outputVariable);
     
     if(statement->retCodeIndex){
         body->retCodeIndex = processExpression(statement->retCodeIndex, project);
@@ -612,7 +612,7 @@ bool32 processImportMapping(struct ImportMapping_S* map, struct DefinitionMappin
 struct Statement_S* processInheritStatement(struct InheritStatement inherit, Project* project){
     struct Statement_S* statement = avAllocatorAllocate(sizeof(struct Statement_S), &project->allocator);
     statement->type = STATEMENT_TYPE_INHERIT;
-    avStringUnsafeCopy(&statement->inheritStatement.variable, &inherit.variable);
+    avStringUnsafeCopy(&statement->inheritStatement.variable, inherit.variable);
     if(inherit.defaultValue){
         statement->inheritStatement.defaultValue = processExpression(inherit.defaultValue, project);
     }

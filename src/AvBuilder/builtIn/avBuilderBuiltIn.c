@@ -716,7 +716,7 @@ struct Value changeDir(Project* project, uint32 valueCount, struct Value* values
 struct Value currentDir(Project* project, uint32 valueCount, struct Value* values){
     
     char cwd[PATH_MAX];
-    if (avGetCurrentDir(sizeof(cwd), cwd) != NULL) {
+    if (avGetCurrentDir(sizeof(cwd), cwd) != 0) {
         struct Value res = {
             .type= VALUE_TYPE_STRING,
         };

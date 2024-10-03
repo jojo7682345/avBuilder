@@ -613,7 +613,7 @@ Project* importProject(AvString projectFile, bool32 local, Project* baseProject)
             struct ImportDescription* mapping = avDynamicArrayGetPtr(j, project->externals);
             if(avStringEquals(mapping->importFile, description->extIdentifier)){
                 avStringFree(&mapping->importFile);
-                avStringUnsafeCopy(&mapping->importFile, &description->identifier);
+                avStringUnsafeCopy(&mapping->importFile, description->identifier);
                 mapping->isLocalFile = description->isLocalFile;
             }
         }

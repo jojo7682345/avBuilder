@@ -252,8 +252,9 @@ int main(int argC, char* argV[]) {
 
     argV[1] = "./avBuilder" 
 #ifdef _WIN32
-        ".exe";
+        ".exe"
 #endif
+;
     return run(argC-1, argV + 1);
 
 }
