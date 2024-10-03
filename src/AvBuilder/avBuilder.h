@@ -24,6 +24,7 @@
     TOKEN(KEYWORD,      return,     "return")\
     TOKEN(KEYWORD,      recursive,  "recursive")\
     TOKEN(KEYWORD,      var,        "var")\
+    TOKEN(KEYWORD,      directories,"directories")\
     \
     TOKEN(PUNCTUATOR,   less_than_or_equal, "<=")\
     TOKEN(PUNCTUATOR,   greater_than_or_equal, ">=")\

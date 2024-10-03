@@ -244,12 +244,23 @@ static struct Unary* parseUnary(TokenIterator* iterator){
 
 static struct Enumeration* parseEnumeration(TokenIterator* iterator){
     struct Enumeration* enumeration = avAllocatorAllocate(sizeof(struct Enumeration), iterator->allocator);
-    if(match(iterator, TOKEN_TYPE_KEYWORD_files)){
+    if(match(iterator, TOKEN_TYPE_KEYWORD_files, TOKEN_TYPE_KEYWORD_directories)){
+        TokenType enumerationType = previous(iterator)->type;
+        
         consume(iterator, TOKEN_TYPE_KEYWORD_in, "Expected keyword 'in' after keyword 'files'");
-        enumeration->type = ENUMERATION_TYPE_ENUMERATION;
+        switch(enumerationType){
+            case TOKEN_TYPE_KEYWORD_files:
+                enumeration->type = ENUMERATION_TYPE_FILE_ENUMERATION;
+                break;
+            case TOKEN_TYPE_KEYWORD_directories:
+                enumeration->type = ENUMERATION_TYPE_DIR_ENUMERATION;
+                break;
+            default:
+                break;
+        }
     }
     enumeration->unary = parseUnary(iterator);
-    if(match(iterator, TOKEN_TYPE_KEYWORD_recursive) && enumeration->type == ENUMERATION_TYPE_ENUMERATION){
+    if(match(iterator, TOKEN_TYPE_KEYWORD_recursive) && enumeration->type != ENUMERATION_TYPE_NONE){
         enumeration->recursive = true;
     }
     return enumeration;

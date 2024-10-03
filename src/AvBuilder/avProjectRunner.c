@@ -772,7 +772,7 @@ struct Value retrieveVariableValue(struct IdentifierExpression_S identifier, Pro
     return getValue(statement->variableAssignment.value, description.project);
 }
 
-static void addFilesInPath(AvString directory, AvPathRef root, bool32 recursive, AvDynamicArray files, Project* project){
+static void addFilesInPath(AvString directory, AvPathRef root, bool32 recursive, bool32 dirs, AvDynamicArray files, Project* project){
     AvPath path = AV_EMPTY;
    if(!avDirectoryOpen(directory, root, &path)){
         runtimeError(project, "unable to open directory %s", directory);
@@ -784,6 +784,9 @@ static void addFilesInPath(AvString directory, AvPathRef root, bool32 recursive,
         
         switch(node.type){
             case AV_PATH_NODE_TYPE_FILE:{
+                if(dirs){
+                    break;
+                }
                 AvString str = {0};
                 avStringCopyToAllocator(node.fullName, &str, &project->allocator);
                 avDynamicArrayAdd(&str, files);
@@ -791,7 +794,12 @@ static void addFilesInPath(AvString directory, AvPathRef root, bool32 recursive,
             }
             case AV_PATH_NODE_TYPE_DIRECTORY:
                 if(recursive){
-                    addFilesInPath(node.name, &path, recursive, files, project);
+                    addFilesInPath(node.name, &path, recursive, dirs, files, project);
+                }
+                if(dirs){
+                    AvString str = {0};
+                    avStringCopyToAllocator(node.fullName, &str, &project->allocator);
+                    avDynamicArrayAdd(&str, files); 
                 }
                 break;
             case AV_PATH_NODE_TYPE_NONE:
@@ -832,7 +840,7 @@ struct Value enumerateFiles(struct EnumerationExpression_S enumeration, Project*
             continue;
         }
         AvString dir = dirValue.asString;
-        addFilesInPath(dir, nullptr, enumeration.recursive, files, project);
+        addFilesInPath(dir, nullptr, enumeration.recursive, enumeration.dirs, files, project);
     }
 
     uint32 fileCount = avDynamicArrayGetSize(files);

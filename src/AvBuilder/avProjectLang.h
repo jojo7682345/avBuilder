@@ -81,7 +81,8 @@ struct Unary{
 
 enum EnumerationType {
     ENUMERATION_TYPE_NONE = 0,
-    ENUMERATION_TYPE_ENUMERATION,
+    ENUMERATION_TYPE_FILE_ENUMERATION,
+    ENUMERATION_TYPE_DIR_ENUMERATION,
 };
 struct Enumeration {
     enum EnumerationType type;
@@ -335,6 +336,7 @@ struct MultiplicationExpression_S{
 struct EnumerationExpression_S{
     struct Expression_S* directory;
     bool8 recursive;
+    bool8 dirs;
 };
 
 struct UnaryExpression_S{

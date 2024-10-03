@@ -89,6 +89,7 @@ struct EnumerationExpression_S processEnumeration(struct Enumeration* enumeratio
     dir = processUnaryExpression(dir, enumeration->unary, project);
     return (struct EnumerationExpression_S){
         .directory = dir,
+        .dirs = enumeration->type == ENUMERATION_TYPE_DIR_ENUMERATION,
         .recursive = enumeration->recursive,
     };
 }
@@ -230,7 +231,7 @@ struct Expression_S* processUnaryExpression(struct Expression_S* expr, struct Un
 
 struct Expression_S* processEnumerationExpression(struct Expression_S* expr, struct Enumeration* enumeration, Project* project){
     // files in
-    if(enumeration->type == ENUMERATION_TYPE_ENUMERATION){
+    if(enumeration->type == ENUMERATION_TYPE_DIR_ENUMERATION || enumeration->type == ENUMERATION_TYPE_FILE_ENUMERATION){
         expr->type = EXPRESSION_TYPE_ENUMERATION;
         expr->enumeration = processEnumeration(enumeration, project);
         return expr;
