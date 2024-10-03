@@ -1085,10 +1085,18 @@ uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
             uint32 j = i+1;
             uint32 w = i;
             bool32 important = false;
-            if(j < arg.len && arg.chrs[j] == '!'){
-                important = true;
-                j++;
+            if(j < arg.len && (arg.chrs[j] == '!' || arg.chrs[j]=='\\')){
+                if(arg.chrs[j]=='!'){
+                    important = true;
+                }
                 w++;
+                j++;
+                if(arg.chrs[j-1]=='\\' && j < arg.len && arg.chrs[j] == '!'){
+                    important = true;
+                    j++;
+                    w++;
+                }else{
+                }
             }
             for(; j < arg.len; j++){
                 char chr = arg.chrs[j];
