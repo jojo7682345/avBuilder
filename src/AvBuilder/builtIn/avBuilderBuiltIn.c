@@ -731,6 +731,41 @@ struct Value currentDir(Project* project, uint32 valueCount, struct Value* value
 
 }
 
+struct Value call(Project* project, uint32 valueCount, struct Value* values){
+	AvString functionIdentifier = values[0].asString;
+
+
+    struct FunctionDescription description = findFunction(functionIdentifier, project);
+    if(!description.project){
+        runtimeError( project,"unable to find function '%s'", functionIdentifier);
+        return (struct Value) {.type=VALUE_TYPE_NONE};
+    }
+    struct Statement_S* statement = (description.project->statements[description.statement]);
+    if(statement->type != STATEMENT_TYPE_FUNCTION_DEFINITION){
+        runtimeError( project,"importing function of wrong type");
+        return (struct Value) {.type=VALUE_TYPE_NONE};
+    }
+    struct FunctionDefinition_S function = statement->functionDefinition;
+    if(function.parameterCount != valueCount-1){
+        runtimeError( project,"invalid number of arguments calling function %s", functionIdentifier);
+    }
+    
+    startLocalContext(description.project, false);
+    for(uint32 i = 1; i < valueCount; i++){
+        struct Value value = values[i];
+        struct VariableDescription variable = {
+            .identifier = function.parameters[i-1],
+            .project = description.project,
+            .statement = description.statement,
+        };
+        assignVariable(variable, value, description.project);
+    }
+    avFree(values);
+    struct Value returnValue = runFunction(function, description.project);
+    endLocalContext(description.project);
+
+    return returnValue;
+} 
 
 struct Value callExtern(Project* project, uint32 valueCount, struct Value* values){
     AvString projectFile = values[0].asString;
