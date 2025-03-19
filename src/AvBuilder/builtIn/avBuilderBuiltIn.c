@@ -760,7 +760,6 @@ struct Value call(Project* project, uint32 valueCount, struct Value* values){
         };
         assignVariable(variable, value, description.project);
     }
-    avFree(values);
     struct Value returnValue = runFunction(function, description.project);
     endLocalContext(description.project);
 
