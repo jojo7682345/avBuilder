@@ -187,7 +187,7 @@ static uint32 printUsage(const int argC, const char* argV[]){
     return 1;
 }
 
-static void getInConfigFolder(AvStringRef dest, AvString subDir){
+void getInConfigFolder(AvStringRef dest, AvString subDir){
     AvString homeDir = AV_EMPTY;
     if(!avGetEnvironmentVariable(AV_CSTRA("AVBUILDER_HOME"), &homeDir)){
 		AvString home = AV_EMPTY;

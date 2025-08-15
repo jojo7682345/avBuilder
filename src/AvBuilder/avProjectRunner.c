@@ -552,19 +552,20 @@ Project* importProject(AvString projectFile, bool32 local, Project* baseProject)
     if(!local){
 #ifndef _WIN32    
         AvString homeDir = AV_EMPTY;
-        if(!avGetEnvironmentVariable(AV_CSTR("HOME"), &homeDir)){
-            runtimeError(baseProject, "Could not get HOME environment variable");
-            return nullptr;
-        }
+		extern void getInConfigFolder(AvStringRef dest, AvString subDir);
+		getInConfigFolder(&homeDir, templatePath);
+		avStringJoin(&projectFileStr, homeDir, projectFile);
+		avStringFree(&homeDir);
 #else
         AvString homeDir = AV_EMPTY;
         if(!avGetEnvironmentVariable(AV_CSTR("USERPROFILE"), &homeDir)){
             runtimeError(baseProject, "Could not get USERPROFILE environment variable");
             return nullptr;
         }
-#endif
+
         avStringJoin(&projectFileStr, homeDir, AV_CSTRA("/"), configPath, templatePath, projectFile);
         avStringFree(&homeDir);
+#endif
     }else{
         avStringClone(&projectFileStr, projectFile);
     }
