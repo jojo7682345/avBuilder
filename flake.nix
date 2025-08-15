@@ -21,7 +21,7 @@
         };
 
         # Compute version from git commit count and short hash
-		version = "v0.1n";	
+		version = "v0.1.001n";	
 
         nativeBuildInputs = [ pkgs.git pkgs.gcc ];
 
