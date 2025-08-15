@@ -37,8 +37,7 @@ const AvString punctuators[] = {
 #undef TOKEN
 const uint32 punctuatorCount = sizeof(punctuators)/sizeof(AvString);
 
-const AvString configPath = AV_CSTRA(".config/AvBuilder/");  
-const AvString templatePath = AV_CSTRA("templates/"); 
+const AvString templatePath = AV_CSTRA("library/"); 
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wjump-misses-init"
@@ -190,13 +189,18 @@ static uint32 printUsage(const int argC, const char* argV[]){
 
 static void getInConfigFolder(AvStringRef dest, AvString subDir){
     AvString homeDir = AV_EMPTY;
-    avGetEnvironmentVariable(AV_CSTRA("HOME"), &homeDir);
+    if(!avGetEnvironmentVariable(AV_CSTRA("AVBUILDER_HOME"), &homeDir)){
+		AvString home = AV_EMPTY;
+		avGetEnvironmentVariable(AV_CSTRA("HOME"), &home);
+		avStringJoin(&homeDir, AV_CSTRA(".config/AvBuilder"));
+		avStringFree(&home);
+	}
     AvString tmpStr = AV_EMPTY;
     if(!avStringEndsWithChar(subDir, '/')){
         AvString str = AV_CSTRA("/");
         avStringUnsafeCopy(&tmpStr, str);
     }
-    avStringJoin(dest, homeDir, AV_CSTRA("/"), configPath, subDir, tmpStr);
+    avStringJoin(dest, homeDir, AV_CSTRA("/"), subDir, tmpStr);
     avStringFree(&homeDir);
 }
 
