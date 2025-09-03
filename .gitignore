@@ -5,3 +5,5 @@ build/tmp/
 avBuilder
 test/test
 *.exe
+result/
+.direnv/

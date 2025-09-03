@@ -262,7 +262,7 @@ static uint32 openProject(const int argC, const char* argV[]){
     getInConfigFolder(&templatesDir, templatePath);
     
     if(!avDirectoryExists(templatesDir)){
-        avStringPrintf(AV_CSTR("Unable to find %s\n"), projectFile);
+        avStringPrintf(AV_CSTR("Unable to find %s in %s\n"), projectFile, templatesDir);
         ret = -1;
         goto dirDoesNotExist;
     }

@@ -64,6 +64,10 @@
           export AVBUILDER_HOME=${self.packages.${system}.avbuilder}/share/avBuilder
         '';
       };
+
+	  lib.avbuilderShellHook = system: ''
+	  	export AVBUILDER_HOME=${self.packages.${system}.avbuilder}/share/avBuilder
+	  '';
     };
 }
 
