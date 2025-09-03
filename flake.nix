@@ -17,13 +17,16 @@
         # Fetch the repo and preserve .git for version calculation
         src = pkgs.fetchgit {
           url = "https://github.com/jojo7682345/avBuilder.git";
-		  sha256 = "sha256-kuYzapckWMzGS/2rb+4blJ4LlaKa20XGkmGn1+GwwZA="; # Replace with actual hash
+		  sha256 = "sha256-2UkgzKbMnK4GREGKMpEYkjo4ac9N9pOqpYanp2VN2XA=";# Replace with actual hash
         };
 
         # Compute version from git commit count and short hash
 		version = "v0.1.001n";	
-
-        nativeBuildInputs = [ pkgs.git pkgs.gcc ];
+		dontStrip = true;
+        nativeBuildInputs = with pkgs; [ 
+			git 
+			gcc
+		];
 
         buildPhase = ''
           chmod +x ./bootstrap
@@ -59,15 +62,11 @@
 
       # Set up a devShell for `nix develop .`
       devShells.${system}.default = pkgs.mkShell {
-        buildInputs = [ self.packages.${system}.avbuilder ];
+        buildInputs = [ self.packages.${system}.avbuilder  pkgs.gdb ];
         shellHook = ''
           export AVBUILDER_HOME=${self.packages.${system}.avbuilder}/share/avBuilder
         '';
       };
-
-	  lib.avbuilderShellHook = system: ''
-	  	export AVBUILDER_HOME=${self.packages.${system}.avbuilder}/share/avBuilder
-	  '';
     };
 }
 
