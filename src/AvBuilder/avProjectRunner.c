@@ -300,6 +300,43 @@ struct Value concatenateStrings(struct Value left, struct Value right, Project* 
     };
 }
 
+struct Value concatenateArray(struct Value left, struct Value right, Project* project){
+    uint32 size = (left.type==VALUE_TYPE_ARRAY?left.asArray.count:1) + (right.type==VALUE_TYPE_ARRAY?right.asArray.count:1);
+    if(size == 0){
+        return (struct Value){
+            .type=VALUE_TYPE_NONE,
+        };
+    }
+    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*size, &project->allocator);
+    uint32 index = 0;
+    if(left.type == VALUE_TYPE_ARRAY){
+        memcpy(results, left.asArray.values, sizeof(struct ConstValue)*left.asArray.count);
+        index += left.asArray.count;
+    }else{
+        struct ConstValue res = {0};
+        toConstValue(left, &res, project);
+        memcpy(results, &res, sizeof(struct ConstValue));
+        index += 1;
+    }
+    if(right.type==VALUE_TYPE_ARRAY){
+        memcpy(results+index, right.asArray.values, sizeof(struct ConstValue)*right.asArray.count);
+        index += right.asArray.count;
+    }else{
+        struct ConstValue res = {0};
+        toConstValue(right, &res, project);
+        memcpy(results+index, &res, sizeof(struct ConstValue));
+        index += 1;
+    }
+    return (struct Value){
+        .type=VALUE_TYPE_ARRAY,
+        .asArray = {
+            .count = size,
+            .values = results,
+        },
+    };
+
+}
+
 struct Value performComparison(struct ComparisonExpression_S expression, Project* project){
     struct Value left = getValue(expression.left, project);
     struct Value right = getValue(expression.right, project);
@@ -472,17 +509,20 @@ struct Value performSummation(struct SummationExpression_S expression, Project* 
     
     struct Value right = getValue(expression.right, project);
     
-    if(left.type != VALUE_TYPE_NUMBER && left.type != VALUE_TYPE_STRING){
+    if(left.type != VALUE_TYPE_NUMBER && left.type != VALUE_TYPE_STRING && left.type != VALUE_TYPE_ARRAY){
         runtimeError( project,"add operator not defined for types other than number or string");
         return (struct Value){0};
     }
-    if(right.type != VALUE_TYPE_NUMBER && right.type != VALUE_TYPE_STRING){
+    if(right.type != VALUE_TYPE_NUMBER && right.type != VALUE_TYPE_STRING && right.type != VALUE_TYPE_ARRAY){
         runtimeError( project,"add operator not defined for types other than number or string");
         return (struct Value){0};
     }
 
     switch(expression.operator){
         case SUMMATION_OPERATOR_ADD:
+            if(left.type == VALUE_TYPE_ARRAY || right.type == VALUE_TYPE_ARRAY){
+                return concatenateArray(left, right, project);
+            }
             if(left.type == VALUE_TYPE_STRING || right.type == VALUE_TYPE_STRING){
                 return concatenateStrings(left, right, project);
             }
@@ -491,6 +531,10 @@ struct Value performSummation(struct SummationExpression_S expression, Project* 
         case SUMMATION_OPERATOR_SUBTRACT:
             if(left.type == VALUE_TYPE_STRING || right.type == VALUE_TYPE_STRING){
                 runtimeError(project, "cannot subtract strings");
+                return NULL_VALUE;
+            }
+            if(left.type == VALUE_TYPE_ARRAY || right.type==VALUE_TYPE_ARRAY){
+                runtimeError(project, "cannot subtract arrays");
                 return NULL_VALUE;
             }
             value = left.asNumber - right.asNumber;
