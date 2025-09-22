@@ -1154,6 +1154,7 @@ uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
                 .len = j - w - 1,
                 .memory = nullptr,
             };
+			uint32 msgIndex = 0;
             if(varName.len == 0){
                 goto invalidValue;
             }
@@ -1164,7 +1165,6 @@ uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
                     AV_CSTRA("but was not found"),
                     AV_CSTRA("but was invalid"),
                 };
-                uint32 msgIndex = 0;
                 if(!var.project){
                     msgIndex = 0;
                     goto invalidValue;
