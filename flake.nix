@@ -17,7 +17,7 @@
         # Fetch the repo and preserve .git for version calculation
         src = pkgs.fetchgit {
           url = "https://github.com/jojo7682345/avBuilder.git";
-		  sha256 = "sha256-2UkgzKbMnK4GREGKMpEYkjo4ac9N9pOqpYanp2VN2XA=";# Replace with actual hash
+		  sha256 = "sha256-TjySkoXpZ3sfE3EZNQyRhCaw9WYUMQng4UQNcx/0py4=";# Replace with actual hash
         };
 
         # Compute version from git commit count and short hash
