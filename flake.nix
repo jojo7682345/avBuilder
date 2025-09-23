@@ -3,9 +3,13 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+	avUtils = {
+		url = "github:jojo7682345/avUtils";
+		flake=false;
+	};
   };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, avUtils, ... } @inputs:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
@@ -15,10 +19,12 @@
         pname = "avBuilder";
 
         # Fetch the repo and preserve .git for version calculation
-        src = pkgs.fetchgit {
-          url = "https://github.com/jojo7682345/avBuilder.git";
-		  sha256 = "sha256-TjySkoXpZ3sfE3EZNQyRhCaw9WYUMQng4UQNcx/0py4=";# Replace with actual hash
-        };
+        #src = pkgs.fetchgit {
+        #  url = "https://github.com/jojo7682345/avBuilder.git";
+		#  sha256 = "sha256-TjySkoXpZ3sfE3EZNQyRhCaw9WYUMQng4UQNcx/0py4=";# Replace with actual hash
+        #};
+		src = ./.;
+
 
         # Compute version from git commit count and short hash
 		version = "v0.1.001n";	
@@ -29,8 +35,12 @@
 		];
 
         buildPhase = ''
-          chmod +x ./bootstrap
+		  mkdir -p ./lib/AvUtils
+		  cp -r ${avUtils}/* ./lib/AvUtils/
+		  mkdir ./lib/AvUtils/build
+		  chmod +x ./bootstrap
           ./bootstrap
+		  mkdir build
           ./avBuilder avBuilder.project
         '';
 
