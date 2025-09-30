@@ -53,7 +53,13 @@
 
   		  mkdir -p $out/share/avBuilder/library/std/project
   		  cp ./library/project/import.project $out/share/avBuilder/library/std/project/	
-        '';
+        
+		  mkdir -p $out/lib
+		  cp ./lib/AvUtils/lib/*.a $out/lib/
+
+		  mkdir -p $out/include
+		  cp -r ./lib/AvUtils/include/* $out/include/
+		'';
 	
 		shellHook = ''
 			export AVBUILDER_HOME=$out/share/avBuilder
