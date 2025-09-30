@@ -1130,14 +1130,23 @@ uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
             uint32 j = i+1;
             uint32 w = i;
             bool32 important = false;
-            if(j < arg.len && (arg.chrs[j] == '!' || arg.chrs[j]=='\\')){
+            bool32 environment = false;
+			if(j < arg.len && (arg.chrs[j] == '!' || arg.chrs[j] == '#' || arg.chrs[j]=='\\')){
                 if(arg.chrs[j]=='!'){
                     important = true;
                 }
+				if(arg.chrs[j]=='#'){
+					environment = true;
+				}
                 w++;
                 j++;
-                if(arg.chrs[j-1]=='\\' && j < arg.len && arg.chrs[j] == '!'){
-                    important = true;
+                if(arg.chrs[j-1]=='\\' && j < arg.len && (arg.chrs[j] == '!' || arg.chrs[j] == '#')){
+                   	if(arg.chrs[j]=='!'){
+                    	important = true;
+                	}
+					if(arg.chrs[j]=='#'){
+						environment = true;
+					}
                     j++;
                     w++;
                 }else{
@@ -1158,6 +1167,16 @@ uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
             if(varName.len == 0){
                 goto invalidValue;
             }
+
+			if(environment){
+				AvString variableValue = AV_EMPTY;
+				avGetEnvironmentVariable(varName, &variableValue);
+				avDynamicArrayAddRange(variableValue.chrs, variableValue.len, 0, 1, chars);
+				avStringFree(&variableValue);
+				i = j - 1;
+				continue;
+			}
+
             struct VariableDescription var = findVariable(varName, project);
             
             if(!var.value){
