@@ -1170,9 +1170,10 @@ uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
 
 			if(environment){
 				AvString variableValue = AV_EMPTY;
-				avGetEnvironmentVariable(varName, &variableValue);
-				avDynamicArrayAddRange(variableValue.chrs, variableValue.len, 0, 1, chars);
-				avStringFree(&variableValue);
+				if(avGetEnvironmentVariable(varName, &variableValue)){
+					avDynamicArrayAddRange(variableValue.chrs, variableValue.len, 0, 1, chars);
+					avStringFree(&variableValue);
+				}
 				i = j - 1;
 				continue;
 			}
