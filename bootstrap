@@ -225,6 +225,7 @@ int main(int argC, char* argV[]) {
         SOURCE_FILE("src/AvBuilder",                            "avProjectProcessor"),
         SOURCE_FILE("src/AvBuilder",                            "avProjectRunner"),
         SOURCE_FILE("src/AvBuilder/builtIn",                    "avBuilderBuiltIn"),
+        SOURCE_FILE("src/AvBuilder/compileCommands",            "compileCommands"),
         SOURCE_FILE("src/AvBuilder",                            "avBuilder"),
     };
     const uint32 bootstrapFilesCount = sizeof(bootstrapFiles)/sizeof(File);

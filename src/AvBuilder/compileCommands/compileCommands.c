@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include "compileCommands.h"
 #include "AvUtils/filesystem/avDirectoryV2.h"
 #include <stdlib.h>
