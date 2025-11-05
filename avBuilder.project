@@ -16,7 +16,7 @@ compiler = "gcc";
 linker = "gcc";
 
 flags=[
-    "-ggdb"
+    "-ggdb",
 ];
 includes=[
     "./include",

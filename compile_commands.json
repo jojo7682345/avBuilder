@@ -1,0 +1,187 @@
+[
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/parsing/avTokenizer.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/parsing/avTokenizer.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/parsing/avTokenizer.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/processes/avPipe.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/processes/avPipe.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/processes/avPipe.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/processes/avProcess.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/processes/avProcess.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/processes/avProcess.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/dataStructures/avTable.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/dataStructures/avTable.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/dataStructures/avTable.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/dataStructures/avFMap.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/dataStructures/avFMap.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/dataStructures/avFMap.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/dataStructures/avGrid.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/dataStructures/avGrid.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/dataStructures/avGrid.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/dataStructures/avArray.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/dataStructures/avArray.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/dataStructures/avArray.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/dataStructures/avStream.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/dataStructures/avStream.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/dataStructures/avStream.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/dataStructures/avDynamicArray.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/dataStructures/avDynamicArray.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/dataStructures/avDynamicArray.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/dataStructures/avQueue.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/dataStructures/avQueue.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/dataStructures/avQueue.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/threading/avMutex.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/threading/avMutex.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/threading/avMutex.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/threading/avThread.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/threading/avThread.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/threading/avThread.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/environment/avEnvironment.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/environment/avEnvironment.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/environment/avEnvironment.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/filesystem/avDirectory.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/filesystem/avDirectory.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/filesystem/avDirectory.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/filesystem/avDirectoryV2.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/filesystem/avDirectoryV2.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/filesystem/avDirectoryV2.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/filesystem/avFile.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/filesystem/avFile.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/filesystem/avFile.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/string/avChar.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/string/avChar.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/string/avChar.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/string/avRegex.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/string/avRegex.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/string/avRegex.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/string/avPrintf.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/string/avPrintf.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/string/avPrintf.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/string/avString.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/string/avString.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/string/avString.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/logging/avAssert.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/logging/avAssert.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/logging/avAssert.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/util/avTime.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/util/avTime.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/util/avTime.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/util/avBitField.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/util/avBitField.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/util/avBitField.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/memory/avMemory.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/memory/avMemory.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/memory/avMemory.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/memory/avLinearAllocator.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/memory/avLinearAllocator.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/memory/avLinearAllocator.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/memory/avAllocator.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/memory/avAllocator.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/memory/avAllocator.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "gcc -c src/memory/avDynamicAllocator.c -std=c11 -Wall -ggdb -fPIC -Iinclude -o build/src/memory/avDynamicAllocator.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/memory/avDynamicAllocator.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder/lib/AvUtils",
+		"command": "ar rcs -o lib/libavUtils.a build/src/parsing/avTokenizer.o build/src/processes/avPipe.o build/src/processes/avProcess.o build/src/dataStructures/avTable.o build/src/dataStructures/avFMap.o build/src/dataStructures/avGrid.o build/src/dataStructures/avArray.o build/src/dataStructures/avStream.o build/src/dataStructures/avDynamicArray.o build/src/dataStructures/avQueue.o build/src/threading/avMutex.o build/src/threading/avThread.o build/src/environment/avEnvironment.o build/src/filesystem/avDirectory.o build/src/filesystem/avDirectoryV2.o build/src/filesystem/avFile.o build/src/string/avChar.o build/src/string/avRegex.o build/src/string/avPrintf.o build/src/string/avString.o build/src/logging/avAssert.o build/src/util/avTime.o build/src/util/avBitField.o build/src/memory/avMemory.o build/src/memory/avLinearAllocator.o build/src/memory/avAllocator.o build/src/memory/avDynamicAllocator.o",
+		"file": "(unkown)"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder",
+		"command": "gcc -c src/AvBuilder/avProjectParser.c -ggdb -I./include -Ilib/AvUtils/include -o build/src/AvBuilder/avProjectParser.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/AvBuilder/avProjectParser.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder",
+		"command": "gcc -c src/AvBuilder/avProjectTokenizer.c -ggdb -I./include -Ilib/AvUtils/include -o build/src/AvBuilder/avProjectTokenizer.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/AvBuilder/avProjectTokenizer.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder",
+		"command": "gcc -c src/AvBuilder/avProjectRunner.c -ggdb -I./include -Ilib/AvUtils/include -o build/src/AvBuilder/avProjectRunner.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/AvBuilder/avProjectRunner.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder",
+		"command": "gcc -c src/AvBuilder/avBuilder.c -ggdb -I./include -Ilib/AvUtils/include -o build/src/AvBuilder/avBuilder.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/AvBuilder/avBuilder.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder",
+		"command": "gcc -c src/AvBuilder/avProjectLoader.c -ggdb -I./include -Ilib/AvUtils/include -o build/src/AvBuilder/avProjectLoader.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/AvBuilder/avProjectLoader.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder",
+		"command": "gcc -c src/AvBuilder/compileCommands/compileCommands.c -ggdb -I./include -Ilib/AvUtils/include -o build/src/AvBuilder/compileCommands/compileCommands.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/AvBuilder/compileCommands/compileCommands.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder",
+		"command": "gcc -c src/AvBuilder/builtIn/avBuilderBuiltIn.c -ggdb -I./include -Ilib/AvUtils/include -o build/src/AvBuilder/builtIn/avBuilderBuiltIn.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/AvBuilder/builtIn/avBuilderBuiltIn.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder",
+		"command": "gcc -c src/AvBuilder/avProjectProcessor.c -ggdb -I./include -Ilib/AvUtils/include -o build/src/AvBuilder/avProjectProcessor.o -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "src/AvBuilder/avProjectProcessor.c"
+	},
+	{
+		"directory": "/home/dms/dev/projects/avBuilder",
+		"command": "gcc  build/src/AvBuilder/avProjectParser.o build/src/AvBuilder/avProjectTokenizer.o build/src/AvBuilder/avProjectRunner.o build/src/AvBuilder/avBuilder.o build/src/AvBuilder/avProjectLoader.o build/src/AvBuilder/compileCommands/compileCommands.o build/src/AvBuilder/builtIn/avBuilderBuiltIn.o build/src/AvBuilder/avProjectProcessor.o -Llib/AvUtils/lib -lm -lavUtils -o ./avBuilder -isystem/nix/store/0wjfd5cg8npiay83kxyp10xmnk6vh50w-avBuilder-v0.1.001n/include -isystem/nix/store/iix0vgb47n72as5w2s6y4vn041dfkahc-gdb-16.3/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/include -isystem/nix/store/ffrg0560kj0066s4k9pznjand907nlnz-gcc-14.3.0/lib/gcc/x86_64-unknown-linux-gnu/14.3.0/include-fixed -isystem/nix/store/0vqrw0y515015i3065r9s00jcp1cd4hy-glibc-2.40-66-dev/include",
+		"file": "(unkown)"
+	}
+]

@@ -101,6 +101,7 @@ typedef struct LocalContext {
 struct ProjectOptions {
     AvString entry;
     bool32 commandDebug;
+	bool32 genCompileCommands;
 };
 typedef struct Project {
     AvString name;

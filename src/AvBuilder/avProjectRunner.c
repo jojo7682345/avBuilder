@@ -19,6 +19,7 @@
 
 #include "avProjectLang.h"
 #include "builtIn/avBuilderBuiltIn.h"
+#include "compileCommands/compileCommands.h"
 
 #define NULL_VALUE (struct Value){0}
 
@@ -1637,6 +1638,10 @@ void performCommand(struct CommandStatementBody_S command, Project* project){
 
         avPipeDestroy(&pipe);
     }
+
+	if(project->options.genCompileCommands){
+		addCommandToCompileCommands(commandDescription->command);	
+	}
     
     if(project->options.commandDebug){
 #ifndef _WIN32

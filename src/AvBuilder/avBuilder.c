@@ -12,7 +12,7 @@
 #include <stdlib.h>
 
 #include "avBuilder.h"
-
+#include "compileCommands/compileCommands.h"
 
 #define TOKEN_KEYWORD(symbol) AV_CSTRA(symbol),
 #define TOKEN_PUNCTUATOR(symbol)
@@ -89,6 +89,7 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
         avDynamicArrayRead(&argument, i, arguments);
         AvString entryFlag = AV_CSTR("--entry=");
         AvString commandDebugFlag = AV_CSTR("--debugCommands");
+		AvString compileCommandsFlags = AV_CSTR("--genCompileCommands");
         if(avStringStartsWith(argument, entryFlag)){
             AvString entry = {
                 .chrs = argument.chrs + entryFlag.len,
@@ -103,11 +104,21 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
             avDynamicArrayRemove(i, arguments);
             i--;
         }
+		if(avStringEquals(argument, compileCommandsFlags)){
+			options.genCompileCommands = true;
+			avDynamicArrayRemove(i, arguments);
+			i--;
+			ensureJsonOpen();
+		}
         
     }
     memcpy(&project.options, &options, sizeof(struct ProjectOptions));
     uint32 returnCode = runProject(&project, arguments);
     result = returnCode;
+
+	if(options.genCompileCommands){
+		finalizeCompileCommands();
+	}
 
 processingFailed:
 parsingFailed:
