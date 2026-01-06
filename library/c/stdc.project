@@ -3,25 +3,107 @@ inherit linker = compiler;
 inherit archiver = "ar";
 inherit validCextensions = [ ".c", ".C", ".s", ".S" ];
 
-compile(sources, outDir, flags, includes){
-    var output[arraySize(sources)];
-    var retCodes[arraySize(sources)];
+compileSource(sourceFile, objectFile, flags, includes){
+    var retCode;
     var failed;
-    foreach sourceFile[index] from sources perform {
-        command : retCodes[index] {
+    perform {
+        command : retCode {
             args = [
                 "$flags",
                 "-I*includes"
             ];
-            objectFile = outDir + "/" + fileBaseName(sourceFile) + ".o";
             makeDirs(filePath(objectFile));
             command = "$compiler -c $sourceFile $args -o $objectFile";
-            output[index]=objectFile;
         };
-        if(retCodes[index]!=0){
+        if(retCode!=0){
             print("compiling ");
             print(sourceFile);
             println(" failed!");
+            failed = 1;
+        }
+    };
+    if(failed){
+        return "";
+    }
+    return objectFile;
+}
+
+compile(sources, outDir, flags, includes){
+    var output[arraySize(sources)];
+    var failed;
+    foreach sourceFile[index] from sources perform {
+        objectFile = outDir + "/" + fileBaseName(sourceFile) + ".o";
+        output[index] = compileSource(sourceFile, objectFile, flags, includes);
+        if(output[index]==""){
+            failed = 1;
+        }
+    };
+    if(failed){
+        return [];
+    }
+    return output;
+}
+
+requiresRecompile(source, object, dependencies){
+    var rebuild;
+    foreach dependency from dependencies perform{
+        if(fileLastModified(dependency) > fileLastModified(object)){
+            rebuild = 1;
+            println(dependency + " is newer than " + object);
+        }
+    }
+    perform{
+        if(fileLastModified(source) > fileLastModified(object)){
+            rebuild = 1;
+            println(source + " is newer than " + object);
+        }
+        if(rebuild){
+            println(source + " requires rebuild");
+        }
+    }
+    return rebuild;
+}
+
+requiresRelink(elf, objects, additionalDependencies){
+    var relink;
+    foreach dependency from additionalDependencies perform{
+        if(fileLastModified(dependency) > fileLastModified(elf)){
+            relink = 1;
+            println(dependency + " is newer than " + elf);
+        }
+    }
+    foreach object from objects perform{
+        if(fileLastModified(object) > fileLastModified(elf)){
+            relink = 1;
+            println(object + " is newer than " + elf);
+        }
+    }
+    return relink;
+}
+
+recompileSource(source, objectFile, flags, includes, dependencies) {
+    var ret;
+    perform{
+        if(requiresRecompile(source, objectFile, dependencies)){
+            ret = compileSource(source, objectFile, flags, includes);
+        }else{
+            ret = objectFile;
+        }
+    }
+    return ret;
+}
+
+recompile(sources, outDir, flags, includes){
+    var output[arraySize(sources)];
+    var failed;
+    foreach sourceFile[index] from sources perform {
+        objectFile = outDir + "/" + fileBaseName(sourceFile) + ".o";
+        dependencyFile = outDir + "/" + fileBaseName(sourceFile) + ".d";
+
+        dependencies = parseDependencies(dependencyFile, [objectFile, dependencyFile]);
+        
+        output[index] = recompileSource(sourceFile, objectFile, flags, includes, dependencies);
+        if(output[index]==""){
             failed = 1;
         }
     };

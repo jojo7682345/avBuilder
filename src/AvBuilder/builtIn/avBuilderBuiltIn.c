@@ -2,6 +2,7 @@
 #include <string.h>
 #include <AvUtils/avMemory.h>
 #include <AvUtils/filesystem/avDirectoryV2.h>
+#include <AvUtils/string/avChar.h>
 
 #ifndef _WIN32
 #include <unistd.h>
@@ -239,6 +240,28 @@ struct Value fileBaseName(Project* project, uint32 valueCount, struct Value* val
     return (struct Value){
         .type = VALUE_TYPE_STRING,
         .asString = tmpStr,
+    };
+}
+
+struct Value fileLastModified(Project* project, uint32 valueCount, struct Value* values){
+    AvString fileName = values[0].asString;
+    if(fileName.len == 0 || fileName.chrs==nullptr){
+        runtimeError(project, "cannot get basename of null value");
+    }
+    AvFile file = AV_EMPTY;
+    avFileHandleCreate(fileName, &file);
+    if(!avFileExists(file)){
+        avFileHandleDestroy(file);
+        return (struct Value){
+            .type = VALUE_TYPE_NUMBER,
+            .asNumber = -1,
+        };
+    }
+    AvDateTime time = avFileGetModifiedTime(file);
+    avFileHandleDestroy(file);
+    return (struct Value){
+            .type = VALUE_TYPE_NUMBER,
+            .asNumber = avTimeConvertToNumber(time),
     };
 }
 
@@ -816,4 +839,295 @@ struct Value callExtern(Project* project, uint32 valueCount, struct Value* value
 
     return returnValue;
 
+}
+struct Rule{
+    AV_DS(AvDynamicArray, AvString) targets;
+    AV_DS(AvDynamicArray, AvString) dependencies;
+};
+static void deallocateRule(void* ptr, uint64 size){
+    avDynamicArrayForEachElement(AvString, ((struct Rule*)ptr)->dependencies, { avStringFree(&element);});
+    avDynamicArrayDestroy(((struct Rule*)ptr)->dependencies);
+    avDynamicArrayForEachElement(AvString, ((struct Rule*)ptr)->targets, { avStringFree(&element);});
+    avDynamicArrayDestroy(((struct Rule*)ptr)->targets);
+}
+
+static void allocateRule(struct Rule* rule){
+    avDynamicArrayCreate(0, sizeof(AvString), &rule->targets);
+    avDynamicArrayCreate(0, sizeof(AvString), &rule->dependencies);
+}
+
+struct Value parseDependencies(Project* project, uint32 valueCount, struct Value* values){
+    avStringDebugContextStart;
+    struct Value result = {.type=VALUE_TYPE_ARRAY, .asArray={.count=0}};
+
+    AvString fileName = values[0].asString;
+
+    if(fileName.len == 0 || fileName.chrs==nullptr){
+        runtimeError(project, "cannot parse dependencies of null value");
+    }
+
+    AvFile file = AV_EMPTY;
+    avFileHandleCreate(fileName, &file);
+    
+    if(!avFileOpen(file, AV_FILE_OPEN_READ_DEFAULT)){
+        avFileHandleDestroy(file);
+        return (struct Value) {.type=VALUE_TYPE_ARRAY};
+    }
+
+    uint64 size = avFileGetSize(file);
+    char* buffer = avAllocate(size + 1, "allocating buffer");
+    AvString fileContentStr = (AvString) {.chrs = buffer, .len = size, .memory = NULL};
+    avFileRead(buffer, size, file);
+
+    avStringReplace(&fileContentStr, fileContentStr, AV_CSTRA("\r\n"), AV_CSTRA("\n"));
+    AvString fileContent = AV_EMPTY;
+    avStringReplace(&fileContent, fileContentStr, AV_CSTRA("\\\n"), AV_CSTRA(""));
+    avStringFree(&fileContentStr);
+    
+    AV_DS(AvDynamicArray, struct Rule) rules = AV_EMPTY;
+    avDynamicArrayCreate(0, sizeof(struct Rule), &rules);
+    avDynamicArraySetDeallocateElementCallback(deallocateRule, rules);
+
+    enum parserState {
+        STATE_WHITESPACE_BEFORE_TARGET,
+        STATE_TARGET,
+        STATE_WHITESPACE_AFTER_TARGET,
+        STATE_DEPENDENCY,
+        STATE_WHITESPACE_AFTER_DEPEND,
+        STATE_END_RULE,
+    } state = STATE_WHITESPACE_BEFORE_TARGET;
+    AvDynamicArray currentString = AV_EMPTY;
+    avDynamicArrayCreate(32, 1, &currentString);
+
+    struct Rule currentRule = { 0 };
+    allocateRule(&currentRule);
+    
+    bool32 escaped = 0;
+    for (uint64 readIndex = 0; readIndex < fileContent.len; readIndex++) {
+        char c = fileContent.chrs[readIndex];
+        if(escaped){
+            escaped -= 1;
+        }
+        if(c=='\\' && !escaped){ // only new escapes
+            escaped = 2;
+            continue;
+        }
+        
+        switch(state){
+            case STATE_WHITESPACE_BEFORE_TARGET:
+                if(!avCharIsWhiteSpace(c) && !avCharIsNewline(c)){
+                    state = STATE_TARGET;
+                    readIndex--;
+                }
+                break;
+            case STATE_TARGET:
+                if(avCharIsWhiteSpace(c) && !escaped){
+                    state = STATE_WHITESPACE_AFTER_TARGET;
+                    readIndex--;
+                } else
+                if(c == ':' && !escaped){
+                    state = STATE_WHITESPACE_AFTER_DEPEND;
+                }else{
+                    avDynamicArrayAdd(&c, currentString);
+                    break;
+                }
+                if(avCharIsNewline(c) && !escaped){
+                    state = STATE_WHITESPACE_AFTER_TARGET;
+                }
+                if(avDynamicArrayGetSize(currentString)){
+                    AvStringHeapMemory mem;
+                    avStringMemoryHeapAllocate(avDynamicArrayGetSize(currentString), &mem);
+                    avDynamicArrayReadRange(mem->data, AV_DYNAMIC_ARRAY_FULL_RANGE, currentString);
+                    AvString target = {0};
+                    avStringFromMemory(&target, AV_STRING_WHOLE_MEMORY, mem);
+                    avDynamicArrayAdd(&target, currentRule.targets);
+                    avDynamicArrayClear(0, currentString);
+                }
+                break;
+            case STATE_WHITESPACE_AFTER_TARGET:
+                if(avCharIsWhiteSpace(c)){
+                    break;
+                }
+                if(c==':' && !escaped){
+                    state = STATE_WHITESPACE_AFTER_DEPEND;
+                    break;
+                }
+                state = STATE_TARGET;
+                readIndex--;
+                break;
+            case STATE_WHITESPACE_AFTER_DEPEND:
+                if(avCharIsWhiteSpace(c)){
+                    break;
+                }
+                if(avCharIsNewline(c) && !escaped){
+                    state = STATE_END_RULE;
+                    break;
+                }
+                state = STATE_DEPENDENCY;
+                readIndex--;
+                break;
+            case STATE_DEPENDENCY:
+                if(avCharIsWhiteSpace(c) && !escaped){
+                    state = STATE_WHITESPACE_AFTER_DEPEND;
+                    readIndex--;
+                } else
+                if(avCharIsNewline(c) && !escaped){
+                    state = STATE_END_RULE;
+                }else{
+                    avDynamicArrayAdd(&c, currentString);
+                    break;
+                }
+                if(avDynamicArrayGetSize(currentString)){
+                    AvStringHeapMemory mem;
+                    avStringMemoryHeapAllocate(avDynamicArrayGetSize(currentString), &mem);
+                    avDynamicArrayReadRange(mem->data, AV_DYNAMIC_ARRAY_FULL_RANGE, currentString);
+                    AvString target = {0};
+                    avStringFromMemory(&target, AV_STRING_WHOLE_MEMORY, mem);
+                    avDynamicArrayAdd(&target, currentRule.dependencies);
+                    avDynamicArrayClear(0, currentString);
+                }
+                break;
+            case STATE_END_RULE:
+                if(avDynamicArrayGetSize(currentRule.targets) == 0){
+                    runtimeError(project, "invalid dependency file content" AV_STRING_PRINTF_CODE, fileName);
+                    goto doneParse;
+                }
+                avDynamicArrayAdd(&currentRule, rules);
+                allocateRule(&currentRule);
+
+                state = STATE_WHITESPACE_BEFORE_TARGET;
+                readIndex--;
+                break;
+        }
+    }
+    if(state==STATE_DEPENDENCY){ // fix any dependency at the end of a file
+        if(avDynamicArrayGetSize(currentString)){
+            AvStringHeapMemory mem;
+            avStringMemoryHeapAllocate(avDynamicArrayGetSize(currentString), &mem);
+            avDynamicArrayReadRange(mem->data, AV_DYNAMIC_ARRAY_FULL_RANGE, currentString);
+            AvString target = {0};
+            avStringFromMemory(&target, AV_STRING_WHOLE_MEMORY, mem);
+            avDynamicArrayAdd(&target, currentRule.dependencies);
+            avDynamicArrayClear(0, currentString);
+        }
+        state = STATE_WHITESPACE_AFTER_DEPEND;
+    }
+    if(state==STATE_WHITESPACE_AFTER_DEPEND){
+        avDynamicArrayAdd(&currentRule, rules);
+        allocateRule(&currentRule);
+        state = STATE_WHITESPACE_BEFORE_TARGET;
+    }
+    if(state != STATE_WHITESPACE_BEFORE_TARGET){
+        runtimeError(project, "invalid dependency file content" AV_STRING_PRINTF_CODE, fileName);
+        goto doneParse;
+    }
+
+    //convert to list of dependencies
+
+    struct ConstValue tmpValue = {0};
+    uint32 count = 1;
+    struct ConstValue* vals = &tmpValue;
+    if(values[1].type == VALUE_TYPE_ARRAY){
+        count = values[1].asArray.count;
+        vals = values[1].asArray.values;
+        for(uint32 i = 0; i < count; i++){
+            if(vals[i].type!=VALUE_TYPE_STRING){
+                runtimeError(project, "target can only be a string");
+                goto doneParse;
+            }
+        }
+    }else{
+        toConstValue(values[1], vals, project);
+    }
+    if(count == 0){
+        goto doneParse;
+    }
+
+    AvDynamicArray dependencies;
+    avDynamicArrayCreate(0, sizeof(AvString), &dependencies);
+    for(uint32 i = 0; i < count; i++){
+        AvString dependency = vals[i].asString;
+        // find first rule with matching targets;
+        bool32 foundRule = false;
+        struct Rule rule;
+        for(uint32 j = 0; j < avDynamicArrayGetSize(rules); j++){
+            avDynamicArrayRead(&rule, j, rules);
+            bool32 found = false;
+            avDynamicArrayForEachElement(AvString, rule.targets, {
+                if(avStringEquals(element, dependency)){
+                    found = true;
+                    break;
+                }
+            });
+            if(found){
+                foundRule = true;
+                break;
+            }
+        }
+        if(!foundRule){
+            continue;
+        }
+
+        // add all target dependency that are not already in the list
+        avDynamicArrayForEachElement(AvString, rule.dependencies, {
+            bool32 unique = true;
+            for(uint32 k = 0; k < avDynamicArrayGetSize(dependencies); k++){
+                AvString dep = {0};
+                avDynamicArrayRead(&dep, k, dependencies);
+                if(avStringEquals(dep, element)){
+                    unique = false;
+                    break;
+                }
+            }
+            if(unique){
+                avDynamicArrayAdd(&element, dependencies);
+            }
+        });
+    }
+
+    if(avDynamicArrayGetSize(dependencies)==0){
+        goto doneConvert;
+    }
+    //convert to value
+    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*avDynamicArrayGetSize(dependencies), &project->allocator);
+    for(uint32 i = 0; i < avDynamicArrayGetSize(dependencies); i++){
+        
+        AvString str = {0};
+        avDynamicArrayRead(&str, i, dependencies);
+        AvString tmpStr = AV_EMPTY;
+        avStringCopyToAllocator(str, &tmpStr, &project->allocator);
+        struct ConstValue res = {
+            .type = VALUE_TYPE_STRING,
+            .asString = tmpStr,
+        };
+        memcpy(results+i, &res, sizeof(struct ConstValue));
+    }
+
+    if(avDynamicArrayGetSize(dependencies) == 1){
+        struct Value res = {0};
+        toValue(results[0], &res);
+        memcpy(&result, &res, sizeof(struct Value));
+    }else{
+        struct Value ret = (struct Value){
+            .type=VALUE_TYPE_ARRAY,
+            .asArray = {
+                .count = avDynamicArrayGetSize(dependencies),
+                .values = results,
+            },
+        };
+        memcpy(&result, &ret, sizeof(struct Value));
+    }
+
+doneConvert:
+    avDynamicArrayDestroy(dependencies);
+doneParse:
+    avDynamicArrayDestroy(rules);
+    avDynamicArrayDestroy(currentString);
+    deallocateRule(&currentRule,0); // deallocate uncommitted rule
+    avStringFree(&fileContent);
+    avFree(buffer);
+    avFileClose(file);
+    avFileHandleDestroy(file);
+    avStringDebugContextEnd;
+    return result;
 }

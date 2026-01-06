@@ -67,7 +67,7 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
 
    
     Project project = AV_EMPTY;
-    projectCreate(&project, projectFileName, projectFilePath, projectFileContent);
+    projectCreate(&project, projectFileName, projectFilePath, projectFileContent, false);
     struct ProjectStatementList* statements = nullptr;
     if(!parseProject(tokens, (void**)&statements, &project)){
         avStringPrintf(AV_CSTR("Failed to parse project file %S\n"), projectFilePath);
@@ -146,7 +146,7 @@ void endLocalContext(struct Project* project){
     avFree(context);
 }
 
-void projectCreate(struct Project* project, AvString name, AvString file, AvString content){
+void projectCreate(struct Project* project, AvString name, AvString file, AvString content, bool32 isLocal){
     avAllocatorCreate(0, AV_ALLOCATOR_TYPE_DYNAMIC, &(project->allocator));
     avDynamicArrayCreate(0, sizeof(struct VariableDescription), &project->variables);
     avDynamicArrayCreate(0, sizeof(struct VariableDescription), &project->constants);
@@ -158,7 +158,7 @@ void projectCreate(struct Project* project, AvString name, AvString file, AvStri
     avStringClone(&project->name, name);
     memcpy(&project->projectFileContent, &content, sizeof(AvString));
     avStringClone(&project->projectFileName, file);
-    
+    project->isLocal = isLocal;
     project->localContext = NULL;
 }
 void projectDestroy(struct Project* project){

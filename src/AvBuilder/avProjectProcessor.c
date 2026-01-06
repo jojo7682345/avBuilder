@@ -730,7 +730,7 @@ bool32 processProject(void* statements, Project* project){
                         continue;
                     }
                     if(checkPreviouslyDefined(mapping.alias, project)){
-                        avStringPrintf(AV_CSTR("Multiple Definitions found of %s\n"), mapping.alias);
+                        avStringPrintf(AV_CSTR("Multiple Definitions found of %S\n"), mapping.alias);
                         return false;
                     }
                     struct ImportDescription external = (struct ImportDescription){
@@ -749,7 +749,7 @@ bool32 processProject(void* statements, Project* project){
             case STATEMENT_TYPE_FUNCTION_DEFINITION:{
                 struct FunctionDefinition_S function = statement->functionDefinition;
                 if(checkPreviouslyDefined(function.functionName, project)){
-                    avStringPrintf(AV_CSTR("Multiple Definitions found of %s\n"), function.functionName);
+                    avStringPrintf(AV_CSTR("Multiple Definitions found of %S\n"), function.functionName);
                     return false;
                 }
                 struct FunctionDescription func = (struct FunctionDescription){
