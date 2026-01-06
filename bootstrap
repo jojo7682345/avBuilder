@@ -220,6 +220,7 @@ int main(int argC, char* argV[]) {
         SOURCE_FILE("lib/AvUtils/src/dataStructures",   "avStream"),
         SOURCE_FILE("lib/AvUtils/src/environment",      "avEnvironment"),
         SOURCE_FILE("lib/AvUtils/src/util",             "avTime"),
+        SOURCE_FILE("lib/AvUtils/src/util",             "avMath"),
         SOURCE_FILE("src/AvBuilder",                            "avProjectLoader"),
         SOURCE_FILE("src/AvBuilder",                            "avProjectTokenizer"),
         SOURCE_FILE("src/AvBuilder",                            "avProjectParser"),
