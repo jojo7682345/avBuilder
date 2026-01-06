@@ -86,7 +86,7 @@ static void logParserError(TokenIterator* iterator, TokenType type, AvString str
     Token* token = peek(iterator);
     iterator->status |= ITERATOR_STATUS_ERROR;
     avStringPrintf(
-        AV_CSTR("Unexpected token at line %i\n found %s but expected %s.\n%s\n"), 
+        AV_CSTR("Unexpected token at line %i\n found %S but expected %S.\n%S\n"), 
         token->line,
         tokenTypeToString(token->type), // TODO: convert token types to string
         tokenTypeToString(type), // TODO: convert token types to string

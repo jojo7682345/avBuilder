@@ -48,7 +48,7 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
     AvString projectFileContent = AV_EMPTY;
     AvString projectFileName = AV_EMPTY;
     if(!loadProjectFile(projectFilePath, &projectFileContent, &projectFileName)){
-        avStringPrintf(AV_CSTR("Failed to load project file %s\n"), projectFilePath);
+        avStringPrintf(AV_CSTR("Failed to load project file %S\n"), projectFilePath);
         result = -1;
         avStringFree(&projectFileContent);
         avStringFree(&projectFileName); 
@@ -58,7 +58,7 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
     AV_DS(AvDynamicArray, Token) tokens = AV_EMPTY;
     avDynamicArrayCreate(0, sizeof(Token), &tokens);
     if(!tokenizeProject(projectFileContent, projectFileContent, tokens)){
-        avStringPrintf(AV_CSTR("Failed to tokenize project file %s\n"), projectFilePath);
+        avStringPrintf(AV_CSTR("Failed to tokenize project file %S\n"), projectFilePath);
         result = -1;
         avStringFree(&projectFileContent);
         avStringFree(&projectFileName); 
@@ -70,13 +70,13 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
     projectCreate(&project, projectFileName, projectFilePath, projectFileContent);
     struct ProjectStatementList* statements = nullptr;
     if(!parseProject(tokens, (void**)&statements, &project)){
-        avStringPrintf(AV_CSTR("Failed to parse project file %s\n"), projectFilePath);
+        avStringPrintf(AV_CSTR("Failed to parse project file %S\n"), projectFilePath);
         result = -1;
         goto parsingFailed;
     }
     
     if(!processProject(statements, &project)){
-        avStringPrintf(AV_CSTR("Failed to perform processing on project file %s\n"), projectFilePath);
+        avStringPrintf(AV_CSTR("Failed to perform processing on project file %S\n"), projectFilePath);
         result = -1;
         goto processingFailed;
     }
@@ -199,11 +199,18 @@ static uint32 printUsage(const int argC, const char* argV[]){
 }
 
 void getInConfigFolder(AvStringRef dest, AvString subDir){
+#ifndef _WIN32
+    const AvString homeVar = AV_CSTRA("HOME");
+    const AvString pathInHome = AV_CSTRA(".config/AvBuilder");
+#else
+    const AvString homeVar = AV_CSTRA("USERPROFILE");
+    const AvString pathInHome = AV_CSTRA(".AvBuilder");
+#endif
     AvString homeDir = AV_EMPTY;
     if(!avGetEnvironmentVariable(AV_CSTRA("AVBUILDER_HOME"), &homeDir)){
 		AvString home = AV_EMPTY;
-		avGetEnvironmentVariable(AV_CSTRA("HOME"), &home);
-		avStringJoin(&homeDir, AV_CSTRA(".config/AvBuilder"));
+		avGetEnvironmentVariable(homeVar, &home);
+		avStringJoin(&homeDir, pathInHome);
 		avStringFree(&home);
 	}
     AvString tmpStr = AV_EMPTY;
@@ -273,13 +280,13 @@ static uint32 openProject(const int argC, const char* argV[]){
     getInConfigFolder(&templatesDir, templatePath);
     
     if(!avDirectoryExists(templatesDir)){
-        avStringPrintf(AV_CSTR("Unable to find %s in %s\n"), projectFile, templatesDir);
+        avStringPrintf(AV_CSTR("Unable to find %S in %S\n"), projectFile, templatesDir);
         ret = -1;
         goto dirDoesNotExist;
     }
     AvPath templates = AV_EMPTY;
     if(!avDirectoryOpen(templatesDir, nullptr, &templates)){
-        avStringPrintf(AV_CSTR("Unable to find %s\n"), projectFile);
+        avStringPrintf(AV_CSTR("Unable to find %S\n"), projectFile);
         ret = -1;
         goto unableToOpen;
     }
@@ -287,7 +294,7 @@ static uint32 openProject(const int argC, const char* argV[]){
     avDynamicArrayCreate(0, sizeof(AvString), &files);
     avDynamicArraySetDeallocateElementCallback(freeString, files);
     if(!listInTree(templates, projectFile, files)){
-        avStringPrintf(AV_CSTR("Unable to find %s\n"), projectFile);
+        avStringPrintf(AV_CSTR("Unable to find %S\n"), projectFile);
         ret = -1;
         goto noFilesFound;
     }
@@ -300,7 +307,7 @@ static uint32 openProject(const int argC, const char* argV[]){
     avStringPrintln(AV_CSTR("Multiple files found with the same name, please specify which"));
     for(uint32 index = 0; index < avDynamicArrayGetSize(files); index++) { 
         AvString element; avDynamicArrayRead(&element, index, (files));
-        avStringPrintf(AV_CSTR("%i)  %s\n"), index, element);
+        avStringPrintf(AV_CSTR("%i)  %S\n"), index, element);
     };
     avStringPrint(AV_CSTR("Enter file number: "));
     if(!scanf("%i", &file) || file >= count){
@@ -313,7 +320,7 @@ openFile:
     AvString fileStr = AV_EMPTY;
     avDynamicArrayRead(&fileStr, file, files);
     char buffer[4096] = {0};
-    avStringPrintfToBuffer(buffer, 4095, AV_CSTR("%s %s"), AV_CSTR(argV[1]), fileStr);
+    avStringPrintfToBuffer(buffer, 4095, AV_CSTR("%S %S"), AV_CSTR(argV[1]), fileStr);
     //avStringPrintln(AV_CSTR(buffer));
     ret = system(buffer);
 noFilesFound:
@@ -335,13 +342,13 @@ static uint32 removeProject(const int argC, const char* argV[]){
     getInConfigFolder(&templatesDir, templatePath);
     
     if(!avDirectoryExists(templatesDir)){
-        avStringPrintf(AV_CSTR("Unable to find %s\n"), projectFile);
+        avStringPrintf(AV_CSTR("Unable to find %S\n"), projectFile);
         ret = -1;
         goto dirDoesNotExist;
     }
     AvPath templates = AV_EMPTY;
     if(!avDirectoryOpen(templatesDir, nullptr, &templates)){
-        avStringPrintf(AV_CSTR("Unable to find %s\n"), projectFile);
+        avStringPrintf(AV_CSTR("Unable to find %S\n"), projectFile);
         ret = -1;
         goto unableToOpen;
     }
@@ -349,7 +356,7 @@ static uint32 removeProject(const int argC, const char* argV[]){
     avDynamicArrayCreate(0, sizeof(AvString), &files);
     avDynamicArraySetDeallocateElementCallback(freeString, files);
     if(!listInTree(templates, projectFile, files)){
-        avStringPrintf(AV_CSTR("Unable to find %s\n"), projectFile);
+        avStringPrintf(AV_CSTR("Unable to find %S\n"), projectFile);
         ret = -1;
         goto noFilesFound;
     }
@@ -362,7 +369,7 @@ static uint32 removeProject(const int argC, const char* argV[]){
     avStringPrintln(AV_CSTR("Multiple files found with the same name, please specify which"));
     for(uint32 index = 0; index < avDynamicArrayGetSize(files); index++) { 
         AvString element; avDynamicArrayRead(&element, index, (files));
-        avStringPrintf(AV_CSTR("%i)  %s\n"), index, element);
+        avStringPrintf(AV_CSTR("%i)  %S\n"), index, element);
     };
     avStringPrint(AV_CSTR("Enter file number: "));
     if(!scanf("%i", &file) || file >= count){
@@ -404,13 +411,13 @@ static uint32 saveProject(const int argC, const char* argV[]){
     AvFile dstFile = AV_EMPTY;
     avFileHandleCreate(projectFile, &srcFile);
     if(!avFileExists(srcFile)){
-        avStringPrintf(AV_CSTR("Unable to find %s\n"), projectFile);
+        avStringPrintf(AV_CSTR("Unable to find %S\n"), projectFile);
         ret = -1;
         goto openSrcFileFailed;
     }
 
     if(!avFileOpen(srcFile, AV_FILE_OPEN_READ_BINARY_DEFAULT)){
-        avStringPrintf(AV_CSTR("Unabel to open %s\n"), projectFile);
+        avStringPrintf(AV_CSTR("Unabel to open %S\n"), projectFile);
         ret = -1;
         goto openSrcFileFailed;
     }
@@ -429,7 +436,7 @@ static uint32 saveProject(const int argC, const char* argV[]){
 
     avFileHandleCreate(saveFile, &dstFile);
     if(!avFileOpen(dstFile, AV_FILE_OPEN_WRITE_BINARY_DEFAULT)){
-        avStringPrintf(AV_CSTR("Unable to create new file %s\n"), saveFile);
+        avStringPrintf(AV_CSTR("Unable to create new file %S\n"), saveFile);
         ret = -1;
         goto createDstFileFailed;
     }
@@ -452,7 +459,7 @@ static uint32 saveProject(const int argC, const char* argV[]){
     avFileClose(dstFile);
     avFileHandleDestroy(dstFile);
 
-    avStringPrintf(AV_CSTR("Saved project file %s to %s\n"), projectFile, saveFile);
+    avStringPrintf(AV_CSTR("Saved project file %S to %S\n"), projectFile, saveFile);
 
 createDstFileFailed:
     avStringFree(&saveFile);
@@ -506,18 +513,18 @@ static uint32 findProject(const int argC, const char* argV[]){
     getInConfigFolder(&templatesDir, templatePath);
     
     if(!avDirectoryExists(templatesDir)){
-        avStringPrintf(AV_CSTR("Unable to find %s\n"), projectFile);
+        avStringPrintf(AV_CSTR("Unable to find %S\n"), projectFile);
         ret = -1;
         goto dirDoesNotExist;
     }
     AvPath templates = AV_EMPTY;
     if(!avDirectoryOpen(templatesDir, nullptr, &templates)){
-        avStringPrintf(AV_CSTR("Unable to find %s\n"), projectFile);
+        avStringPrintf(AV_CSTR("Unable to find %S\n"), projectFile);
         ret = -1;
         goto unableToOpen;
     }
     if(!findInTree(templates, projectFile, templatesDir.len)){
-        avStringPrintf(AV_CSTR("Unable to find %s\n"), projectFile);
+        avStringPrintf(AV_CSTR("Unable to find %S\n"), projectFile);
         ret = -1;
     }
 unableToOpen:
@@ -532,7 +539,7 @@ static bool32 printTree(AvPath path){
     for(uint32 i = 0; i < path.contentCount; i++){
         AvPathNode node = path.content[i];
         if(node.type == AV_PATH_NODE_TYPE_FILE){
-            avStringPrintf(AV_CSTR("%s\n"), node.fullName);
+            avStringPrintf(AV_CSTR("%S\n"), node.fullName);
         }else if(node.type == AV_PATH_NODE_TYPE_DIRECTORY){
             AvPath child = AV_EMPTY;
             if(!avDirectoryOpen(node.name, &path, &child)){

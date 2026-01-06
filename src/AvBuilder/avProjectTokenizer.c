@@ -269,7 +269,7 @@ bool32 consumeText(uint64 * const readIndex, const AvString projectFileContent){
 __attribute__((unused))
 static void printTokenList(AvDynamicArray tokens){
     avDynamicArrayForEachElement(Token, tokens, {
-        avStringPrintf(AV_CSTR("line %i type %i %s\n"), element.line, element.type, element.str);
+        avStringPrintf(AV_CSTR("line %i type %i %S\n"), element.line, element.type, element.str);
 
     });
 }

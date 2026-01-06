@@ -143,7 +143,7 @@ struct Value callBuiltInFunction(struct BuiltInFunctionDescription description, 
         AvString usage = AV_EMPTY;
         getUsage(&usage, description.identifier, description.argumentCount, description.argTypes);
         runtimeError(project, 
-            "Calling built-in function '%s' with an invalid amount of arguments\nUsage: %s", 
+            "Calling built-in function '%S' with an invalid amount of arguments\nUsage: %S", 
             description.identifier, usage);
         avStringFree(&usage);
     }
@@ -153,7 +153,7 @@ struct Value callBuiltInFunction(struct BuiltInFunctionDescription description, 
             AvString usage = AV_EMPTY;
             getUsage(&usage, description.identifier, description.argumentCount, description.argTypes);
             runtimeError(project, 
-                "Calling built-in function '%s' with an invalid argument\nUsage: %s", 
+                "Calling built-in function '%S' with an invalid argument\nUsage: %S", 
                 description.identifier, usage);
             avStringFree(&usage);
         }
@@ -737,7 +737,7 @@ struct Value call(Project* project, uint32 valueCount, struct Value* values){
 
     struct FunctionDescription description = findFunction(functionIdentifier, project);
     if(!description.project){
-        runtimeError( project,"unable to find function '%s'", functionIdentifier);
+        runtimeError( project,"unable to find function '%S'", functionIdentifier);
         return (struct Value) {.type=VALUE_TYPE_NONE};
     }
     struct Statement_S* statement = (description.project->statements[description.statement]);
@@ -747,7 +747,7 @@ struct Value call(Project* project, uint32 valueCount, struct Value* values){
     }
     struct FunctionDefinition_S function = statement->functionDefinition;
     if(function.parameterCount != valueCount-1){
-        runtimeError( project,"invalid number of arguments calling function %s", functionIdentifier);
+        runtimeError( project,"invalid number of arguments calling function %S", functionIdentifier);
     }
     
     startLocalContext(description.project, false);
@@ -778,18 +778,18 @@ struct Value callExtern(Project* project, uint32 valueCount, struct Value* value
     }, project);
 
     if(!func.project){
-        runtimeError(project, "unable to import %s from %s", functionName, projectFile);
+        runtimeError(project, "unable to import %S from %S", functionName, projectFile);
         return (struct Value) {.type=VALUE_TYPE_ARRAY};
     }
 
     if(func.statement >= func.project->statementCount){
-        runtimeError(project, "malformed import %s", functionName);
+        runtimeError(project, "malformed import %S", functionName);
         return (struct Value) {.type=VALUE_TYPE_ARRAY};
     }
 
     struct Statement_S* statement = func.project->statements[func.statement];
     if(statement->type!=STATEMENT_TYPE_FUNCTION_DEFINITION){
-        runtimeError(project, "malformed import %s", functionName);
+        runtimeError(project, "malformed import %S", functionName);
         return (struct Value) {.type=VALUE_TYPE_ARRAY};
     }
 

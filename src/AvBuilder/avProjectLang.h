@@ -567,7 +567,7 @@ struct ConstValue {
     enum ValueType type;
     union {
         AvString asString;
-        uint32 asNumber;
+        int64 asNumber;
     };
 };
 
@@ -580,7 +580,7 @@ struct Value {
     enum ValueType type;
     union {
         AvString asString;
-        uint32 asNumber;
+        int64 asNumber;
         struct ArrayValue asArray;
     };
 };

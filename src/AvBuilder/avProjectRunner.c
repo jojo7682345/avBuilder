@@ -29,7 +29,7 @@ void runtimeError(Project* project, const char* message, ...){
     va_list args;
     va_start(args, message);
 
-    avStringPrintf(AV_CSTR("Runtime Error in project %s:\n\t"), project->name);
+	avStringPrintf(AV_CSTR("Runtime Error in project %S:\n\t"), project->name);
     avStringPrintfVA(AV_CSTR(message), args);
 
     avStringPrintf(AV_CSTR("\nVariables: [\n"));
@@ -41,7 +41,7 @@ void runtimeError(Project* project, const char* message, ...){
             for(uint32 index = 0; index < avDynamicArrayGetSize(context->variables); index++) { 
                 struct VariableDescription element; avDynamicArrayRead(&element, index, (context->variables)); { 
                     struct VariableDescription var = element; 
-                    avStringPrintf(AV_CSTR("\t%s = "), var.identifier); 
+					avStringPrintf(AV_CSTR("\t%S = "), var.identifier); 
                     if(var.value){
                         printValue(*var.value); 
                     }else{
@@ -68,8 +68,8 @@ void runtimeError(Project* project, const char* message, ...){
          { 
             struct VariableDescription var = element; 
             avStringPrintf(((AvString){
-                .chrs="\t%s = ", 
-                .len=avCStringLength("\t%s = "), 
+				.chrs="\t%S = ", 
+				.len=avCStringLength("\t%S = "), 
                 .memory=((AvStringMemory*)0)
             }), var.identifier); 
             if(var.value){
@@ -85,7 +85,7 @@ void runtimeError(Project* project, const char* message, ...){
     avStringPrintf(AV_CSTR("Constants: [\n"));
     avDynamicArrayForEachElement(struct VariableDescription, project->constants, {
         struct VariableDescription var = element;
-        avStringPrintf(AV_CSTR("\t%s = "), var.identifier);
+		avStringPrintf(AV_CSTR("\t%S = "), var.identifier);
         printValue(*var.value);
         avStringPrint(AV_CSTR("\n"));
     });
@@ -94,14 +94,14 @@ void runtimeError(Project* project, const char* message, ...){
     avStringPrintf(AV_CSTR("Externals: [\n"));
     avDynamicArrayForEachElement(struct VariableDescription, project->externals, {
         struct VariableDescription var = element;
-        avStringPrintf(AV_CSTR("\t%s\n"), var.identifier);
+		avStringPrintf(AV_CSTR("\t%S\n"), var.identifier);
     });
     avStringPrintf(AV_CSTR("]\n"));
 
     avAssert(false, "runtime error");
 }
 
-static uint32 parseNumber(AvString string){
+static int32 parseNumber(AvString string){
     
 
     enum NumberType {
