@@ -49,16 +49,11 @@ requiresRecompile(source, object, dependencies){
     foreach dependency from dependencies perform{
         if(fileLastModified(dependency) > fileLastModified(object)){
             rebuild = 1;
-            println(dependency + " is newer than " + object);
         }
     }
     perform{
         if(fileLastModified(source) > fileLastModified(object)){
             rebuild = 1;
-            println(source + " is newer than " + object);
-        }
-        if(rebuild){
-            println(source + " requires rebuild");
         }
     }
     return rebuild;
@@ -69,13 +64,11 @@ requiresRelink(elf, objects, additionalDependencies){
     foreach dependency from additionalDependencies perform{
         if(fileLastModified(dependency) > fileLastModified(elf)){
             relink = 1;
-            println(dependency + " is newer than " + elf);
         }
     }
     foreach object from objects perform{
         if(fileLastModified(object) > fileLastModified(elf)){
             relink = 1;
-            println(object + " is newer than " + elf);
         }
     }
     return relink;
