@@ -24,12 +24,16 @@ void assignVariable(struct VariableDescription description, struct Value value, 
 BUILT_IN_FUNCS
 #undef BUILT_IN_FUNC
 
+typedef struct BuiltInParameter{
+    enum ValueType type;
+    const char* name;
+} BuiltInParameter;
 
 
 struct BuiltInFunctionDescription{
     AvString identifier;
     uint32 argumentCount;
-    enum ValueType* argTypes;
+    BuiltInParameter* argTypes;
     struct Value (*function)(Project*, uint32, struct Value*);
 };
 

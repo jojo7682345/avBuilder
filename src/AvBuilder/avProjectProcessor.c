@@ -582,11 +582,22 @@ struct Statement_S* processFunctionDefinitionStatement(struct FunctionDefinition
             iterator = iterator->next;
         }
         if(parameterCount!=0){
-            AvString* parameters = avAllocatorAllocate(sizeof(AvString)*parameterCount, &project->allocator);
+            struct FunctionParameter_S* parameters = avAllocatorAllocate(sizeof(struct FunctionParameter_S)*parameterCount, &project->allocator);
             uint64 index = 0;
             iterator = function.parameterList;
             while(iterator && iterator->parameter){
-                memcpy(parameters+index, &iterator->parameter->name, sizeof(AvString));
+                memcpy(&parameters[index].name, &iterator->parameter->name, sizeof(AvString));
+                if(iterator->parameter->size == NULL){
+                    parameters[index].size = NULL;
+                }else{
+                    if(iterator->parameter->size == (struct Expression*)1){
+                        parameters[index].unknownSize = true;
+                    }else{
+                        parameters[index].size = processExpression(iterator->parameter->size, project);
+                    }
+                }
+
+
                 index++;
                 iterator = iterator->next;
             }

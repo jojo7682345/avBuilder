@@ -252,6 +252,7 @@ struct ReturnStatement{
 
 struct Parameter{
     AvString name;
+    struct Expression* size;
 };
 
 struct ParameterList{
@@ -514,10 +515,16 @@ struct FunctionBody_S{
     struct FunctionStatement_S* statements;
 };
 
+
+struct FunctionParameter_S {
+    AvString name;
+    bool8 unknownSize;
+    struct Expression_S* size;
+};
 struct FunctionDefinition_S{
     AvString functionName;
     uint32 parameterCount;
-    AvString* parameters;
+    struct FunctionParameter_S* parameters;
     struct FunctionBody_S body;
 };
 

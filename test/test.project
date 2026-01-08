@@ -1,14 +1,18 @@
 inherit compiler = "gcc";
 
-getVar(){
-    return test();
+testFunc(arr[]){
+    perform{
+        lines = [ "1", "1", "2", "2", "3", 4, "4"];
+
+        println(filterUnique(lines));
+
+        writeFileLines(filterUnique(lines));
+    }
 }
 
-test() {
-    perform {
-        command{
-            command = "echo $compiler";
-        }
+test(var1, arr[]) {
+    perform{
+        testFunc("1", 2, "3");
     }
-    return compiler;
+    return var1;
 }

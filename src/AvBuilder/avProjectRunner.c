@@ -2070,7 +2070,7 @@ struct Value runFunction(struct FunctionDefinition_S function, Project* project)
 }
 
 
-
+void printHelp(struct FunctionDefinition_S function, Project* project);
 struct Value callFunction(struct CallExpression_S call, Project* project){
 
 	struct Value* values = avAllocate(sizeof(struct Value)*call.argumentCount, "allocating tempArgs");
@@ -2098,21 +2098,147 @@ struct Value callFunction(struct CallExpression_S call, Project* project){
 		return NULL_VALUE;
 	}
 	struct FunctionDefinition_S function = statement->functionDefinition;
-	if(function.parameterCount != call.argumentCount){
+
+
+	uint32 argumentCount = call.argumentCount;
+	uint32 parameterCount = 0;
+	uint32 argumentSizes[function.parameterCount];
+
+	for(uint32 i = 0; i < function.parameterCount; i++){
+		if(function.parameters[i].unknownSize){
+			if(i != function.parameterCount - 1){
+				runtimeError(project, "Variable array (%S) can only be last parameter", function.parameters[i].name);
+				return NULL_VALUE;
+			}
+			if(parameterCount <= argumentCount){
+				parameterCount = argumentCount;
+			}
+			argumentSizes[i] = 0;
+		}else if(function.parameters[i].size){
+
+			struct Value size = getValue(function.parameters[i].size, project);
+			if(size.type != VALUE_TYPE_NUMBER){
+				runtimeError(project, "Size specified for array parameter is not a number");
+				return NULL_VALUE;
+			}
+			if(size.asNumber <= 0){
+				runtimeError(project, "Cannot have an array of negative or zero size");
+				return NULL_VALUE;
+			}
+			parameterCount += 1;
+			argumentSizes[i] = size.asNumber;
+		}else{
+			parameterCount++;
+			argumentSizes[i] = 1;
+		}
+	}
+
+
+	if(argumentCount != parameterCount){
 		runtimeError( project,"invalid number of arguments calling function %S", call.function);
+		printHelp(function, project);
+		return NULL_VALUE;
 	}
 
 	
 	startLocalContext(description.project, false);
-	for(uint32 i = 0; i < call.argumentCount; i++){
-		struct Value value = values[i];
-		struct VariableDescription variable = {
-			.identifier = function.parameters[i],
-			.project = description.project,
-			.statement = description.statement,
-		};
-		assignVariable(variable, value, description.project);
+	// for(uint32 i = 0; i < call.argumentCount; i++){
+	// 	struct Value value = values[i];
+	// 	struct VariableDescription variable = {
+	// 		.identifier = function.parameters[i].name,
+	// 		.project = description.project,
+	// 		.statement = description.statement,
+	// 	};
+	// 	assignVariable(variable, value, description.project);
+	// }
+
+	uint32 parameterIndex = 0;
+	for(uint32 i = 0; i < function.parameterCount; i++){
+		struct FunctionParameter_S param = function.parameters[i];
+		if((!param.size && !param.unknownSize)){
+			struct Value value = values[parameterIndex++];
+			struct VariableDescription variable = {
+				.identifier = function.parameters[i].name,
+				.project = description.project,
+				.statement = description.statement,
+			};
+			assignVariable(variable, value, description.project);
+		}else if(param.size && !param.unknownSize){
+			struct Value value = values[parameterIndex++];
+			if(value.type != VALUE_TYPE_ARRAY && argumentSizes[i] != 1){
+				printHelp(function, project);
+				runtimeError(project, "Parameter (%S) of function %S, must be array of size %lli", param.name, function.functionName,argumentSizes[i]);
+				return NULL_VALUE;
+			}
+			if(value.type == VALUE_TYPE_ARRAY && argumentSizes[i] == 1 && value.asArray.count != 1){
+				printHelp(function, project);
+				runtimeError(project, "Parameter (%S) of function %S, must be array of size %lli", param.name, function.functionName,argumentSizes[i]);
+				return NULL_VALUE;
+			}
+			if(value.type != VALUE_TYPE_ARRAY){
+				struct VariableDescription variable = {
+					.identifier = function.parameters[i].name,
+					.project = description.project,
+					.statement = description.statement,
+				};
+				assignVariable(variable, value, description.project);
+			}else{
+				if(value.asArray.count != argumentSizes[i]){
+					printHelp(function, project);
+					runtimeError(project, "Parameter (%S) of function %S, must be array of size %i", param.name, function.functionName,argumentSizes[i]);
+					return NULL_VALUE;
+				}
+				struct VariableDescription variable = {
+					.identifier = function.parameters[i].name,
+					.project = description.project,
+					.statement = description.statement,
+				};
+				assignVariable(variable, value, description.project);
+			}
+		}else if(param.size==0 && param.unknownSize){
+			argumentSizes[i] = argumentCount - parameterIndex;
+			if(argumentSizes[i] == 1){
+				struct Value value = values[parameterIndex++];
+				struct VariableDescription variable = {
+					.identifier = function.parameters[i].name,
+					.project = description.project,
+					.statement = description.statement,
+				};
+				assignVariable(variable, value, description.project);
+			}else{
+				struct ConstValue* arrValues = NULL;
+				if(argumentSizes[i] != 0){
+					arrValues = avAllocatorAllocate(sizeof(struct ConstValue)*argumentSizes[i], &project->allocator);
+					for(uint32 j = 0; j < argumentSizes[i]; j++){
+						struct Value value = values[parameterIndex++];
+						if(value.type == VALUE_TYPE_ARRAY){
+							printHelp(function, project);
+							runtimeError(project, "Variatic function arrays, cannot contain nested arrays");
+							return NULL_VALUE;
+						}
+						toConstValue(value, arrValues + j, project);
+					}
+				}
+				struct Value value = {
+					.type = VALUE_TYPE_ARRAY,
+					.asArray.count = argumentSizes[i],
+					.asArray.values = arrValues,
+				};
+				struct VariableDescription variable = {
+					.identifier = function.parameters[i].name,
+					.project = description.project,
+					.statement = description.statement,
+				};
+				assignVariable(variable, value, description.project);
+			}
+		}else{
+			runtimeError(project, "logic error");
+			return NULL_VALUE;
+		}
 	}
+
+
+
 	avFree(values);
 	struct Value returnValue = runFunction(function, description.project);
 	endLocalContext(description.project);
@@ -2453,12 +2579,24 @@ void performInherit(struct InheritStatement_S inheritStatement, uint32 i, Projec
 		return;
 	}
 }
-void printHelp(struct FunctionDefinition_S function){
+void printHelp(struct FunctionDefinition_S function, Project* project){
 
 	avStringPrint(AV_CSTR("Invalid number of arguments\nUsage:\n\t"));
 	avStringPrintf(AV_CSTR("./avBuilder %S.project"), function.functionName);
 	for(uint32 i = 0; i < function.parameterCount; i++){
-		avStringPrintf(AV_CSTR(" [%S]"), function.parameters[i]);
+		if(function.parameters[i].unknownSize){
+			avStringPrintf(AV_CSTR(" {%S[?]}"), function.parameters[i].name);
+		}else if(function.parameters[i].size){
+			struct Value size = getValue(function.parameters[i].size, project);
+			if(size.type!=VALUE_TYPE_NUMBER){
+				avStringPrintf(AV_CSTR(" {%S[NaN]}"),function.parameters[i].name);
+			}else{
+				avStringPrintf(AV_CSTR(" {%S[%lli]}"),function.parameters[i].name, size.asNumber);
+			}
+		}else{
+			avStringPrintf(AV_CSTR(" {%S}"), function.parameters[i].name);
+		}
+
 	}
 	avStringPrintf(AV_CSTR("\n"));
 }
@@ -2520,26 +2658,125 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
 	struct FunctionDefinition_S function = functionStatement->functionDefinition;
 
 	uint32 argumentCount = avDynamicArrayGetSize(arguments);
-	if(argumentCount != function.parameterCount){
-		printHelp(function);
-		return -1;
+	uint32 parameterCount = 0;
+	uint32 argumentSizes[function.parameterCount];
+
+
+	for(uint32 i = 0; i < function.parameterCount; i++){
+		if(function.parameters[i].unknownSize){
+			if(i != function.parameterCount - 1){
+				runtimeError(project, "Variable array (%S) can only be last parameter", function.parameters[i].name);
+				printHelp(function, project);
+				return -1;
+			}
+			if(parameterCount <= argumentCount){
+				parameterCount = argumentCount;
+			}
+			argumentSizes[i] = 0;
+		}else if(function.parameters[i].size){
+
+			struct Value size = getValue(function.parameters[i].size, project);
+			if(size.type != VALUE_TYPE_NUMBER){
+				runtimeError(project, "Size specified for array parameter is not a number");
+				return -1;
+			}
+			if(size.asNumber <= 0){
+				runtimeError(project, "Cannot have an array of negative or zero size");
+				return -1;
+			}
+			parameterCount += size.asNumber;
+			argumentSizes[i] = size.asNumber;
+		}else{
+			parameterCount++;
+			argumentSizes[i] = 1;
+		}
 	}
 
-	startLocalContext(project, false);
-	for(uint32 i = 0; i < argumentCount; i++){
-		AvString strValue = AV_EMPTY;
-		avDynamicArrayRead(&strValue, i, arguments);
-		struct Value value = {
-			.type = VALUE_TYPE_STRING,
-			.asString = strValue,
-		};
-		struct VariableDescription variable = {
-			.identifier = function.parameters[i],
-			.project = project,
-			.statement = mainFunction.statement,
-		};
-		assignVariable(variable, value, project);
+
+	if(argumentCount != parameterCount){
+		printHelp(function, project);
+		return -1;
 	}
+	
+	startLocalContext(project, false);
+	uint32 parameterIndex = 0;
+	for(uint32 i = 0; i < function.parameterCount; i++){
+		struct FunctionParameter_S param = function.parameters[i];
+		if((!param.size && !param.unknownSize) || argumentSizes[i] == 1){
+			AvString strValue = AV_EMPTY;
+			avDynamicArrayRead(&strValue, i, arguments);
+			parameterIndex++;
+			struct Value value = {
+				.type = VALUE_TYPE_STRING,
+				.asString = strValue,
+			};
+			struct VariableDescription variable = {
+				.identifier = function.parameters[i].name,
+				.project = project,
+				.statement = mainFunction.statement,
+			};
+			assignVariable(variable, value, project);
+		}else if(param.size && !param.unknownSize){
+			struct ConstValue* values = avAllocatorAllocate(sizeof(struct ConstValue)*argumentSizes[i], &project->allocator);
+			for(uint32 j = 0; j < argumentSizes[i]; j++){
+				avDynamicArrayRead(&values[j].asString, parameterIndex, arguments);
+				parameterIndex++;
+				values[j].type = VALUE_TYPE_STRING;
+			}
+			struct Value value = {
+				.type = VALUE_TYPE_ARRAY,
+				.asArray.count = argumentSizes[i],
+				.asArray.values = values,
+			};
+			struct VariableDescription variable = {
+				.identifier = function.parameters[i].name,
+				.project = project,
+				.statement = mainFunction.statement,
+			};
+			assignVariable(variable, value, project);
+		}else if(param.size==0 && param.unknownSize){
+			argumentSizes[i] = argumentCount - parameterIndex;
+			struct ConstValue* values = NULL;
+			if(argumentSizes[i] != 0){
+				values = avAllocatorAllocate(sizeof(struct ConstValue)*argumentSizes[i], &project->allocator);
+				for(uint32 j = 0; j < argumentSizes[i]; j++){
+					avDynamicArrayRead(&values[j].asString, parameterIndex, arguments);
+					parameterIndex++;
+					values[j].type = VALUE_TYPE_STRING;
+				}
+			}
+			struct Value value = {
+				.type = VALUE_TYPE_ARRAY,
+				.asArray.count = argumentSizes[i],
+				.asArray.values = values,
+			};
+			struct VariableDescription variable = {
+				.identifier = function.parameters[i].name,
+				.project = project,
+				.statement = mainFunction.statement,
+			};
+			assignVariable(variable, value, project);
+		}else{
+			runtimeError(project, "logic error");
+			return -1;
+		}
+	}
+
+	// for(uint32 i = 0; i < argumentCount; i++){
+	// 	AvString strValue = AV_EMPTY;
+
+	// 	avDynamicArrayRead(&strValue, i, arguments);
+	// 	struct Value value = {
+	// 		.type = VALUE_TYPE_STRING,
+	// 		.asString = strValue,
+	// 	};
+	// 	struct VariableDescription variable = {
+	// 		.identifier = function.parameters[i].name,
+	// 		.project = project,
+	// 		.statement = mainFunction.statement,
+	// 	};
+	// 	assignVariable(variable, value, project);
+	// }
 	struct Value returnValue = runFunction(function, project);
 	endLocalContext(project);
 	if(returnValue.type == VALUE_TYPE_NUMBER){

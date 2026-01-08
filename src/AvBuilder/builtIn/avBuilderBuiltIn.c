@@ -13,8 +13,8 @@
 
 #define BUILT_IN_FUNC(func, ...) {\
     .identifier=AV_CSTRA(#func),\
-    .argumentCount = sizeof((enum ValueType[])__VA_ARGS__)/sizeof(enum ValueType),\
-    .argTypes = (enum ValueType[]) __VA_ARGS__,\
+    .argumentCount = sizeof((BuiltInParameter[])__VA_ARGS__)/sizeof(BuiltInParameter),\
+    .argTypes = (BuiltInParameter[]) __VA_ARGS__,\
     .function = func\
 },
 const struct BuiltInFunctionDescription builtInFunctions[] = {
@@ -63,13 +63,16 @@ bool32 isBuiltInFunction(struct BuiltInFunctionDescription* description, AvStrin
     return false;
 }
 
-void getUsage(AvStringRef str, AvString funcName, uint32 argCount, enum ValueType* args){
+void getUsage(AvStringRef str, AvString funcName, uint32 argCount, BuiltInParameter* args){
     
     AvStringMemory memory =AV_EMPTY;
 
     uint32 len = 0;
     for(uint32 i = 0; i < argCount; i++){
-        enum ValueType type = args[i];
+        enum ValueType type = args[i].type;
+        const char* argName = args[i].name;
+        len += avCStringLength(argName);
+
         if(type == VALUE_TYPE_NONE){
             len += TS(any)+3;
             continue;
@@ -83,7 +86,7 @@ void getUsage(AvStringRef str, AvString funcName, uint32 argCount, enum ValueTyp
         if(type & VALUE_TYPE_STRING){
             len += TS(number)+1;
         }
-        len+=2;
+        len+=4;
     }
 
 
@@ -94,7 +97,17 @@ void getUsage(AvStringRef str, AvString funcName, uint32 argCount, enum ValueTyp
     uint32 index = funcName.len + 1;
 
     for(uint32 i = 0; i < argCount; i++){
-        enum ValueType type = args[i];
+        enum ValueType type = args[i].type;
+        AvString argName = AV_CSTR(args[i].name);
+        avStringMemoryStore(argName, index, AV_STRING_FULL_LENGTH, &memory);
+        index+=argName.len;
+
+
+        {
+            AvString str = AV_CSTRA("<");
+            avStringMemoryStore(str, index, AV_STRING_FULL_LENGTH, &memory);
+            index+=str.len;
+        }
         if(type == (VALUE_TYPE_ARRAY|VALUE_TYPE_STRING|VALUE_TYPE_NUMBER)){
             AvString str = AV_CSTRA("any");
             avStringMemoryStore(str, index, AV_STRING_FULL_LENGTH, &memory);
@@ -129,8 +142,16 @@ void getUsage(AvStringRef str, AvString funcName, uint32 argCount, enum ValueTyp
             index+=str.len;
             type &= ~VALUE_TYPE_STRING;
         }
-
-        avStringMemoryStore(AV_CSTRA(", "), index, AV_STRING_FULL_LENGTH, &memory);
+        {
+            AvString str = AV_CSTRA(">");
+            avStringMemoryStore(str, index, AV_STRING_FULL_LENGTH, &memory);
+            index+=str.len;
+        }
+        if(i == argCount - 1){
+            avStringMemoryStore(AV_CSTRA(");"), index, AV_STRING_FULL_LENGTH, &memory);
+        }else{
+            avStringMemoryStore(AV_CSTRA(", "), index, AV_STRING_FULL_LENGTH, &memory);
+        }
         index+=2;
     }
 
@@ -150,7 +171,7 @@ struct Value callBuiltInFunction(struct BuiltInFunctionDescription description, 
     }
 
     for(uint32 i = 0; i < description.argumentCount; i++){
-        if((description.argTypes[i] & values[i].type) == 0){
+        if((description.argTypes[i].type & values[i].type) == 0){
             AvString usage = AV_EMPTY;
             getUsage(&usage, description.identifier, description.argumentCount, description.argTypes);
             runtimeError(project, 
@@ -777,7 +798,7 @@ struct Value call(Project* project, uint32 valueCount, struct Value* values){
     for(uint32 i = 1; i < valueCount; i++){
         struct Value value = values[i];
         struct VariableDescription variable = {
-            .identifier = function.parameters[i-1],
+            .identifier = function.parameters[i-1].name,
             .project = description.project,
             .statement = description.statement,
         };
@@ -827,7 +848,7 @@ struct Value callExtern(Project* project, uint32 valueCount, struct Value* value
     for(uint32 i = 0; i < function.parameterCount; i++){
         struct Value value = values[i+2];
         struct VariableDescription variable = {
-            .identifier = function.parameters[i],
+            .identifier = function.parameters[i].name,
             .project = func.project,
             .statement = func.statement,
         };
@@ -1131,3 +1152,178 @@ doneParse:
     avStringDebugContextEnd;
     return result;
 }
+
+
+struct Value readFileLines(Project* project, uint32 valueCount, struct Value* values){
+    struct Value result = {.type = VALUE_TYPE_ARRAY, .asArray.count = 0};
+    AvDynamicArray lines = {0};
+    avDynamicArrayCreate(0, sizeof(AvString), &lines);
+    for(uint32 i = 0; i < valueCount; i++){
+        if(values[i].type!=VALUE_TYPE_STRING){
+            runtimeError(project, "invalid type");
+            return result;
+        }
+        
+        AvString str = values[i].asString;
+        
+        AvFile file;
+        avFileHandleCreate(str, &file);
+        if(!avFileExists(file)){
+            avFileHandleDestroy(file);
+            continue;
+        }
+        if(!avFileOpen(file, AV_FILE_OPEN_READ_DEFAULT)){
+            avFileHandleDestroy(file);
+            continue;
+        }
+        uint64 size = avFileGetSize(file);
+        AvStringMemory memory = {0};
+        avStringMemoryAllocate(size+1, &memory);
+        avFileRead(memory.data, size, file);
+        avFileHandleDestroy(file);
+
+        AvString fileContent = {0};
+        avStringFromMemory(&fileContent, 0, size, &memory);
+        AvString fileContentStr = {0};
+        avStringReplace(&fileContentStr, fileContent, AV_CSTRA("\r\n"), AV_CSTRA("\n"));
+        avStringFree(&fileContent);
+
+        AvArray lineStrs = {0};
+        avStringSplitOnChar(&lineStrs, '\n', fileContentStr);
+        avStringFree(&fileContentStr);
+        avArrayForEachElement(AvString, line, j, &lineStrs, {
+            AvString tmp = AV_CSTRA("");
+            if(!avStringIsEmpty(line)){
+                avStringClone(&tmp, line);
+            }
+            avDynamicArrayAdd(&tmp, lines);
+        });
+        avArrayFree(&lineStrs);
+    }
+
+    uint32 lineCount = avDynamicArrayGetSize(lines);
+    if(lineCount == 1){
+        AvString tmp;
+        avDynamicArrayRead(&tmp, 0, lines);
+        avStringCopyToAllocator(tmp, &result.asString, &project->allocator);
+        result.type = VALUE_TYPE_STRING;
+    }else if(lineCount != 0){
+        struct ConstValue* retVals = avAllocatorAllocate(sizeof(struct ConstValue)*lineCount, &project->allocator);
+        for(uint32 index = 0; index < avDynamicArrayGetSize(lines); index++) { 
+            AvString element; avDynamicArrayRead(&element, index, (lines)); 
+            
+            retVals[index].type = VALUE_TYPE_STRING; 
+            if(avStringIsEmpty(element)){ 
+                AvString tmp = AV_CSTRA("");
+                avStringUnsafeCopy(&retVals[index].asString, tmp); 
+                continue; 
+            } 
+            avStringCopyToAllocator(element, &retVals[index].asString, &project->allocator); 
+            avStringFree(&element);
+        };
+        result.asArray.count = lineCount;
+        result.asArray.values = retVals;
+    }
+
+    avDynamicArrayDestroy(lines);
+    return result;
+
+}
+
+struct Value writeFileLines(Project* project, uint32 valueCount, struct Value* values){
+    struct Value result = {.type = VALUE_TYPE_NUMBER, .asNumber = 0};
+    
+    AvString filePath = values[0].asString;
+
+    struct ConstValue tmpConst = {0};
+    struct ConstValue* lines = &tmpConst;
+    uint32 lineCount = 1;
+
+    if(values[1].type == VALUE_TYPE_ARRAY){
+        lines = values[1].asArray.values;
+        lineCount = values[1].asArray.count;
+    }else{
+        toConstValue(values[1], &tmpConst, project);
+    }
+
+    AvFile file = AV_EMPTY;
+    avFileHandleCreate(filePath, &file);
+    if(!avFileOpen(file, AV_FILE_OPEN_WRITE_DEFAULT)){
+        avFileHandleDestroy(file);
+        return result;
+    }
+    AvFileDescriptor fd = avFileGetDescriptor(file);
+    for(uint32 i = 0; i < lineCount; i++){
+        struct ConstValue val = lines[i];
+        switch(val.type){
+            case VALUE_TYPE_NUMBER:
+                avStringPrintfToFileDescriptor(fd, AV_CSTRA("%lli\n"), val.asNumber);
+                break;
+            case VALUE_TYPE_STRING:
+                avStringPrintfToFileDescriptor(fd, AV_CSTRA("%S\n"), val.asString);
+                break;
+            default:
+                runtimeError(project, "invalid value type");
+                break;
+        }
+    }
+
+    avFileHandleDestroy(file);
+    result.asNumber = 1;
+    return result;
+
+}
+
+struct Value filterUnique(Project* project, uint32 valueCount, struct Value* values){
+    struct Value result = {.type = VALUE_TYPE_ARRAY, .asArray.count = 0};
+    if(values[0].type != VALUE_TYPE_ARRAY){
+        return values[0];
+    }
+    uint32 maxItemCount = values[0].asArray.count;
+    if(maxItemCount == 0){
+        return result;
+    }
+    if(maxItemCount == 1){
+        toValue(values[0].asArray.values[0], &result);
+        return result;
+    }
+
+    struct ConstValue* vals = avAllocatorAllocate(sizeof(struct ConstValue)*maxItemCount, &project->allocator);
+    uint32 uniqueCount = 0;
+    for(uint32 i = 0; i < values[0].asArray.count; i++){
+        struct ConstValue val = values[0].asArray.values[i];
+        if(val.type == VALUE_TYPE_NONE){
+            runtimeError(project, "unable to determine uniqueness of none value");
+            return result;
+        }
+        
+        bool32 unique = true;
+        for(uint32 j = 0; j < uniqueCount; j++){
+            if(vals[j].type != val.type){
+                continue;
+            }
+            switch(val.type){
+                case VALUE_TYPE_NUMBER:
+                    if(val.asNumber==vals[j].asNumber){
+                        unique = false;
+                    }
+                    break;
+                case VALUE_TYPE_STRING:
+                    if(avStringEquals(val.asString, vals[j].asString)){
+                        unique = false;
+                    }
+                    break;
+                default:
+                    runtimeError(project, "logic error");
+                    break;
+            }
+        }
+        if(unique){
+            avMemcpy(&vals[uniqueCount++], &val, sizeof(struct ConstValue));
+        }
+    }
+    result.asArray.values = vals;
+    result.asArray.count = uniqueCount;
+    return result;
+}
+

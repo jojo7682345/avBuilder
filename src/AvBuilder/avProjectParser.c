@@ -391,6 +391,14 @@ static struct VariableAssignment* parseVariableAssignment(TokenIterator* iterato
 static struct Parameter* parseParameter(TokenIterator* iterator){
     struct Parameter* param = avAllocatorAllocate(sizeof(struct Parameter), iterator->allocator);
     memcpy(&(param->name), &(consume(iterator, TOKEN_TYPE_TEXT, "expect parameter name")->str), sizeof(AvString));
+    if(match(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_open)){
+        if(!check(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close)){
+            param->size = parseExpression(iterator);
+        }else{
+            param->size = (struct Expression*)1; // unknown size
+        }
+        consume(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close, "expected ']'");
+    }
     return param;
 }
 
