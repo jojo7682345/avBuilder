@@ -409,7 +409,7 @@ static uint32 saveProject(const int argC, const char* argV[]){
 
     AvFile srcFile = AV_EMPTY;
     AvFile dstFile = AV_EMPTY;
-    avFileHandleCreate(projectFile, &srcFile);
+    srcFile = avFileHandleCreate(projectFile);
     if(!avFileExists(srcFile)){
         avStringPrintf(AV_CSTR("Unable to find %S\n"), projectFile);
         ret = -1;
@@ -434,7 +434,7 @@ static uint32 saveProject(const int argC, const char* argV[]){
     avStringJoin(&saveFile, saveDir, ((AvString*)paths.data)[paths.count-1]);
     avArrayFree(&paths);
 
-    avFileHandleCreate(saveFile, &dstFile);
+    dstFile = avFileHandleCreate(saveFile);
     if(!avFileOpen(dstFile, AV_FILE_OPEN_WRITE_BINARY_DEFAULT)){
         avStringPrintf(AV_CSTR("Unable to create new file %S\n"), saveFile);
         ret = -1;

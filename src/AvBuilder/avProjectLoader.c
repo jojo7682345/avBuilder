@@ -4,8 +4,7 @@
 #include <AvUtils/avMemory.h>
 
 bool32 loadProjectFile(const AvString projectFilePath, AvStringRef projectFileContent, AvStringRef projectFileName){
-    AvFile file = AV_EMPTY;
-    avFileHandleCreate(projectFilePath, &file);
+    AvFile file = avFileHandleCreate(projectFilePath);
     if(!avFileOpen(file, AV_FILE_OPEN_READ_DEFAULT)){
         avFileHandleDestroy(file);
         return false;

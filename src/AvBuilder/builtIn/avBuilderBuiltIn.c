@@ -269,8 +269,7 @@ struct Value fileLastModified(Project* project, uint32 valueCount, struct Value*
     if(fileName.len == 0 || fileName.chrs==nullptr){
         runtimeError(project, "cannot get basename of null value");
     }
-    AvFile file = AV_EMPTY;
-    avFileHandleCreate(fileName, &file);
+    AvFile file = avFileHandleCreate(fileName);
     if(!avFileExists(file)){
         avFileHandleDestroy(file);
         return (struct Value){
@@ -887,8 +886,7 @@ struct Value parseDependencies(Project* project, uint32 valueCount, struct Value
         runtimeError(project, "cannot parse dependencies of null value");
     }
 
-    AvFile file = AV_EMPTY;
-    avFileHandleCreate(fileName, &file);
+    AvFile file = avFileHandleCreate(fileName);
     
     if(!avFileOpen(file, AV_FILE_OPEN_READ_DEFAULT)){
         avFileHandleDestroy(file);
@@ -1166,8 +1164,7 @@ struct Value readFileLines(Project* project, uint32 valueCount, struct Value* va
         
         AvString str = values[i].asString;
         
-        AvFile file;
-        avFileHandleCreate(str, &file);
+        AvFile file = avFileHandleCreate(str);
         if(!avFileExists(file)){
             avFileHandleDestroy(file);
             continue;
@@ -1246,8 +1243,7 @@ struct Value writeFileLines(Project* project, uint32 valueCount, struct Value* v
         toConstValue(values[1], &tmpConst, project);
     }
 
-    AvFile file = AV_EMPTY;
-    avFileHandleCreate(filePath, &file);
+    AvFile file = avFileHandleCreate(filePath);
     if(!avFileOpen(file, AV_FILE_OPEN_WRITE_DEFAULT)){
         avFileHandleDestroy(file);
         return result;

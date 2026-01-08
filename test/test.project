@@ -6,7 +6,7 @@ testFunc(arr[]){
 
         println(filterUnique(lines));
 
-        writeFileLines(filterUnique(lines));
+        writeFileLines("test.txt", filterUnique(lines));
     }
 }
 
