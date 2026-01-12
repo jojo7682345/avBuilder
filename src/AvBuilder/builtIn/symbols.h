@@ -12,6 +12,7 @@
     BUILT_IN_FUNC(arraySize, {{ .type=VALUE_TYPE_ALL, .name="array" }})\
     BUILT_IN_FUNC(filter, {{ .type=VALUE_TYPE_NUMBER, .name="filterType" }, { .type=VALUE_TYPE_STRING|VALUE_TYPE_ARRAY, .name="filter" }, { .type=VALUE_TYPE_ALL, .name="listToFilter" }})\
     BUILT_IN_FUNC(makeDir, {{ .type=VALUE_TYPE_STRING, .name="path" }})\
+    BUILT_IN_FUNC(deleteDir, {{ .type=VALUE_TYPE_STRING|VALUE_TYPE_ARRAY, .name="path" }})\
     BUILT_IN_FUNC(makeDirs, {{ .type=VALUE_TYPE_STRING, .name="path" }})\
     BUILT_IN_FUNC(print, { { .type=VALUE_TYPE_ALL, .name="value" } })\
     BUILT_IN_FUNC(println, { { .type=VALUE_TYPE_ALL, .name="value" } })\

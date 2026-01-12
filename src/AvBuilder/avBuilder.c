@@ -4,7 +4,7 @@
 #include <AvUtils/memory/avAllocator.h>
 #include <AvUtils/dataStructures/avDynamicArray.h>
 #include <AvUtils/logging/avAssert.h>
-#include <AvUtils/filesystem/avDirectoryV2.h>
+#include <AvUtils/filesystem/avDirectory.h>
 #include <AvUtils/avEnvironment.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -188,6 +188,10 @@ static uint32 printUsage(const int argC, const char* argV[]){
     printf("  remove [project file]                 Removes the specified project file\n");
     printf("  list                                  List the saved project files in the templates directory\n");
     printf("  help                                  Display this help message and exit\n");
+    printf("\nFlags:\n");
+    printf("  --debugCommands                       Print all commands executed\n");
+    printf("  --entry=(function)                    Specify entry function override\n");
+    printf("  --genCompileCommands                  Generate compile_commands.json\n");
     printf("\nExamples:\n");
     printf("  avBuilder myproject.project                   Process the myproject.project project file\n");
     printf("  avBuilder save myproject.project myproject    Saves the myproject.project file in the myproject subdirectory\n");

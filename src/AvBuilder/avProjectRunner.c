@@ -2,7 +2,7 @@
 #include <AvUtils/avMemory.h>
 #include <AvUtils/logging/avAssert.h>
 #include <AvUtils/dataStructures/avFMap.h>
-#include <AvUtils/filesystem/avDirectoryV2.h>
+#include <AvUtils/filesystem/avDirectory.h>
 #include <AvUtils/string/avChar.h>
 #include <string.h>
 #include <stdarg.h>

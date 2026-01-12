@@ -1,7 +1,7 @@
 #include "avBuilderBuiltIn.h"
 #include <string.h>
 #include <AvUtils/avMemory.h>
-#include <AvUtils/filesystem/avDirectoryV2.h>
+#include <AvUtils/filesystem/avDirectory.h>
 #include <AvUtils/string/avChar.h>
 
 #ifndef _WIN32
@@ -21,6 +21,13 @@ const struct BuiltInFunctionDescription builtInFunctions[] = {
     BUILT_IN_FUNCS
 };
 const uint32 builtInFunctionCount = sizeof(builtInFunctions)/sizeof(struct BuiltInFunctionDescription);
+#undef BUILT_IN_FUNC
+
+
+#define BUILT_IN_FUNC(func, ...) BUILT_IN_FUNC_ID_##func,
+enum BuiltInFunctionId {
+    BUILT_IN_FUNCS
+};
 #undef BUILT_IN_FUNC
 
 #define SET_VALUE_TYPE_NUMBER(number) .asNumber=number
@@ -488,7 +495,7 @@ struct Value println(Project* project, uint32 valueCount, struct Value* values){
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <errno.h>
-#include <AvUtils/filesystem/avDirectoryV2.h>
+#include <AvUtils/filesystem/avDirectory.h>
 
 struct Value makeDir(Project* project, uint32 valueCount, struct Value* values){
     AvString dir = AV_EMPTY;
@@ -543,6 +550,34 @@ struct Value makeDirs(Project* project, uint32 valueCount, struct Value* values)
     }
     avStringFree(&dir);
     return values[0];
+}
+
+struct Value deleteDir(Project* project, uint32 valueCount, struct Value* values){
+    struct Value result = {.type=VALUE_TYPE_NUMBER, .asNumber=0};
+    
+    struct ConstValue tmpValue = {0};
+    uint32 count = 1;
+    struct ConstValue* vals = &tmpValue;
+    if(values[0].type == VALUE_TYPE_ARRAY){
+        count = values[0].asArray.count;
+        vals = values[0].asArray.values;
+    }else{
+        toConstValue(values[0], vals, project);
+    }
+    if(count == 0){
+        return result;
+    }
+
+    for(uint32 i = 0; i < count; i++){
+        if(vals[i].type != VALUE_TYPE_STRING){
+            runtimeError(project, "Invalid variable type in argument %S", builtInFunctions[BUILT_IN_FUNC_ID_deleteDir].argTypes[i].name);
+            return result;
+        }
+
+        result.asNumber += avDirectoryDelete(vals[i].asString, AV_DIRECTORY_DELETE_RECURSIVE);
+    }
+
+    return result;
 }
 
 struct Value compileString(Project* project, uint32 valueCount, struct Value* values){

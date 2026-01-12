@@ -212,7 +212,7 @@ int main(int argC, char* argV[]) {
         SOURCE_FILE("lib/AvUtils/src/string",           "avChar"),
         SOURCE_FILE("lib/AvUtils/src/string",           "avString"),
         SOURCE_FILE("lib/AvUtils/src/filesystem",       "avFile"),
-        SOURCE_FILE("lib/AvUtils/src/filesystem",       "avDirectoryV2"),
+        SOURCE_FILE("lib/AvUtils/src/filesystem",       "avDirectory"),
         SOURCE_FILE("lib/AvUtils/src/string",           "avPrintf"),
         SOURCE_FILE("lib/AvUtils/src/memory",           "avAllocator"),
         SOURCE_FILE("lib/AvUtils/src/memory",           "avDynamicAllocator"),
