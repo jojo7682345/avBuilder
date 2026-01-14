@@ -580,6 +580,39 @@ struct Value deleteDir(Project* project, uint32 valueCount, struct Value* values
     return result;
 }
 
+struct Value deleteFile(Project* project, uint32 valueCount, struct Value* values){
+    struct Value result = {.type=VALUE_TYPE_NUMBER, .asNumber=0};
+    
+    struct ConstValue tmpValue = {0};
+    uint32 count = 1;
+    struct ConstValue* vals = &tmpValue;
+    if(values[0].type == VALUE_TYPE_ARRAY){
+        count = values[0].asArray.count;
+        vals = values[0].asArray.values;
+    }else{
+        toConstValue(values[0], vals, project);
+    }
+    if(count == 0){
+        return result;
+    }
+
+    for(uint32 i = 0; i < count; i++){
+        if(vals[i].type != VALUE_TYPE_STRING){
+            runtimeError(project, "Invalid variable type in argument %S", builtInFunctions[BUILT_IN_FUNC_ID_deleteDir].argTypes[i].name);
+            return result;
+        }
+
+        AvFile file = avFileHandleCreate(vals->asString);
+        if(!avFileExists(file)){
+            continue;
+        }
+        result.asNumber += avFileDelete(file);
+        avFileHandleDestroy(file);
+    }
+
+    return result;
+}
+
 struct Value compileString(Project* project, uint32 valueCount, struct Value* values){
     struct Value result = {.type=VALUE_TYPE_ARRAY, .asArray={.count=0}};
     
