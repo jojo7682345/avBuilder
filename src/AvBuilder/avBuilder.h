@@ -49,7 +49,9 @@
     TOKEN(PUNCTUATOR,   pipe, "|")\
     TOKEN(PUNCTUATOR,   error_pipe, "~")\
     TOKEN(PUNCTUATOR,   less_than, "<")\
-    TOKEN(PUNCTUATOR,   greater_than, ">")
+    TOKEN(PUNCTUATOR,   greater_than, ">")\
+    TOKEN(PUNCTUATOR,   and, "&&")\
+    TOKEN(PUNCTUATOR,   or, "||")
 #undef TOKEN
 
 

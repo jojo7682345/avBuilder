@@ -84,6 +84,18 @@ struct ComparisonExpression_S processComparison(struct Comparison* comparison, P
     };
 }
 
+struct CombinationExpression_S processCombination(struct Combination* combination, Project* project){
+    struct Expression_S* left = avAllocatorAllocate(sizeof(struct Expression_S)*2, &project->allocator);
+    struct Expression_S* right = left +1;
+    left = processComparisonExpression(left, combination->left, project);
+    right = processComparisonExpression(right, combination->right, project);
+    return (struct CombinationExpression_S){
+        .left=  left,
+        .operator = combination->operator,
+        .right = right,
+    };
+}
+
 struct EnumerationExpression_S processEnumeration(struct Enumeration* enumeration, Project* project){
     struct Expression_S* dir = avAllocatorAllocate(sizeof(struct Expression_S), &project->allocator);
     dir = processUnaryExpression(dir, enumeration->unary, project);
@@ -289,9 +301,18 @@ struct Expression_S* processArrayExpression(struct Expression_S* expr, struct Ar
     }
 }
 
+struct Expression_S* processCombinationExpression(struct Expression_S* expr, struct Combination* combination, Project* project){
+    if(combination->operator != COMBINATION_OPERATOR_NONE){
+        expr->type = EXPRESSION_TYPE_COMBINATION;
+        expr->combination = processCombination(combination, project);
+        return expr;
+    }
+    return processComparisonExpression(expr, combination->left, project);
+}
+
 //This function is only to keep everything unified
 struct Expression_S* processExpressionExpression(struct Expression_S* expr, struct Expression* expression, Project* project){
-    return processComparisonExpression(expr, expression->comparison, project);
+    return processCombinationExpression(expr, expression->combination, project);
 }
 
 struct Expression_S* processExpression(struct Expression* expression, Project* project){

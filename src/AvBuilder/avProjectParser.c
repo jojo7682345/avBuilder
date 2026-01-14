@@ -351,9 +351,29 @@ static struct Comparison* parseComparison(TokenIterator* iterator){
 }
 
 
+static struct Combination* parseCombination(TokenIterator* iterator){
+    struct Combination* combination = avAllocatorAllocate(sizeof(struct Combination), iterator->allocator);
+    combination->left = parseComparison(iterator);
+    if(match(iterator, TOKEN_TYPE_PUNCTUATOR_and, TOKEN_TYPE_PUNCTUATOR_or)){
+        switch(previous(iterator)->type){
+            case TOKEN_TYPE_PUNCTUATOR_and:
+                combination->operator = COMBINATION_OPERATOR_AND;
+                break;
+            case TOKEN_TYPE_PUNCTUATOR_or:
+                combination->operator = COMBINATION_OPERATOR_OR;
+                break;
+            default:
+                avAssert(false, "logic error");
+                break;
+        }
+        combination->right = parseComparison(iterator);
+    }
+    return combination;
+}
+
 static struct Expression* parseExpression(TokenIterator* iterator){
     struct Expression* expression = avAllocatorAllocate(sizeof(struct Expression), iterator->allocator);
-    expression->comparison = parseComparison(iterator);
+    expression->combination = parseCombination(iterator);
     return expression;
 }
 

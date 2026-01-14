@@ -2246,6 +2246,56 @@ struct Value callFunction(struct CallExpression_S call, Project* project){
 	return returnValue;
 }
 
+struct Value performCombination(struct CombinationExpression_S combination, Project* project){
+	struct Value check = getValue(combination.left, project);
+	bool32 pass = false;
+	switch(check.type){
+		case VALUE_TYPE_NONE:
+			runtimeError(project, "encountered null value in if statement");
+			return NULL_VALUE;
+		case VALUE_TYPE_NUMBER:
+			pass = check.asNumber != 0;
+			break;
+		case VALUE_TYPE_STRING:
+			pass = check.asString.len != 0;
+			break;
+		case VALUE_TYPE_ARRAY:
+			pass = check.asArray.count != 0;
+			break;
+	}
+	switch(combination.operator){
+		case COMBINATION_OPERATOR_AND:
+			if(!pass){
+				return (struct Value){.type=VALUE_TYPE_NUMBER, .asNumber = 0};
+			}
+			break;
+		case COMBINATION_OPERATOR_OR:
+			if(pass){
+				return (struct Value){.type=VALUE_TYPE_NUMBER, .asNumber = 1};
+			}
+			break;
+		default:
+			runtimeError(project, "invalid combination operator");
+			return NULL_VALUE;
+	}
+	struct Value last = getValue(combination.right, project);
+	switch(last.type){
+		case VALUE_TYPE_NONE:
+			runtimeError(project, "encountered null value in combination expression");
+			return NULL_VALUE;
+		case VALUE_TYPE_NUMBER:
+			pass = last.asNumber != 0;
+			break;
+		case VALUE_TYPE_STRING:
+			pass = last.asString.len != 0;
+			break;
+		case VALUE_TYPE_ARRAY:
+			pass = last.asArray.count != 0;
+			break;
+	}
+	return (struct Value){.type=VALUE_TYPE_NUMBER, .asNumber = pass};
+}
+
 #define REPLACE(seq, chr) avStringFree(newString); if(avStringReplace(newString, *prevString, AV_CSTR(seq), AV_CSTR(chr))){ SWAP(*(uint64*)&newString, *(uint64*)&prevString); finalString = newString; } else { finalString = prevString;}
 #define SWAP(a, b) a^=b; b^=a; a^=b;
 void sanitizeString(AvStringRef str, Project* project){
@@ -2319,6 +2369,8 @@ struct Value getValue(struct Expression_S* expression, Project* project){
 			return filterValues(expression->filter, project);
 		case EXPRESSION_TYPE_CALL:
 			return callFunction(expression->call, project);
+		case EXPRESSION_TYPE_COMBINATION:
+			return performCombination(expression->combination, project);
 	}
 	return NULL_VALUE;
 }

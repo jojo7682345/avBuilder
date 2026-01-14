@@ -36,6 +36,18 @@ struct Comparison {
     struct Array* right;
 };
 
+enum CombinationOperator{
+    COMBINATION_OPERATOR_NONE = 0,
+    COMBINATION_OPERATOR_AND,
+    COMBINATION_OPERATOR_OR,
+};
+
+struct Combination {
+    struct Comparison* left;
+    enum CombinationOperator operator;
+    struct Comparison* right;
+};
+
 struct Array {
     struct Summation* expression;
     struct Array* next;
@@ -118,7 +130,7 @@ struct Grouping {
     struct Expression* expression;
 };
 struct Expression {
-    struct Comparison* comparison;
+    struct Combination* combination;
 };
 
 enum VariableAccessModifier{
@@ -363,6 +375,12 @@ struct ComparisonExpression_S{
     struct Expression_S* right;
 };
 
+struct CombinationExpression_S{
+    struct Expression_S* left;
+    enum CombinationOperator operator;
+    struct Expression_S* right;
+};
+
 struct GroupExpression_S {
     struct Expression_S* expression;
 };
@@ -393,6 +411,7 @@ enum ExpressionType {
     EXPRESSION_TYPE_LITERAL,
     EXPRESSION_TYPE_NUMBER,
     EXPRESSION_TYPE_COMPARISON,
+    EXPRESSION_TYPE_COMBINATION,
 };
 
 struct Expression_S {
@@ -410,6 +429,7 @@ struct Expression_S {
         struct LiteralExpression_S literal;
         struct NumberExpression_S number;
         struct ComparisonExpression_S comparison;
+        struct CombinationExpression_S combination;
     };
 };
 
