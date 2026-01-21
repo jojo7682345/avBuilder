@@ -86,7 +86,7 @@ recompileSource(source, objectFile, flags, includes, dependencies) {
     return ret;
 }
 
-recompile(sources, outDir, flags, includes){
+recompile(sources, outDir, flags, includes, additionalDependencies){
     var output[arraySize(sources)];
     var failed;
     foreach sourceFile[index] from sources perform {
@@ -95,7 +95,7 @@ recompile(sources, outDir, flags, includes){
 
         dependencies = parseDependencies(dependencyFile, [objectFile, dependencyFile]);
         
-        output[index] = recompileSource(sourceFile, objectFile, flags, includes, dependencies);
+        output[index] = recompileSource(sourceFile, objectFile, flags, includes, dependencies + additionalDependencies);
         if(output[index]==""){
             failed = 1;
         }
