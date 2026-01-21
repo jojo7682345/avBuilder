@@ -1219,18 +1219,33 @@ doneParse:
     return result;
 }
 
+#define STR(x) #x
 
 struct Value readFileLines(Project* project, uint32 valueCount, struct Value* values){
     struct Value result = {.type = VALUE_TYPE_ARRAY, .asArray.count = 0};
     AvDynamicArray lines = {0};
     avDynamicArrayCreate(0, sizeof(AvString), &lines);
-    for(uint32 i = 0; i < valueCount; i++){
-        if(values[i].type!=VALUE_TYPE_STRING){
-            runtimeError(project, "invalid type");
+    
+    struct ConstValue tmpValue = {0};
+    uint32 count = 1;
+    struct ConstValue* vals = &tmpValue;
+    if(values[0].type == VALUE_TYPE_ARRAY){
+        count = values[0].asArray.count;
+        vals = values[0].asArray.values;
+    }else{
+        toConstValue(values[0], vals, project);
+    }
+    if(count == 0){
+        return result;
+    }
+
+    for(uint32 i = 0; i < count; i++){
+        if(vals[i].type != VALUE_TYPE_STRING){
+            runtimeError(project, "Invalid variable type in argument %S", builtInFunctions[BUILT_IN_FUNC_ID_deleteDir].argTypes[i].name);
             return result;
         }
         
-        AvString str = values[i].asString;
+        AvString str = vals[i].asString;
         
         AvFile file = avFileHandleCreate(str);
         if(!avFileExists(file)){
