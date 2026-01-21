@@ -1257,6 +1257,11 @@ struct Value readFileLines(Project* project, uint32 valueCount, struct Value* va
             continue;
         }
         uint64 size = avFileGetSize(file);
+        if(size == 0){
+            avFileHandleDestroy(file);
+            continue;
+        }
+
         AvStringMemory memory = {0};
         avStringMemoryAllocate(size+1, &memory);
         avFileRead(memory.data, size, file);
