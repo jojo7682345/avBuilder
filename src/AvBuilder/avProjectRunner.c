@@ -2687,7 +2687,7 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
 		"LINUX"
 #endif
 	)}, project);
-}
+
 
 	for(uint32 i = 0; i < project->statementCount; i++){
 		struct Statement_S* statement = (project->statements)[i];
