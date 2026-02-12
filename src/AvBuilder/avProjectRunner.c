@@ -2676,6 +2676,19 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
 			.statement = -1,
 	}, currentDir(project, 0, nullptr), project);
 
+	assignConstant((struct VariableDescription){
+			.identifier = AV_CSTR("PLATFORM"),
+			.project = project,
+			.statement = -1,
+	}, (struct Value){.type=VALUE_TYPE_STRING,.asString=AV_CSTR(
+#ifdef _WIN32
+		"WINDOWS"
+#else
+		"LINUX"
+#endif
+	)}, project);
+}
+
 	for(uint32 i = 0; i < project->statementCount; i++){
 		struct Statement_S* statement = (project->statements)[i];
 		switch(statement->type){
