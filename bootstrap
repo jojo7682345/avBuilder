@@ -121,7 +121,7 @@ static LPSTR GetLastErrorAsString(void) {
 
     LPSTR messageBuffer = NULL;
 
-    FormatMessage(
+    FormatMessageA(
         FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, // DWORD   dwFlags,
         NULL, // LPCVOID lpSource,
         errorMessageId, // DWORD   dwMessageId,
@@ -142,7 +142,7 @@ int run(int argC, char* argV[]){
     for(int i = 0; i < argC; i++){
         len += strlen(argV[i])+1;
     }
-    char* buffer = malloc(len);
+    char* buffer = (char*)malloc(len);
     uint64 wOffset = 0;
     for(int i = 0; i < argC; i++){
         strcpy(buffer + wOffset, argV[i]);

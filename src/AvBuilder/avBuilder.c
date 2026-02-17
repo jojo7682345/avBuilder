@@ -68,14 +68,13 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
    
     Project project = AV_EMPTY;
     projectCreate(&project, projectFileName, projectFilePath, projectFileContent, false);
-    struct ProjectStatementList* statements = nullptr;
-    if(!parseProject(tokens, (void**)&statements, &project)){
+    if(!parseProject(tokens, &project)){
         avStringPrintf(AV_CSTR("Failed to parse project file %S\n"), projectFilePath);
         result = -1;
         goto parsingFailed;
     }
     
-    if(!processProject(statements, &project)){
+    if(!processProject(&project)){
         avStringPrintf(AV_CSTR("Failed to perform processing on project file %S\n"), projectFilePath);
         result = -1;
         goto processingFailed;
@@ -147,7 +146,8 @@ void endLocalContext(struct Project* project){
 }
 
 void projectCreate(struct Project* project, AvString name, AvString file, AvString content, bool32 isLocal){
-    avAllocatorCreate(0, AV_ALLOCATOR_TYPE_DYNAMIC, &(project->allocator));
+    project->allocator = avAllocate(sizeof(AvAllocator), "allocator");
+    avAllocatorCreate(0, AV_ALLOCATOR_TYPE_DYNAMIC, project->allocator);
     avDynamicArrayCreate(0, sizeof(struct VariableDescription), &project->variables);
     avDynamicArrayCreate(0, sizeof(struct VariableDescription), &project->constants);
     avDynamicArrayCreate(0, sizeof(struct FunctionDescription), &project->functions);
@@ -172,7 +172,7 @@ void projectDestroy(struct Project* project){
     });
     avDynamicArrayDestroy(project->importedProjects);
     avDynamicArrayDestroy(project->arrays);
-    avAllocatorDestroy(&(project->allocator));
+    avAllocatorDestroy(project->allocator);
     avStringFree(&project->name);
     avStringFree(&project->projectFileContent);
     avStringFree(&project->projectFileName); 

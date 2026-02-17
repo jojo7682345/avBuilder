@@ -18,7 +18,7 @@ struct VariableDescription findVariable(AvString identifier, Project* project);
 struct FunctionDescription findFunction(AvString identifier, Project* project);
 struct FunctionDescription importFunction(struct ImportDescription import, Project* project);
 struct Value runFunction(struct FunctionDefinition_S function, Project* project);
-void assignVariable(struct VariableDescription description, struct Value value, Project* project);
+//void assignVariable(struct VariableDescription description, struct Value value, Project* project);
 
 #define BUILT_IN_FUNC(func, ...) struct Value func(Project* project, uint32 valueCount, struct Value* values);
 BUILT_IN_FUNCS

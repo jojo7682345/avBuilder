@@ -24,6 +24,7 @@
     TOKEN(KEYWORD,      return,     "return")\
     TOKEN(KEYWORD,      recursive,  "recursive")\
     TOKEN(KEYWORD,      var,        "var")\
+    TOKEN(KEYWORD,      func,        "func")\
     TOKEN(KEYWORD,      directories,"directories")\
     \
     TOKEN(PUNCTUATOR,   less_than_or_equal, "<=")\
@@ -51,7 +52,12 @@
     TOKEN(PUNCTUATOR,   less_than, "<")\
     TOKEN(PUNCTUATOR,   greater_than, ">")\
     TOKEN(PUNCTUATOR,   and, "&&")\
-    TOKEN(PUNCTUATOR,   or, "||")
+    TOKEN(PUNCTUATOR,   or, "||")\
+    TOKEN(PUNCTUATOR,   increment_assign, "+=")\
+    TOKEN(PUNCTUATOR,   decrement_assign, "-=")\
+    TOKEN(PUNCTUATOR,   multiply_assign, "*=")\
+    TOKEN(PUNCTUATOR,   divide_assign, "/=")\
+    TOKEN(PUNCTUATOR,   hash, "#")
 #undef TOKEN
 
 
@@ -105,12 +111,63 @@ struct ProjectOptions {
     bool32 commandDebug;
 	bool32 genCompileCommands;
 };
+
+enum SymbolType {
+    SYMBOL_TYPE_NONE,
+    SYMBOL_TYPE_VARIABLE,
+    SYMBOL_TYPE_FUNCTION,
+    SYMBOL_TYPE_CONSTANT,
+    SYMBOL_TYPE_PARTIAL_IMPORT,
+};
+
+// struct PartialImport {
+//     Project* project;
+// };
+
+typedef struct Function {
+    struct Statement_S* definition;
+    bool8 loaded;
+    
+} Function;
+
+typedef struct Variable {
+    struct Value value;
+} Variable;
+
+typedef struct Symbol {
+    AvString identifier;
+    enum SymbolType type;
+    bool8 external;
+    union{
+        struct Function function;
+        struct Variable variable;
+        //struct PartialImport import;
+    };
+} Symbol;
+
+typedef struct Alias {
+    AvString identifier;
+    AvString alias;
+} Alias;
+
+typedef struct ProjectImportDescription{
+    AvString file;
+    AvDynamicArray importAliasses;
+} ProjectImportDescription;
+
+
+typedef struct Scope {
+    AvAllocator allocator;
+    AvDynamicArray symbols;
+    struct Scope* parent;
+} Scope;
+
 typedef struct Project {
     AvString name;
     AvString projectFileContent;
     AvString projectFileName;
 
-    AvAllocator allocator;
+    AvAllocator* allocator;
     
     AV_DS(AvDynamicArray, struct FunctionDescription) functions;
     AV_DS(AvDynamicArray, struct VariableDescription) variables;
@@ -119,14 +176,19 @@ typedef struct Project {
     AV_DS(AvDynamicArray, Project*) importedProjects;
     AV_DS(AvDynamicArray, struct ImportDescription) libraryAliases;
     AV_DS(AvDynamicArray, struct ConstValue*) arrays;
+
     uint32 statementCount;
-    struct Statement_S** statements;
+    struct Statement_S* statements;
 
     LocalContext* localContext;
     bool32 isLocal;
 
     ProcessState processState;
     struct ProjectOptions options;
+
+    Scope* currentScope;
+
+
 } Project;
 
 extern const AvString configPath;
@@ -135,8 +197,8 @@ extern const AvString templatePath;
 
 bool32 loadProjectFile(const AvString projectFilePath, AvStringRef projectFileContent, AvStringRef projectFileName);
 bool32 tokenizeProject(const AvString projectFileContent, const AvString projectFileName, AvDynamicArray tokens);
-bool32 parseProject(AV_DS(AvDynamicArray, Token) tokenList, void** statements, Project* project);
-bool32 processProject(void* statements, Project* project);
+bool32 parseProject(AV_DS(AvDynamicArray, Token) tokenList, Project* project);
+bool32 processProject(Project* project);
 bool32 runProject(Project* project, AvDynamicArray arguments);
 
 

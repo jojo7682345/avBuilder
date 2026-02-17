@@ -1,18 +1,6 @@
-inherit compiler = "gcc";
 
-testFunc(arr[]){
-    perform{
-        lines = [ "1", "1", "2", "2", "3", 4, "4"];
+command "echo hello";
 
-        println(filterUnique(lines));
-
-        writeFileLines("test.txt", filterUnique(lines));
-    }
-}
-
-test(var1, arr[]) {
-    perform{
-        testFunc("1", 2, "3");
-    }
-    return var1;
+func foo(arg){
+    println(test);
 }

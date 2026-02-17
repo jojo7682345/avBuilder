@@ -208,7 +208,7 @@ struct Value fileName(Project* project, uint32 valueCount, struct Value* values)
         .memory = nullptr,
     };
     AvString tmpStr = AV_EMPTY;
-    avStringCopyToAllocator(str, &tmpStr, &project->allocator);
+    avStringCopyToAllocator(str, &tmpStr, project->allocator);
     avArrayFree(&filePaths);
 
     return (struct Value){
@@ -230,7 +230,7 @@ struct Value fileFullName(Project* project, uint32 valueCount, struct Value* val
         .memory = nullptr,
     };
     AvString tmpStr = AV_EMPTY;
-    avStringCopyToAllocator(str, &tmpStr, &project->allocator);
+    avStringCopyToAllocator(str, &tmpStr, project->allocator);
     avArrayFree(&filePaths);
 
 
@@ -262,7 +262,7 @@ struct Value fileBaseName(Project* project, uint32 valueCount, struct Value* val
         .memory = nullptr,
     };
     AvString tmpStr = AV_EMPTY;
-    avStringCopyToAllocator(str, &tmpStr, &project->allocator);
+    avStringCopyToAllocator(str, &tmpStr, project->allocator);
     avArrayFree(&filePaths);
 
     return (struct Value){
@@ -370,7 +370,7 @@ struct Value filter(Project* project, uint32 valueCount, struct Value* values){
     struct ConstValue* filteredValues = nullptr;
     uint32 allowedCount = avDynamicArrayGetSize(newValues);
     if(allowedCount > 0){
-        filteredValues = avAllocatorAllocate(sizeof(struct ConstValue)*allowedCount, &project->allocator);
+        filteredValues = avAllocatorAllocate(sizeof(struct ConstValue)*allowedCount, project->allocator);
         avDynamicArrayReadRange(filteredValues, allowedCount, 0, sizeof(struct ConstValue), 0, newValues);
     }
     struct Value filtered = {
@@ -503,7 +503,7 @@ struct Value makeDir(Project* project, uint32 valueCount, struct Value* values){
     int ret = avMakeDirectory(dir);
     if(ret == -1){
         avStringFree(&dir);
-        struct ConstValue* vals = avAllocatorAllocate(sizeof(struct ConstValue)*2, &project->allocator);
+        struct ConstValue* vals = avAllocatorAllocate(sizeof(struct ConstValue)*2, project->allocator);
         vals[0].type = VALUE_TYPE_NUMBER;
         vals[0].asNumber = errno;
         memcpy(&vals[1].asString, &AV_CSTR(strerror(errno)), sizeof(AvString));
@@ -534,7 +534,7 @@ struct Value makeDirs(Project* project, uint32 valueCount, struct Value* values)
     int ret = avMakeDirectoryRecursive(dir);
     if(ret == -1){
         avStringFree(&dir);
-        struct ConstValue* vals = avAllocatorAllocate(sizeof(struct ConstValue)*2, &project->allocator);
+        struct ConstValue* vals = avAllocatorAllocate(sizeof(struct ConstValue)*2, project->allocator);
         vals[0].type = VALUE_TYPE_NUMBER;
         vals[0].asNumber = errno;
         vals[1].type = VALUE_TYPE_STRING;
@@ -613,60 +613,60 @@ struct Value deleteFile(Project* project, uint32 valueCount, struct Value* value
     return result;
 }
 
-struct Value compileString(Project* project, uint32 valueCount, struct Value* values){
-    struct Value result = {.type=VALUE_TYPE_ARRAY, .asArray={.count=0}};
+// struct Value compileString(Project* project, uint32 valueCount, struct Value* values){
+//     struct Value result = {.type=VALUE_TYPE_ARRAY, .asArray={.count=0}};
     
-    struct ConstValue tmpValue = {0};
-    uint32 count = 1;
-    struct ConstValue* vals = &tmpValue;
-    if(values[0].type == VALUE_TYPE_ARRAY){
-        count = values[0].asArray.count;
-        vals = values[0].asArray.values;
-    }else{
-        toConstValue(values[0], vals, project);
-    }
-    if(count == 0){
-        return result;
-    }
+//     struct ConstValue tmpValue = {0};
+//     uint32 count = 1;
+//     struct ConstValue* vals = &tmpValue;
+//     if(values[0].type == VALUE_TYPE_ARRAY){
+//         count = values[0].asArray.count;
+//         vals = values[0].asArray.values;
+//     }else{
+//         toConstValue(values[0], vals, project);
+//     }
+//     if(count == 0){
+//         return result;
+//     }
 
-    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*count, &project->allocator);
+//     struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*count, project->allocator);
 
-    for(uint32 i = 0; i < count; i++){
-        if(vals[i].type!=VALUE_TYPE_STRING){
-            runtimeError(project, "invalid type");
-            return result;
-        }
-        AvDynamicArray finalArg = AV_EMPTY;
-        avDynamicArrayCreate(0, sizeof(char), &finalArg);
+//     for(uint32 i = 0; i < count; i++){
+//         if(vals[i].type!=VALUE_TYPE_STRING){
+//             runtimeError(project, "invalid type");
+//             return result;
+//         }
+//         AvDynamicArray finalArg = AV_EMPTY;
+//         avDynamicArrayCreate(0, sizeof(char), &finalArg);
 
-        processArg(vals[i].asString, finalArg, project);
+//         processArg(vals[i].asString, finalArg, project);
 
-        uint32 count = avDynamicArrayGetSize(finalArg);
-        char* buffer = avAllocatorAllocate(count+1, &project->allocator);
-        avDynamicArrayReadRange(buffer, count, 0, 1, 0, finalArg);
-        avDynamicArrayDestroy(finalArg);
+//         uint32 count = avDynamicArrayGetSize(finalArg);
+//         char* buffer = avAllocatorAllocate(count+1, project->allocator);
+//         avDynamicArrayReadRange(buffer, count, 0, 1, 0, finalArg);
+//         avDynamicArrayDestroy(finalArg);
 
-        struct ConstValue res = {
-            .type = VALUE_TYPE_STRING,
-            .asString = AV_CSTR(buffer),
-        };
-        memcpy(results+i, &res, sizeof(struct ConstValue));
-    }
+//         struct ConstValue res = {
+//             .type = VALUE_TYPE_STRING,
+//             .asString = AV_CSTR(buffer),
+//         };
+//         memcpy(results+i, &res, sizeof(struct ConstValue));
+//     }
 
-    if(count == 1){
-        struct Value res = {0};
-        toValue(results[0], &res);
-        return res;
-    }else{
-        return (struct Value){
-            .type=VALUE_TYPE_ARRAY,
-            .asArray = {
-                .count = count,
-                .values = results,
-            },
-        };
-    }
-}
+//     if(count == 1){
+//         struct Value res = {0};
+//         toValue(results[0], &res);
+//         return res;
+//     }else{
+//         return (struct Value){
+//             .type=VALUE_TYPE_ARRAY,
+//             .asArray = {
+//                 .count = count,
+//                 .values = results,
+//             },
+//         };
+//     }
+// }
 
 
 struct Value toUppercase(Project* project, uint32 valueCount, struct Value* values){
@@ -685,7 +685,7 @@ struct Value toUppercase(Project* project, uint32 valueCount, struct Value* valu
         return result;
     }
 
-    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*count, &project->allocator);
+    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*count, project->allocator);
 
     for(uint32 i = 0; i < count; i++){
         if(vals[i].type!=VALUE_TYPE_STRING){
@@ -696,7 +696,7 @@ struct Value toUppercase(Project* project, uint32 valueCount, struct Value* valu
         AvString str =vals[i].asString;
         avStringToUppercase(&str);
         AvString tmpStr = AV_EMPTY;
-        avStringCopyToAllocator(str, &tmpStr, &project->allocator);
+        avStringCopyToAllocator(str, &tmpStr, project->allocator);
         avStringFree(&str);
 
         struct ConstValue res = {
@@ -737,7 +737,7 @@ struct Value toLowercase(Project* project, uint32 valueCount, struct Value* valu
         return result;
     }
 
-    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*count, &project->allocator);
+    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*count, project->allocator);
 
     for(uint32 i = 0; i < count; i++){
         if(vals[i].type!=VALUE_TYPE_STRING){
@@ -748,7 +748,7 @@ struct Value toLowercase(Project* project, uint32 valueCount, struct Value* valu
         AvString str =vals[i].asString;
         avStringToUppercase(&str);
         AvString tmpStr = AV_EMPTY;
-        avStringCopyToAllocator(str, &tmpStr, &project->allocator);
+        avStringCopyToAllocator(str, &tmpStr, project->allocator);
         avStringFree(&str);
         
         struct ConstValue res = {
@@ -789,7 +789,7 @@ struct Value changeDir(Project* project, uint32 valueCount, struct Value* values
         return result;
     }
 
-    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*count, &project->allocator);
+    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*count, project->allocator);
 
     for(uint32 i = 0; i < count; i++){
         if(vals[i].type!=VALUE_TYPE_STRING){
@@ -831,7 +831,7 @@ struct Value currentDir(Project* project, uint32 valueCount, struct Value* value
         struct Value res = {
             .type= VALUE_TYPE_STRING,
         };
-        avStringCopyToAllocator(AV_CSTR(cwd), &res.asString, &project->allocator);
+        avStringCopyToAllocator(AV_CSTR(cwd), &res.asString, project->allocator);
         return res;
     } else {
         runtimeError(project, "getcwd() error");
@@ -842,92 +842,94 @@ struct Value currentDir(Project* project, uint32 valueCount, struct Value* value
 
 }
 
-struct Value call(Project* project, uint32 valueCount, struct Value* values){
-	AvString functionIdentifier = values[0].asString;
+// struct Value call(Project* project, uint32 valueCount, struct Value* values){
+// 	AvString functionIdentifier = values[0].asString;
 
 
-    struct FunctionDescription description = findFunction(functionIdentifier, project);
-    if(!description.project){
-        runtimeError( project,"unable to find function '%S'", functionIdentifier);
-        return (struct Value) {.type=VALUE_TYPE_NONE};
-    }
-    struct Statement_S* statement = (description.project->statements[description.statement]);
-    if(statement->type != STATEMENT_TYPE_FUNCTION_DEFINITION){
-        runtimeError( project,"importing function of wrong type");
-        return (struct Value) {.type=VALUE_TYPE_NONE};
-    }
-    struct FunctionDefinition_S function = statement->functionDefinition;
-    if(function.parameterCount != valueCount-1){
-        runtimeError( project,"invalid number of arguments calling function %S", functionIdentifier);
-    }
+//     struct FunctionDescription description = findFunction(functionIdentifier, project);
+//     if(!description.project){
+//         runtimeError( project,"unable to find function '%S'", functionIdentifier);
+//         return (struct Value) {.type=VALUE_TYPE_NONE};
+//     }
+//     struct Statement_S statement = (description.project->statements[description.statement]);
+//     if(statement.type != STATEMENT_TYPE_FUNCTION_DEFINITION){
+//         runtimeError( project,"importing function of wrong type");
+//         return (struct Value) {.type=VALUE_TYPE_NONE};
+//     }
+//     struct FunctionDefinition_S function = statement.functionDefinition;
+//     if(function.parameterCount != valueCount-1){
+//         runtimeError( project,"invalid number of arguments calling function %S", functionIdentifier);
+//     }
     
-    startLocalContext(description.project, false);
-    for(uint32 i = 1; i < valueCount; i++){
-        struct Value value = values[i];
-        struct VariableDescription variable = {
-            .identifier = function.parameters[i-1].name,
-            .project = description.project,
-            .statement = description.statement,
-        };
-        assignVariable(variable, value, description.project);
-    }
-    struct Value returnValue = runFunction(function, description.project);
-    endLocalContext(description.project);
+//     startLocalContext(description.project, false);
+//     for(uint32 i = 1; i < valueCount; i++){
+//         struct Value value = values[i];
+//         struct VariableDescription variable = {
+//             .identifier = function.parameters[i-1].name,
+//             .project = description.project,
+//             .statement = description.statement,
+//         };
+//         assignVariable(variable, value, description.project);
+//     }
+//     struct Value returnValue = runFunction(function, description.project);
+//     endLocalContext(description.project);
 
-    return returnValue;
-} 
+//     return returnValue;
+// } 
 
-struct Value callExtern(Project* project, uint32 valueCount, struct Value* values){
-    AvString projectFile = values[0].asString;
-    AvString functionName = values[1].asString;
+// struct Value callExtern(Project* project, uint32 valueCount, struct Value* values){
+//     AvString projectFile = values[0].asString;
+//     AvString functionName = values[1].asString;
 
-    struct FunctionDescription func = importFunction((struct ImportDescription) {
-        .extIdentifier=functionName,
-        .importFile = projectFile,
-        .isLocalFile = true,
-        .identifier = functionName,
-    }, project);
+//     struct FunctionDescription func = importFunction((struct ImportDescription) {
+//         .extIdentifier=functionName,
+//         .importFile = projectFile,
+//         .isLocalFile = true,
+//         .identifier = functionName,
+//     }, project);
 
-    if(!func.project){
-        runtimeError(project, "unable to import %S from %S", functionName, projectFile);
-        return (struct Value) {.type=VALUE_TYPE_ARRAY};
-    }
+//     if(!func.project){
+//         runtimeError(project, "unable to import %S from %S", functionName, projectFile);
+//         return (struct Value) {.type=VALUE_TYPE_ARRAY};
+//     }
 
-    if(func.statement >= func.project->statementCount){
-        runtimeError(project, "malformed import %S", functionName);
-        return (struct Value) {.type=VALUE_TYPE_ARRAY};
-    }
+//     if(func.statement >= func.project->statementCount){
+//         runtimeError(project, "malformed import %S", functionName);
+//         return (struct Value) {.type=VALUE_TYPE_ARRAY};
+//     }
 
-    struct Statement_S* statement = func.project->statements[func.statement];
-    if(statement->type!=STATEMENT_TYPE_FUNCTION_DEFINITION){
-        runtimeError(project, "malformed import %S", functionName);
-        return (struct Value) {.type=VALUE_TYPE_ARRAY};
-    }
+//     struct Statement_S statement = func.project->statements[func.statement];
+//     if(statement.type!=STATEMENT_TYPE_FUNCTION_DEFINITION){
+//         runtimeError(project, "malformed import %S", functionName);
+//         return (struct Value) {.type=VALUE_TYPE_ARRAY};
+//     }
 
-    struct FunctionDefinition_S function = statement->functionDefinition;
+//     struct FunctionDefinition_S function = statement.functionDefinition;
     
-    if(valueCount - 2 > function.parameterCount){
-        runtimeError(project, "invalid number of arguments");
-        return (struct Value) {.type=VALUE_TYPE_ARRAY};
-    }
+//     if(valueCount - 2 > function.parameterCount){
+//         runtimeError(project, "invalid number of arguments");
+//         return (struct Value) {.type=VALUE_TYPE_ARRAY};
+//     }
     
-    startLocalContext(func.project, false);
-    for(uint32 i = 0; i < function.parameterCount; i++){
-        struct Value value = values[i+2];
-        struct VariableDescription variable = {
-            .identifier = function.parameters[i].name,
-            .project = func.project,
-            .statement = func.statement,
-        };
-        assignVariable(variable, value, func.project);
-    }
+//     startLocalContext(func.project, false);
+//     for(uint32 i = 0; i < function.parameterCount; i++){
+//         struct Value value = values[i+2];
+//         struct VariableDescription variable = {
+//             .identifier = function.parameters[i].name,
+//             .project = func.project,
+//             .statement = func.statement,
+//         };
+//         assignVariable(variable, value, func.project);
+//     }
     
-    struct Value returnValue = runFunction(function, func.project);
-    endLocalContext(func.project);
+//     struct Value returnValue = runFunction(function, func.project);
+//     endLocalContext(func.project);
 
-    return returnValue;
+//     return returnValue;
 
-}
+// }
+
+
 struct Rule{
     AV_DS(AvDynamicArray, AvString) targets;
     AV_DS(AvDynamicArray, AvString) dependencies;
@@ -1176,13 +1178,13 @@ struct Value parseDependencies(Project* project, uint32 valueCount, struct Value
         goto doneConvert;
     }
     //convert to value
-    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*avDynamicArrayGetSize(dependencies), &project->allocator);
+    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*avDynamicArrayGetSize(dependencies), project->allocator);
     for(uint32 i = 0; i < avDynamicArrayGetSize(dependencies); i++){
         
         AvString str = {0};
         avDynamicArrayRead(&str, i, dependencies);
         AvString tmpStr = AV_EMPTY;
-        avStringCopyToAllocator(str, &tmpStr, &project->allocator);
+        avStringCopyToAllocator(str, &tmpStr, project->allocator);
         struct ConstValue res = {
             .type = VALUE_TYPE_STRING,
             .asString = tmpStr,
@@ -1290,10 +1292,10 @@ struct Value readFileLines(Project* project, uint32 valueCount, struct Value* va
     if(lineCount == 1){
         AvString tmp;
         avDynamicArrayRead(&tmp, 0, lines);
-        avStringCopyToAllocator(tmp, &result.asString, &project->allocator);
+        avStringCopyToAllocator(tmp, &result.asString, project->allocator);
         result.type = VALUE_TYPE_STRING;
     }else if(lineCount != 0){
-        struct ConstValue* retVals = avAllocatorAllocate(sizeof(struct ConstValue)*lineCount, &project->allocator);
+        struct ConstValue* retVals = avAllocatorAllocate(sizeof(struct ConstValue)*lineCount, project->allocator);
         for(uint32 index = 0; index < avDynamicArrayGetSize(lines); index++) { 
             AvString element; avDynamicArrayRead(&element, index, (lines)); 
             
@@ -1303,7 +1305,7 @@ struct Value readFileLines(Project* project, uint32 valueCount, struct Value* va
                 avStringUnsafeCopy(&retVals[index].asString, tmp); 
                 continue; 
             } 
-            avStringCopyToAllocator(element, &retVals[index].asString, &project->allocator); 
+            avStringCopyToAllocator(element, &retVals[index].asString, project->allocator); 
             avStringFree(&element);
         };
         result.asArray.count = lineCount;
@@ -1372,7 +1374,7 @@ struct Value filterUnique(Project* project, uint32 valueCount, struct Value* val
         return result;
     }
 
-    struct ConstValue* vals = avAllocatorAllocate(sizeof(struct ConstValue)*maxItemCount, &project->allocator);
+    struct ConstValue* vals = avAllocatorAllocate(sizeof(struct ConstValue)*maxItemCount, project->allocator);
     uint32 uniqueCount = 0;
     for(uint32 i = 0; i < values[0].asArray.count; i++){
         struct ConstValue val = values[0].asArray.values[i];
