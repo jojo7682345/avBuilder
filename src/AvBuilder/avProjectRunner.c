@@ -36,67 +36,67 @@ void runtimeError(Project* project, const char* message, ...){
 
 	LocalContext* context = project->localContext;
 
-	while(context){
-		if(avDynamicArrayGetSize(context->variables) > 0){
-			for(uint32 index = 0; index < avDynamicArrayGetSize(context->variables); index++) { 
-				struct VariableDescription element; avDynamicArrayRead(&element, index, (context->variables)); { 
-					struct VariableDescription var = element; 
-					avStringPrintf(AV_CSTR("\t%S = "), var.identifier); 
-					if(var.value){
-						printValue(*var.value); 
-					}else{
-						avStringPrint(AV_CSTR("NULL"));
-					}
-					avStringPrint(AV_CSTR("\n")); 
-				} 
-			}
-			if(context->previous){
-				avStringPrint(AV_CSTR("], [\n"));
-			}
-		}
-		if(!context->inherit){
-			break;
-		}
-		context = context->previous;
-	}
-	avStringPrintf(AV_CSTR("]\n"));
+	// while(context){
+	// 	if(avDynamicArrayGetSize(context->variables) > 0){
+	// 		for(uint32 index = 0; index < avDynamicArrayGetSize(context->variables); index++) { 
+	// 			struct VariableDescription element; avDynamicArrayRead(&element, index, (context->variables)); { 
+	// 				struct VariableDescription var = element; 
+	// 				avStringPrintf(AV_CSTR("\t%S = "), var.identifier); 
+	// 				if(var.value){
+	// 					printValue(*var.value); 
+	// 				}else{
+	// 					avStringPrint(AV_CSTR("NULL"));
+	// 				}
+	// 				avStringPrint(AV_CSTR("\n")); 
+	// 			} 
+	// 		}
+	// 		if(context->previous){
+	// 			avStringPrint(AV_CSTR("], [\n"));
+	// 		}
+	// 	}
+	// 	if(!context->inherit){
+	// 		break;
+	// 	}
+	// 	context = context->previous;
+	// }
+	// avStringPrintf(AV_CSTR("]\n"));
 
-	avStringPrintf(AV_CSTR("Globals: [\n"));
-	for(uint32 index = 0; index < avDynamicArrayGetSize(project->variables); index++) {
-		 struct VariableDescription element; 
-		 avDynamicArrayRead(&element, index, (project->variables)); 
-		 { 
-			struct VariableDescription var = element; 
-			avStringPrintf(((AvString){
-				.chrs="\t%S = ", 
-				.len=avCStringLength("\t%S = "), 
-				.memory=((AvStringMemory*)0)
-			}), var.identifier); 
-			if(var.value){
-				printValue(*var.value); 
-			}
-			avStringPrint(((AvString){
-				.chrs="\n", .len=avCStringLength("\n"), .memory=((AvStringMemory*)0)
-			})); 
-		} 
-	};
-	avStringPrintf(AV_CSTR("]\n"));
+	// avStringPrintf(AV_CSTR("Globals: [\n"));
+	// for(uint32 index = 0; index < avDynamicArrayGetSize(project->variables); index++) {
+	// 	 struct VariableDescription element; 
+	// 	 avDynamicArrayRead(&element, index, (project->variables)); 
+	// 	 { 
+	// 		struct VariableDescription var = element; 
+	// 		avStringPrintf(((AvString){
+	// 			.chrs="\t%S = ", 
+	// 			.len=avCStringLength("\t%S = "), 
+	// 			.memory=((AvStringMemory*)0)
+	// 		}), var.identifier); 
+	// 		if(var.value){
+	// 			printValue(*var.value); 
+	// 		}
+	// 		avStringPrint(((AvString){
+	// 			.chrs="\n", .len=avCStringLength("\n"), .memory=((AvStringMemory*)0)
+	// 		})); 
+	// 	} 
+	// };
+	// avStringPrintf(AV_CSTR("]\n"));
 
-	avStringPrintf(AV_CSTR("Constants: [\n"));
-	avDynamicArrayForEachElement(struct VariableDescription, project->constants, {
-		struct VariableDescription var = element;
-		avStringPrintf(AV_CSTR("\t%S = "), var.identifier);
-		printValue(*var.value);
-		avStringPrint(AV_CSTR("\n"));
-	});
-	avStringPrintf(AV_CSTR("]\n"));
+	// avStringPrintf(AV_CSTR("Constants: [\n"));
+	// avDynamicArrayForEachElement(struct VariableDescription, project->constants, {
+	// 	struct VariableDescription var = element;
+	// 	avStringPrintf(AV_CSTR("\t%S = "), var.identifier);
+	// 	printValue(*var.value);
+	// 	avStringPrint(AV_CSTR("\n"));
+	// });
+	// avStringPrintf(AV_CSTR("]\n"));
 
-	avStringPrintf(AV_CSTR("Externals: [\n"));
-	avDynamicArrayForEachElement(struct VariableDescription, project->externals, {
-		struct VariableDescription var = element;
-		avStringPrintf(AV_CSTR("\t%S\n"), var.identifier);
-	});
-	avStringPrintf(AV_CSTR("]\n"));
+	// avStringPrintf(AV_CSTR("Externals: [\n"));
+	// avDynamicArrayForEachElement(struct VariableDescription, project->externals, {
+	// 	struct VariableDescription var = element;
+	// 	avStringPrintf(AV_CSTR("\t%S\n"), var.identifier);
+	// });
+	// avStringPrintf(AV_CSTR("]\n"));
 
 	avAssert(false, "runtime error");
 }
@@ -244,93 +244,25 @@ Symbol* findSymbol(AvString identifier, Project* project){
 	return NULL;
 }
 
-void enterScope(Project* project){
-	Scope* scope = avAllocatorAllocate(sizeof(Scope), project->allocator);
-	avAllocatorCreate(0, AV_ALLOCATOR_TYPE_DYNAMIC, &scope->allocator);
-	project->allocator = &scope->allocator;
-	scope->parent = project->currentScope;
-	project->currentScope = scope;
-	avDynamicArrayCreate(0, sizeof(Symbol), &scope->symbols);
-}
 
-void exitScope(Project* project){
-	avAssert(project->currentScope!=NULL, "scope inbalance");
-	Scope* scope = project->currentScope;
-	project->currentScope = scope->parent;
-	project->allocator = &project->currentScope->allocator;
-	avAllocatorDestroy(&scope->allocator);
-	avDynamicArrayDestroy(scope->symbols);
-}
 
-void defineVariable(AvString identifier, Project* project){
-	if(findSymbol(identifier, project)){
-		runtimeError(project, "%S already defined", identifier);
-		return;
-	}
-	Symbol symbol = {
-		.type= SYMBOL_TYPE_VARIABLE, 
-		.identifier = identifier, 
-	};
-	avDynamicArrayAdd(&symbol, project->currentScope->symbols);
-}
-
-void assignVariable(AvString identifier, struct Value value, Project* project){
-	Symbol* symbol = findSymbol(identifier, project);
-	if(!symbol){
-		runtimeError(project, "unable to find %S", identifier);
-		return;
-	}
-	if(symbol->type != SYMBOL_TYPE_VARIABLE){
-		const char* type = "UNDEFINED";
-		switch(symbol->type){
-			case SYMBOL_TYPE_CONSTANT:
-				type = "constant";
-				break;
-			case SYMBOL_TYPE_FUNCTION:
-				type = "function";
-				break;
-			default:
-				break;
-		}
-		runtimeError(project, "%S is already defined as %s", identifier, type);
-		return;
-	}
-
-	avMemcpy(&symbol->variable.value, &value, sizeof(struct Value));
-}
-
-void assignConstant(AvString identifier, struct Value value, Project* project){
-	if(findSymbol(identifier, project)){
-		runtimeError(project, "%S already defined", identifier);
-		return;
-	}
-	Symbol symbol = {
-		.type= SYMBOL_TYPE_CONSTANT, 
-		.identifier = identifier, 
-		.variable = {
-			.value = value,
-		},
-	};
-	avDynamicArrayAdd(&symbol, project->currentScope->symbols);
-}
 
 uint32 runProject(Project* project, AvDynamicArray arguments){
-	
-	enterScope(project);
 
-	for(uint32 i = 0; i < builtInVariableCount; i++){
-		struct BuiltInVariableDescription var = builtInVariables[i];
-		assignConstant(var.identifier, var.value, project);
-	}
-	assignConstant(AV_CSTR("PROJECT_NAME"), (struct Value){.type=VALUE_TYPE_STRING,.asString=project->name}, project);
-	assignConstant(AV_CSTR("PROJECT_DIR"), currentDir(project, 0, nullptr), project);
-	assignConstant(AV_CSTR("PLATFORM"), (struct Value){.type=VALUE_TYPE_STRING,.asString=AV_CSTR(
-#ifdef _WIN32
-		"WINDOWS"
-#else
-		"LINUX"
-#endif
-	)}, project);
+
+// 	for(uint32 i = 0; i < builtInVariableCount; i++){
+// 		struct BuiltInVariableDescription var = builtInVariables[i];
+// 		//assignConstant(var.identifier, var.value, project);
+// 	}
+// 	assignConstant(AV_CSTR("PROJECT_NAME"), (struct Value){.type=VALUE_TYPE_STRING,.asString=project->name}, project);
+// 	assignConstant(AV_CSTR("PROJECT_DIR"), currentDir(project, 0, nullptr), project);
+// 	assignConstant(AV_CSTR("PLATFORM"), (struct Value){.type=VALUE_TYPE_STRING,.asString=AV_CSTR(
+// #ifdef _WIN32
+// 		"WINDOWS"
+// #else
+// 		"LINUX"
+// #endif
+// 	)}, project);
 
 	for(uint32 i = 0; i < project->statementCount; i++){
 		struct Statement_S statement = (project->statements)[i];
@@ -342,9 +274,6 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
 
 	}
 
-
-
-	exitScope(project);
 
 
 	// for(uint32 i = 0; i < project->statementCount; i++){

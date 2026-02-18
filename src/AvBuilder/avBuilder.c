@@ -119,6 +119,8 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
 		finalizeCompileCommands();
 	}
 
+    return result;
+
 processingFailed:
 parsingFailed:
     projectDestroy(&project);
@@ -131,48 +133,37 @@ loadingFailed:
 }
 #pragma GCC diagnostic pop
 
-void startLocalContext(struct Project* project, bool32 inherit){
-    LocalContext* context = avAllocate(sizeof(LocalContext), "local context");
-    context->previous = project->localContext;
-    avDynamicArrayCreate(0, sizeof(struct VariableDescription), &context->variables);
-    project->localContext = context;
-    context->inherit = inherit;
-}
-void endLocalContext(struct Project* project){
-    LocalContext* context = project->localContext;
-    avDynamicArrayDestroy(context->variables);
-    project->localContext = context->previous;
-    avFree(context);
-}
+// void startLocalContext(struct Project* project, bool32 inherit){
+//     LocalContext* context = avAllocate(sizeof(LocalContext), "local context");
+//     context->previous = project->localContext;
+//     avDynamicArrayCreate(0, sizeof(struct VariableDescription), &context->variables);
+//     project->localContext = context;
+//     context->inherit = inherit;
+// }
+// void endLocalContext(struct Project* project){
+//     LocalContext* context = project->localContext;
+//     avDynamicArrayDestroy(context->variables);
+//     project->localContext = context->previous;
+//     avFree(context);
+// }
 
 void projectCreate(struct Project* project, AvString name, AvString file, AvString content, bool32 isLocal){
-    project->allocator = avAllocate(sizeof(AvAllocator), "allocator");
-    avAllocatorCreate(0, AV_ALLOCATOR_TYPE_DYNAMIC, project->allocator);
-    avDynamicArrayCreate(0, sizeof(struct VariableDescription), &project->variables);
-    avDynamicArrayCreate(0, sizeof(struct VariableDescription), &project->constants);
-    avDynamicArrayCreate(0, sizeof(struct FunctionDescription), &project->functions);
-    avDynamicArrayCreate(0, sizeof(struct ImportDescription), &project->externals);
-    avDynamicArrayCreate(0, sizeof(struct ImportDescription), &project->libraryAliases);
-    avDynamicArrayCreate(0, sizeof(Project*), &project->importedProjects);
-    avDynamicArrayCreate(0, sizeof(struct ConstValue*), &project->arrays);
+    avAllocatorCreate(0, AV_ALLOCATOR_TYPE_DYNAMIC, &project->baseAllocator);
+    project->allocator = &project->baseAllocator;
+    avDynamicArrayCreate(0, sizeof(struct Alias), &project->libraryAliases);
     avStringClone(&project->name, name);
     memcpy(&project->projectFileContent, &content, sizeof(AvString));
     avStringClone(&project->projectFileName, file);
     project->isLocal = isLocal;
     project->localContext = NULL;
+
+    enterScope(SCOPE_TYPE_TOPLEVEL, project);
 }
 void projectDestroy(struct Project* project){
-    avDynamicArrayDestroy(project->variables);
-    avDynamicArrayDestroy(project->constants);
-    avDynamicArrayDestroy(project->functions);
-    avDynamicArrayDestroy(project->externals);
+    exitScope(project);
+
     avDynamicArrayDestroy(project->libraryAliases);
-    avDynamicArrayForEachElement(Project*, project->importedProjects, {
-        projectDestroy(element);
-    });
-    avDynamicArrayDestroy(project->importedProjects);
-    avDynamicArrayDestroy(project->arrays);
-    avAllocatorDestroy(project->allocator);
+    avAllocatorDestroy(&project->baseAllocator);
     avStringFree(&project->name);
     avStringFree(&project->projectFileContent);
     avStringFree(&project->projectFileName); 

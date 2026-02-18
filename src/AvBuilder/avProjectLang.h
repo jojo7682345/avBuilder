@@ -86,7 +86,7 @@ struct IndexExpression_S{
 };
 
 struct CallExpression_S{
-    struct Expression_S* function;
+    AvString function;
     uint32 argumentCount;
     struct Expression_S* arguments;
 };
@@ -204,7 +204,7 @@ struct ReturnStatement_S{
 struct IfStatement_S{
     struct Expression_S* check;
     struct Statement_S* branch;
-    struct IfStatement_S* alternativeBranch;
+    struct Statement_S* alternativeBranch;
 };
 
 struct BlockStatement_S{
@@ -251,9 +251,10 @@ enum StatementType {
     STATEMENT_TYPE_RETURN,
     STATEMENT_TYPE_VARIABLE_DEFINITION,
     STATEMENT_TYPE_IF,
-    STATEMENT_TYPE_COMMAND,
     STATEMENT_TYPE_EXPRESSION,
     STATEMENT_TYPE_BLOCK,
+    STATEMENT_TYPE_CONTINUE,
+    STATEMENT_TYPE_BREAK,
 };
 
 struct Statement_S{
@@ -300,25 +301,6 @@ struct Value {
     };
 };
 
-struct FunctionDescription {
-    AvString identifier;
-    uint32 statement;
-    struct Project* project;
-};
-
-struct ImportDescription{
-    AvString identifier;
-    AvString importFile;
-    AvString extIdentifier;
-    bool32 isLocalFile;
-};
-
-struct VariableDescription {
-    AvString identifier;
-    uint32 statement;
-    struct Value* value;
-    struct Project* project;
-};
 
 
 #endif//__AV_PROJECT_LANG__

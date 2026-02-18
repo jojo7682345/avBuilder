@@ -141,8 +141,11 @@ static struct Expression_S parseCall(TokenIterator* iterator){
     
     
     if(match(iterator, TOKEN_TYPE_PUNCTUATOR_parenthese_open)){
-        expr.call.function = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
-        avMemcpy(expr.call.function, &func, sizeof(struct Expression_S));
+        if(func.type != EXPRESSION_TYPE_IDENTIFIER){
+            logParserError(iterator, TOKEN_TYPE_TEXT, AV_CSTR("Expected function name"));
+            return func;
+        }
+        avStringCopyToAllocator(func.identifier.identifier, &expr.call.function, iterator->allocator);
         
         AvDynamicArray arguments;
         avDynamicArrayCreate(0, sizeof(struct Expression_S), &arguments);
@@ -761,6 +764,14 @@ static struct Statement_S parseStatement(TokenIterator* iterator){
         statement.line = line;
         return statement;
     }
+    if(match(iterator, TOKEN_TYPE_KEYWORD_continue)){
+        struct Statement_S statement = {.type = STATEMENT_TYPE_CONTINUE,.line=line};
+        return statement;
+    }
+    if(match(iterator, TOKEN_TYPE_KEYWORD_break)){
+        struct Statement_S statement = {.type = STATEMENT_TYPE_BREAK,.line=line};
+        return statement;
+    }
     if(match(iterator, TOKEN_TYPE_KEYWORD_if)){
         struct Statement_S statement = parseIfStatement(iterator);
         statement.line = line;
@@ -784,7 +795,9 @@ static struct Statement_S parseStatement(TokenIterator* iterator){
     if(match(iterator, TOKEN_TYPE_PUNCTUATOR_brace_open)){
         struct Statement_S block = parseBlockStatement(iterator);
         consume(iterator, TOKEN_TYPE_PUNCTUATOR_brace_close, "expected '}' after statements");
-        block.line = line;
+        if(block.type==STATEMENT_TYPE_BLOCK){
+            block.line = line;
+        }
         return block;
     }
 

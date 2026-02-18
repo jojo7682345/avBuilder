@@ -24,8 +24,10 @@
     TOKEN(KEYWORD,      return,     "return")\
     TOKEN(KEYWORD,      recursive,  "recursive")\
     TOKEN(KEYWORD,      var,        "var")\
-    TOKEN(KEYWORD,      func,        "func")\
+    TOKEN(KEYWORD,      func,       "func")\
     TOKEN(KEYWORD,      directories,"directories")\
+    TOKEN(KEYWORD,      break,      "break")\
+    TOKEN(KEYWORD,      continue,   "continue")\
     \
     TOKEN(PUNCTUATOR,   less_than_or_equal, "<=")\
     TOKEN(PUNCTUATOR,   greater_than_or_equal, ">=")\
@@ -112,14 +114,6 @@ struct ProjectOptions {
 	bool32 genCompileCommands;
 };
 
-enum SymbolType {
-    SYMBOL_TYPE_NONE,
-    SYMBOL_TYPE_VARIABLE,
-    SYMBOL_TYPE_FUNCTION,
-    SYMBOL_TYPE_CONSTANT,
-    SYMBOL_TYPE_PARTIAL_IMPORT,
-};
-
 // struct PartialImport {
 //     Project* project;
 // };
@@ -134,14 +128,37 @@ typedef struct Variable {
     struct Value value;
 } Variable;
 
+enum SymbolType {
+    SYMBOL_UNDEFINED,
+    SYMBOL_VARIABLE,
+    SYMBOL_FUNCTION,
+    SYMBOL_PARAMETER,
+};
+
+enum ScopeType{
+    SCOPE_TYPE_TOPLEVEL,
+    SCOPE_TYPE_FUNCTION,
+    SCOPE_TYPE_FOREACH,
+    SCOPE_TYPE_BLOCK,
+};
+
+typedef struct Scope {
+    AvAllocator allocator;
+    AvDynamicArray symbols;
+    struct Scope* parent;
+    struct Project* project;
+    enum ScopeType type;
+} Scope;
+
 typedef struct Symbol {
     AvString identifier;
     enum SymbolType type;
-    bool8 external;
+    Scope* scope;
+    bool8 constant;
+    bool8 constValue;
     union{
         struct Function function;
         struct Variable variable;
-        //struct PartialImport import;
     };
 } Symbol;
 
@@ -155,27 +172,15 @@ typedef struct ProjectImportDescription{
     AvDynamicArray importAliasses;
 } ProjectImportDescription;
 
-
-typedef struct Scope {
-    AvAllocator allocator;
-    AvDynamicArray symbols;
-    struct Scope* parent;
-} Scope;
-
 typedef struct Project {
     AvString name;
     AvString projectFileContent;
     AvString projectFileName;
 
+    AvAllocator baseAllocator;
     AvAllocator* allocator;
     
-    AV_DS(AvDynamicArray, struct FunctionDescription) functions;
-    AV_DS(AvDynamicArray, struct VariableDescription) variables;
-    AV_DS(AvDynamicArray, struct VariableDescription) constants;
-    AV_DS(AvDynamicArray, struct ImportDescription) externals;
-    AV_DS(AvDynamicArray, Project*) importedProjects;
     AV_DS(AvDynamicArray, struct ImportDescription) libraryAliases;
-    AV_DS(AvDynamicArray, struct ConstValue*) arrays;
 
     uint32 statementCount;
     struct Statement_S* statements;
@@ -187,7 +192,9 @@ typedef struct Project {
     struct ProjectOptions options;
 
     Scope* currentScope;
+    struct FunctionDefinition_S* currentFunction;
 
+    struct Project* parent;
 
 } Project;
 
@@ -206,5 +213,8 @@ void startLocalContext(struct Project* project, bool32 inherit);
 void endLocalContext(struct Project* project);
 void projectCreate(struct Project* project, AvString name, AvString file, AvString content, bool32 isLocal);
 void projectDestroy(struct Project* project);
+
+void enterScope(enum ScopeType type, Project* ctx);
+void exitScope(Project* ctx);
 
 #endif//__AV_BUILDER__ 
