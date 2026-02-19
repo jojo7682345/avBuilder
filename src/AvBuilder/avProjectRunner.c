@@ -34,7 +34,7 @@ void runtimeError(Project* project, const char* message, ...){
 
 	avStringPrintf(AV_CSTR("\nVariables: [\n"));
 
-	LocalContext* context = project->localContext;
+	//LocalContext* context = project->localContext;
 
 	// while(context){
 	// 	if(avDynamicArrayGetSize(context->variables) > 0){
@@ -240,64 +240,14 @@ void toValue(struct ConstValue value, struct Value* val){
 	}
 }
 
-Symbol* findSymbol(AvString identifier, Project* project){
-	return NULL;
-}
-
-
-
-
 uint32 runProject(Project* project, AvDynamicArray arguments){
 
-
-// 	for(uint32 i = 0; i < builtInVariableCount; i++){
-// 		struct BuiltInVariableDescription var = builtInVariables[i];
-// 		//assignConstant(var.identifier, var.value, project);
-// 	}
-// 	assignConstant(AV_CSTR("PROJECT_NAME"), (struct Value){.type=VALUE_TYPE_STRING,.asString=project->name}, project);
-// 	assignConstant(AV_CSTR("PROJECT_DIR"), currentDir(project, 0, nullptr), project);
-// 	assignConstant(AV_CSTR("PLATFORM"), (struct Value){.type=VALUE_TYPE_STRING,.asString=AV_CSTR(
-// #ifdef _WIN32
-// 		"WINDOWS"
-// #else
-// 		"LINUX"
-// #endif
-// 	)}, project);
-
-	for(uint32 i = 0; i < project->statementCount; i++){
-		struct Statement_S statement = (project->statements)[i];
-		switch(statement.type){
-			default:
-				return -1;
-				break;
-		}
-
+	AvString* entry = &project->name;
+	if(project->options.entry.len > 0 && project->options.entry.chrs){
+		entry = &project->options.entry;
 	}
 
-
-
-	// for(uint32 i = 0; i < project->statementCount; i++){
-	// 	struct Statement_S statement = (project->statements)[i];
-	// 	switch(statement.type){
-	// 		case STATEMENT_TYPE_IMPORT:
-	// 		case STATEMENT_TYPE_FUNCTION_DEFINITION:
-	// 			break;
-	// 		case STATEMENT_TYPE_INHERIT:
-	// 			performInherit(statement.inheritStatement, i , project, project);
-	// 			break;
-	// 		case STATEMENT_TYPE_VARIABLE_ASSIGNMENT:
-	// 			runVariableAssignment(statement.variableAssignment, i, project);
-	// 			break;
-	// 		case STATEMENT_TYPE_NONE:
-	// 			return -1;
-	// 			break;
-	// 	}
-
-	// }
-	// AvString* entry = &project->name;
-	// if(project->options.entry.len > 0 && project->options.entry.chrs){
-	// 	entry = &project->options.entry;
-	// }
+	
 
 	// struct FunctionDescription mainFunction = findFunction(*entry, project);
 	// if(!mainFunction.project){

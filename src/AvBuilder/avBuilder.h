@@ -119,9 +119,10 @@ struct ProjectOptions {
 // };
 
 typedef struct Function {
-    struct Statement_S* definition;
-    bool8 loaded;
-    
+    union{
+        struct Statement_S* definition;
+        const struct BuiltInFunctionDescription* builtin; 
+    }; 
 } Function;
 
 typedef struct Variable {
@@ -129,10 +130,11 @@ typedef struct Variable {
 } Variable;
 
 enum SymbolType {
-    SYMBOL_UNDEFINED,
     SYMBOL_VARIABLE,
     SYMBOL_FUNCTION,
-    SYMBOL_PARAMETER,
+    //SYMBOL_PARAMETER,
+    // SYMBOL_BUILTIN_FUNCTION,
+    // SYMBOL_BUILTIN_VARIABLE,
 };
 
 enum ScopeType{
@@ -150,12 +152,20 @@ typedef struct Scope {
     enum ScopeType type;
 } Scope;
 
+typedef struct StackFrame {
+    struct StackFrame* parent;
+    AvAllocator allocator;
+
+    struct Value* values;
+} StackFrame;
+
 typedef struct Symbol {
     AvString identifier;
     enum SymbolType type;
     Scope* scope;
     bool8 constant;
     bool8 constValue;
+    bool8 builtin;
     union{
         struct Function function;
         struct Variable variable;
@@ -181,6 +191,7 @@ typedef struct Project {
     AvAllocator* allocator;
     
     AV_DS(AvDynamicArray, struct ImportDescription) libraryAliases;
+    AV_DS(AvDynamicArray, struct Project*) importedProjects;
 
     uint32 statementCount;
     struct Statement_S* statements;
@@ -192,7 +203,8 @@ typedef struct Project {
     struct ProjectOptions options;
 
     Scope* currentScope;
-    struct FunctionDefinition_S* currentFunction;
+    StackFrame* currentStackFrame;
+    //struct FunctionDefinition_S* currentFunction;
 
     struct Project* parent;
 
@@ -214,7 +226,7 @@ void endLocalContext(struct Project* project);
 void projectCreate(struct Project* project, AvString name, AvString file, AvString content, bool32 isLocal);
 void projectDestroy(struct Project* project);
 
-void enterScope(enum ScopeType type, Project* ctx);
+void enterScope(enum ScopeType type, struct Statement_S* statement, Project* ctx);
 void exitScope(Project* ctx);
 
 #endif//__AV_BUILDER__ 

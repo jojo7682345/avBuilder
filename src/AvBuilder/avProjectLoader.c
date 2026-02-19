@@ -11,6 +11,11 @@ bool32 loadProjectFile(const AvString projectFilePath, AvStringRef projectFileCo
     }
     uint64 size = avFileGetSize(file);
 
+    if(size==0){
+        avFileHandleDestroy(file);
+        return false;
+    }
+
     char* buffer = avCallocate(size+1, 1, "allocating buffer");
     while(avFileRead(buffer, size, file)!=size);
     AvStringMemory strmem = AV_EMPTY;

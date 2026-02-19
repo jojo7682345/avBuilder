@@ -2,6 +2,7 @@
 #define __AV_PROJECT_LANG__
 
 #include <AvUtils/avString.h>
+#include <AvUtils/memory/avAllocator.h>
 
 enum PrimaryType {
     PRIMARY_TYPE_NONE = 0,
@@ -109,6 +110,9 @@ struct GroupExpression_S {
 
 struct IdentifierExpression_S{
     AvString identifier;
+    struct Symbol* resolvedSymbol;
+    uint32 localIndex;
+    uint32 depth;
 };
 
 struct LiteralExpression_S{
@@ -260,6 +264,7 @@ enum StatementType {
 struct Statement_S{
     enum StatementType type;
     uint32 line;
+    struct Scope* attachedScope;
     union{
         struct FunctionDefinition_S functionDefinition;
         struct ImportStatement_S importStatement;

@@ -1,6 +1,13 @@
 
-command "echo hello";
 
-func foo(arg){
-    println(test);
+import "test2.project" {
+    foo;
 }
+
+func test(){
+
+    command "echo hello";
+
+}
+
+

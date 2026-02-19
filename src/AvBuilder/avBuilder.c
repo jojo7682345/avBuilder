@@ -151,18 +151,34 @@ void projectCreate(struct Project* project, AvString name, AvString file, AvStri
     avAllocatorCreate(0, AV_ALLOCATOR_TYPE_DYNAMIC, &project->baseAllocator);
     project->allocator = &project->baseAllocator;
     avDynamicArrayCreate(0, sizeof(struct Alias), &project->libraryAliases);
+    avDynamicArrayCreate(0, sizeof(struct Project*), &project->importedProjects);
     avStringClone(&project->name, name);
     memcpy(&project->projectFileContent, &content, sizeof(AvString));
     avStringClone(&project->projectFileName, file);
     project->isLocal = isLocal;
     project->localContext = NULL;
 
-    enterScope(SCOPE_TYPE_TOPLEVEL, project);
+    enterScope(SCOPE_TYPE_TOPLEVEL, NULL, project);
 }
 void projectDestroy(struct Project* project){
     exitScope(project);
 
+    for(uint32 i = 0; i < project->statementCount; i++){
+        struct Statement_S statement = project->statements[i];
+        if(statement.attachedScope){
+            avAllocatorDestroy(&statement.attachedScope->allocator);
+	        avDynamicArrayDestroy(statement.attachedScope->symbols);
+        }
+    }
+
+    for(uint32 i = 0; i < avDynamicArrayGetSize(project->importedProjects); i++){
+        Project* proj = 0;
+        avDynamicArrayRead(&proj, i, project->importedProjects);
+        projectDestroy(proj);
+    }
+
     avDynamicArrayDestroy(project->libraryAliases);
+    avDynamicArrayDestroy(project->importedProjects);
     avAllocatorDestroy(&project->baseAllocator);
     avStringFree(&project->name);
     avStringFree(&project->projectFileContent);

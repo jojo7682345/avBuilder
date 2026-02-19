@@ -324,6 +324,10 @@ bool32 tokenizeProject(const AvString projectFileContent, const AvString project
     tokenFound:
         {
             uint64 tokenlength = readIndex - tokenStart;
+            if(tokenType == TOKEN_TYPE_STRING){
+                tokenStart += 1;
+                tokenlength -= 2;
+            }
             Token token = {
                 .str = AV_STR(projectFileContent.chrs + tokenStart, tokenlength),
                 .type = tokenType,
