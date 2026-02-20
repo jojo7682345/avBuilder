@@ -117,6 +117,7 @@ struct IdentifierExpression_S{
 
 struct LiteralExpression_S{
     AvString value;
+    int32 depth;
 };
 
 struct NumberExpression_S{
@@ -196,13 +197,17 @@ struct VariableDefinition_S{
 
 struct ForeachStatement_S{
     AvString variable;
+    struct Symbol* resolvedVarSymbol;
     struct Expression_S* collection;
     AvString index;
+    struct Symbol* resolvedIndexSymbol;
     struct Statement_S* statement;
 };
 
 struct ReturnStatement_S{
     struct Expression_S* value;
+    uint32 returnDepth;
+    Symbol* resolvedVirtualSymbol;
 };
 
 struct IfStatement_S{
@@ -220,6 +225,7 @@ struct FunctionParameter_S {
     AvString name;
     bool8 unknownSize;
     struct Expression_S size;
+    struct Symbol* resolvedSymbol;
 };
 struct FunctionDefinition_S{
     AvString functionName;
@@ -284,27 +290,27 @@ enum ValueType {
     VALUE_TYPE_NUMBER = 1<<1,
     VALUE_TYPE_ARRAY = 1<<2,
 };
-struct ConstValue {
+typedef struct ConstValue {
     enum ValueType type;
     union {
         AvString asString;
         int64 asNumber;
     };
-};
+} ConstValue;
 
 struct ArrayValue {
     uint32 count;
     struct ConstValue* values;
 };
 
-struct Value {
+typedef struct Value {
     enum ValueType type;
     union {
         AvString asString;
         int64 asNumber;
         struct ArrayValue asArray;
     };
-};
+} Value;
 
 
 

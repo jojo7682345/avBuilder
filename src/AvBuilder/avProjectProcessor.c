@@ -31,29 +31,44 @@ void enterScope(enum ScopeType type, struct Statement_S* statement, Project* ctx
         avAssert(statement->attachedScope==NULL, "statement must not already have a scope");
     }
 	Scope* scope = avAllocatorAllocate(sizeof(Scope), ctx->allocator);
-	avAllocatorCreate(0, AV_ALLOCATOR_TYPE_DYNAMIC, &scope->allocator);
-	ctx->allocator = &scope->allocator;
+	//avAllocatorCreate(0, AV_ALLOCATOR_TYPE_DYNAMIC, &scope->allocator);
+	//ctx->allocator = &scope->allocator;
 	scope->parent = ctx->currentScope;
     scope->type = type;
 	ctx->currentScope = scope;
     if(statement) statement->attachedScope = scope;
 	avDynamicArrayCreate(0, sizeof(Symbol), &scope->symbols);
+    if(type == SCOPE_TYPE_FUNCTION || type == SCOPE_TYPE_FOREACH){
+        Symbol returnValue = {
+            .constant = true,
+            .constValue = false,
+            .builtin = true,
+            .identifier = AV_EMPTY_STRING,
+            .localIndex = 0,
+            .scope = scope,
+            .type = -1,
+            .function.definition = NULL,
+        };
+        avDynamicArrayAdd(&returnValue, scope->symbols);
+    }
 }
 
 void exitScope(Project* ctx){
 	avAssert(ctx->currentScope!=NULL, "scope inbalance");
 	Scope* scope = ctx->currentScope;
 	ctx->currentScope = scope->parent;
-	ctx->allocator = &ctx->currentScope->allocator;
     // semantic scope information is cleaned up during project destruction
 	
+	//ctx->allocator = &ctx->currentScope->allocator;
     // avAllocatorDestroy(&scope->allocator);
 	// avDynamicArrayDestroy(scope->symbols);
 }
 
-Symbol* resolveSymbol(AvString identifier, Project* ctx){
+Symbol* resolveSymbol(AvString identifier, int32* depth, Project* ctx){
     Scope* scope = ctx->currentScope;
+    if(depth) *depth = -1;
     while(scope){
+        if(depth) (*depth)++;
         uint32 symbolCount = avDynamicArrayGetSize(scope->symbols);
         for(uint32 i = 0; i < symbolCount; i++){
             Symbol* symbol = avDynamicArrayGetPtr(i, scope->symbols);
@@ -61,19 +76,22 @@ Symbol* resolveSymbol(AvString identifier, Project* ctx){
                 return symbol;
             }
         }
-
         scope = scope->parent;
     }
+    if(depth) *depth = 0;
     return NULL;
 }
 
-int32 declareSymbol(Symbol symbol, Project* ctx){
-    Symbol* resolved = resolveSymbol(symbol.identifier, ctx);
+Symbol* declareSymbol(Symbol symbol, Project* ctx){
+    Symbol* resolved = resolveSymbol(symbol.identifier, 0, ctx);
     if(resolved){
-        return -1;
+        return 0;
     }
     symbol.scope = ctx->currentScope;
-    return avDynamicArrayAdd(&symbol, ctx->currentScope->symbols);
+    uint32 localIndex = avDynamicArrayAdd(&symbol, ctx->currentScope->symbols);
+    Symbol* sym = avDynamicArrayGetPtr(localIndex, ctx->currentScope->symbols);
+    sym->localIndex = localIndex;
+    return sym;
 }
 
 bool32 isInLoop(Project* ctx){
@@ -100,6 +118,31 @@ bool32 isInFunction(Project* ctx){
     return false;
 }
 
+int32 getScopeTypeDepth(enum ScopeType type, Project* ctx){
+    Scope* scope = ctx->currentScope;
+    int32 i = 0;
+    while(scope){
+        if(scope->type == type){
+            return i;
+        }
+        i++;
+        scope = scope->parent;
+    }
+    return -1;
+}
+
+Scope* getFunctionScope(Project* ctx){
+    Scope* scope = ctx->currentScope;
+    while(scope){
+        if(scope->type == SCOPE_TYPE_FUNCTION){
+            return scope;
+        }
+
+        scope = scope->parent;
+    }
+    return NULL;
+}
+
 struct ExpressionFlags {
     bool8 constant;
 };
@@ -107,14 +150,16 @@ struct ExpressionFlags {
 bool32 analyseExpression(struct Expression_S* expression, uint32 line, struct ExpressionFlags* flags, Project* ctx);
 
 bool32 analyseIdentifier(struct Expression_S* expr, uint32 line, struct ExpressionFlags* flags, Project* ctx){
-    Symbol* sym = resolveSymbol(expr->identifier.identifier, ctx);
+    int32 depth = 0;
+    Symbol* sym = resolveSymbol(expr->identifier.identifier, &depth, ctx);
     if(sym==0){
         semanticError(line, ctx, "Unidentified identifier %S", expr->identifier.identifier);
         if(flags) flags->constant = false;
         return false;
     }
     if(flags) flags->constant = sym->constValue;
-    //expr->resolvedSymbol = sym;
+    expr->identifier.resolvedSymbol = sym;
+    expr->identifier.depth = depth;
     return true;
 }
 
@@ -138,7 +183,7 @@ bool32 analyseAssignment(struct Expression_S* expr, uint32 line,  struct Express
         }
     }
 
-    Symbol* sym = resolveSymbol(variableIdentifier, ctx);
+    Symbol* sym = resolveSymbol(variableIdentifier, 0, ctx);
     if(sym->type!=SYMBOL_VARIABLE){
         semanticError(line, ctx, "Unidentified identifier %S", expr->identifier.identifier);
         ret = false;
@@ -245,7 +290,7 @@ bool32 analyseCall(struct Expression_S* expr, uint32 line, struct ExpressionFlag
         }
     }
 
-    Symbol* sym = resolveSymbol(call.function, ctx);
+    Symbol* sym = resolveSymbol(call.function, 0, ctx);
     if(sym->type != SYMBOL_FUNCTION){
         semanticError(line, ctx, "Function %S not found", call.function);
         return false;
@@ -311,7 +356,7 @@ bool32 analyseCommand(struct Expression_S* expr, uint32 line, struct ExpressionF
     
     if(command.pipeOutput && command.pipeOutput->type != EXPRESSION_TYPE_NONE){
         if(command.pipeOutput->type==EXPRESSION_TYPE_IDENTIFIER){
-            Symbol* sym = resolveSymbol(command.pipeOutput->identifier.identifier, ctx);
+            Symbol* sym = resolveSymbol(command.pipeOutput->identifier.identifier, 0, ctx);
             if(sym->type != SYMBOL_VARIABLE){
                 ret = false;
                 semanticError(line, ctx, "Unable to find variable %S", command.pipeOutput->identifier.identifier);
@@ -377,7 +422,7 @@ bool32 analyseFunction(struct Statement_S* statement, Project* ctx){
     struct FunctionDefinition_S* func = &statement->functionDefinition;
     bool32 ret = true;
     Symbol symbol = {.type = SYMBOL_FUNCTION, .function={.definition = statement }, .identifier=func->functionName};
-    if(declareSymbol(symbol, ctx)==-1){
+    if(declareSymbol(symbol, ctx)==NULL){
         semanticError(statement->line, ctx, "function %S already declared", func->functionName);
         ret = false;
     }
@@ -404,12 +449,14 @@ bool32 analyseFunction(struct Statement_S* statement, Project* ctx){
             semanticError(statement->line, ctx, "variadic parameter %S's is not last parameter", param.name);
             ret = false;
         }
-        if(declareSymbol(paramSym, ctx)==-1){
+        Symbol* sym = declareSymbol(paramSym, ctx);
+        func->parameters[i].resolvedSymbol = sym;
+        if(sym==NULL){
             semanticError(statement->line, ctx, "parameter %S already defined", param.name);
             ret = false;
         }
     }
-
+    ctx->skipScope = true;
     ret = analyseStatement(func->body, ctx);
     exitScope(ctx);
     //ctx->currentFunction = currentFunc;
@@ -422,13 +469,19 @@ bool32 analyseBlock(struct Statement_S* statement, Project* ctx){
         return true;
     }
     bool32 ret = true;
-    enterScope(SCOPE_TYPE_BLOCK, statement, ctx);
+    bool32 skip = ctx->skipScope;
+    ctx->skipScope = false;
+    if(!skip){
+        enterScope(SCOPE_TYPE_BLOCK, statement, ctx);
+    }
     for(uint32 i = 0; i < block.statementCount; i++){
         if(!analyseStatement(block.statements + i, ctx)){
             ret = false;
         }
     }
-    exitScope(ctx);
+    if(!skip){
+        exitScope(ctx);
+    }
     return ret;
 }
 
@@ -437,20 +490,20 @@ bool32 analyseForeach(struct Statement_S* statement, Project* ctx){
 
     bool32 ret = true;
     enterScope(SCOPE_TYPE_FOREACH, statement, ctx);
-
-    if(declareSymbol((Symbol){.type=SYMBOL_VARIABLE,.identifier=foreach.variable}, ctx)==-1){
+    if(!avStringIsEmpty(foreach.index) && (statement->foreachStatement.resolvedIndexSymbol = declareSymbol((Symbol){.type=SYMBOL_VARIABLE,.identifier=foreach.variable}, ctx))==NULL){
         semanticError(statement->line, ctx, "variable %S already defined", foreach.variable);
         ret = false;
     }
-    if(declareSymbol((Symbol){.type=SYMBOL_VARIABLE,.identifier=foreach.index}, ctx)==-1){
+    if(!avStringIsEmpty(foreach.index) && (statement->foreachStatement.resolvedIndexSymbol = declareSymbol((Symbol){.type=SYMBOL_VARIABLE,.identifier=foreach.index}, ctx))==NULL){
         semanticError(statement->line, ctx, "variable %S already defined", foreach.index);
         ret = false;
     }
-
+    
     if(!analyseExpression(foreach.collection, statement->line, 0, ctx)){
         ret = false;
     }
-
+    
+    ctx->skipScope = true;
     if(!analyseStatement(foreach.statement, ctx)){
         ret = false;
     }
@@ -582,11 +635,11 @@ bool32 analyseImport(struct Statement_S* statement, Project* ctx){
             continue;
         }
 
-        Symbol* symbol = resolveSymbol(mapping.symbol, importProject);
+        Symbol* symbol = resolveSymbol(mapping.symbol, 0, importProject);
         if(!avStringIsEmpty(mapping.alias)){
             avStringUnsafeCopy(&symbol->identifier, mapping.alias);
         }
-        if(declareSymbol(*symbol, ctx)==-1){
+        if(declareSymbol(*symbol, ctx)==NULL){
             semanticError(statement->line, ctx, "alias %S already defined", symbol->identifier);
             res = false;
             continue;
@@ -620,9 +673,9 @@ bool32 analyseInherit(struct Statement_S* statement, Project* ctx){
     bool32 found = false;
     Project* project = ctx->parent;
     while(project){
-        Symbol* sym = resolveSymbol(inherit.variable, project);
+        Symbol* sym = resolveSymbol(inherit.variable, 0, project);
         if(sym->type == SYMBOL_VARIABLE){
-            if(declareSymbol(*sym, ctx)==-1){
+            if(declareSymbol(*sym, ctx)==NULL){
                 semanticError(statement->line, ctx, "variable %S already defined", inherit.variable);
                 ret = false;
             }
@@ -678,7 +731,7 @@ bool32 analyseVariableDefinition(struct Statement_S* statement, Project* ctx){
     }
     
     Symbol symbol = {.type = SYMBOL_VARIABLE, .identifier = var.identifier, .constValue = constant};
-    if(declareSymbol(symbol, ctx)==-1){
+    if(declareSymbol(symbol, ctx)==NULL){
         semanticError(statement->line, ctx, "variable %S already defined", var.identifier);
         ret = false;
     }
@@ -695,6 +748,10 @@ bool32 analyseReturn(struct Statement_S* statement, Project* ctx){
     if(statement->returnStatement.value && !analyseExpression(statement->returnStatement.value, statement->line, 0, ctx)){
         ret = false;
     }
+
+    statement->returnStatement.returnDepth = getScopeTypeDepth(SCOPE_TYPE_FUNCTION, ctx);
+    Scope* functionScope = getFunctionScope(ctx);
+    statement->returnStatement.resolvedVirtualSymbol = avDynamicArrayGetPtr(0, functionScope->symbols);
     return ret;
 }
 
@@ -734,10 +791,13 @@ bool32 analyseStatement(struct Statement_S* statement, Project* ctx){
 }
 
 bool32 processProject(Project* project){
+    project->skipScope = false;
+    enterScope(SCOPE_TYPE_TOPLEVEL, NULL, project);
+    project->toplevelScope = project->currentScope;
 
     for(uint32 i = 0; i < builtInVariableCount; i++){
 		struct BuiltInVariableDescription var = builtInVariables[i];
-        Symbol symbol = {.type=SYMBOL_VARIABLE, .builtin=true, .constant=true, .constValue=true, .identifier=var.identifier, .variable.value=var.value};
+        Symbol symbol = {.type=SYMBOL_VARIABLE, .builtin=true, .constant=true, .constValue=true, .identifier=var.identifier, .variable.constValue=var.value};
 		declareSymbol(symbol, project);
 	}
     for(uint32 i = 0; i < builtInFunctionCount; i++){
@@ -751,9 +811,9 @@ bool32 processProject(Project* project){
 #else
 	AvString platform = AV_CSTRA("LINUX");
 #endif
-    declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .constant = true, .constValue=true, .identifier=AV_CSTR("PROJECT_NAME"),.variable = {.value= (struct Value){.type=VALUE_TYPE_STRING,.asString=project->name}}}, project);
-    declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .constant = true, .constValue=true, .identifier=AV_CSTR("PROJECT_DIR"),.variable = {.value= currentDir(project, 0, nullptr)}}, project);
-    declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .constant = true, .constValue=true, .identifier=AV_CSTR("PLATFORM"),.variable = {.value= (struct Value){.type=VALUE_TYPE_STRING,.asString=platform}}}, project);
+    declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .constant = true, .constValue=true, .identifier=AV_CSTR("PROJECT_NAME"),.variable = {.constValue= (struct Value){.type=VALUE_TYPE_STRING,.asString=project->name}}}, project);
+    declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .constant = true, .constValue=true, .identifier=AV_CSTR("PROJECT_DIR"),.variable = {.constValue= currentDir(project, 0, nullptr)}}, project);
+    declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .constant = true, .constValue=true, .identifier=AV_CSTR("PLATFORM"),.variable = {.constValue= (struct Value){.type=VALUE_TYPE_STRING,.asString=platform}}}, project);
 
     bool32 ret = true;
     for(uint32 i = 0; i < project->statementCount; i++){
@@ -762,5 +822,8 @@ bool32 processProject(Project* project){
             ret = false;
         }
     }
+
+    exitScope(project);
+    project->currentScope = project->toplevelScope;
     return ret;
 }

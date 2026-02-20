@@ -157,16 +157,14 @@ void projectCreate(struct Project* project, AvString name, AvString file, AvStri
     avStringClone(&project->projectFileName, file);
     project->isLocal = isLocal;
     project->localContext = NULL;
-
-    enterScope(SCOPE_TYPE_TOPLEVEL, NULL, project);
 }
 void projectDestroy(struct Project* project){
-    exitScope(project);
+    
 
     for(uint32 i = 0; i < project->statementCount; i++){
         struct Statement_S statement = project->statements[i];
         if(statement.attachedScope){
-            avAllocatorDestroy(&statement.attachedScope->allocator);
+            //avAllocatorDestroy(&statement.attachedScope->allocator);
 	        avDynamicArrayDestroy(statement.attachedScope->symbols);
         }
     }

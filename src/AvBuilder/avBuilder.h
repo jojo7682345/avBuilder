@@ -126,7 +126,7 @@ typedef struct Function {
 } Function;
 
 typedef struct Variable {
-    struct Value value;
+    struct Value constValue;
 } Variable;
 
 enum SymbolType {
@@ -153,10 +153,12 @@ typedef struct Scope {
 } Scope;
 
 typedef struct StackFrame {
+    struct Scope* scope;
     struct StackFrame* parent;
     AvAllocator allocator;
 
     struct Value* values;
+    uint32 valueCount;
 } StackFrame;
 
 typedef struct Symbol {
@@ -166,6 +168,7 @@ typedef struct Symbol {
     bool8 constant;
     bool8 constValue;
     bool8 builtin;
+    uint32 localIndex;
     union{
         struct Function function;
         struct Variable variable;
@@ -181,6 +184,13 @@ typedef struct ProjectImportDescription{
     AvString file;
     AvDynamicArray importAliasses;
 } ProjectImportDescription;
+
+enum ControlFlowStatus{
+    CONTROLFLOW_NORMAL,
+    CONTROLFLOW_RETURN,
+    CONTROLFLOW_BREAK,
+    CONTROLFLOW_CONTINUE,
+};
 
 typedef struct Project {
     AvString name;
@@ -202,7 +212,11 @@ typedef struct Project {
     ProcessState processState;
     struct ProjectOptions options;
 
+    Scope* toplevelScope;
     Scope* currentScope;
+    bool32 skipScope;
+    enum ControlFlowStatus controlFlow;
+
     StackFrame* currentStackFrame;
     //struct FunctionDefinition_S* currentFunction;
 
@@ -228,5 +242,7 @@ void projectDestroy(struct Project* project);
 
 void enterScope(enum ScopeType type, struct Statement_S* statement, Project* ctx);
 void exitScope(Project* ctx);
+
+Symbol* resolveSymbol(AvString identifier, int32* depth, Project* ctx);
 
 #endif//__AV_BUILDER__ 

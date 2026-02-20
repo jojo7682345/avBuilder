@@ -722,6 +722,13 @@ static struct Statement_S parseBlockStatement(TokenIterator* iterator){
     if(stmt.block.statementCount){
         if(stmt.block.statementCount==1){
             avDynamicArrayRead(&stmt, 0, statements);
+            if(stmt.type==STATEMENT_TYPE_VARIABLE_DEFINITION){
+                // emit just regular expression statement as a variable definition in singular statement block is pointless
+                // and this allows for optimisations by not emiting a block with scope for singular statement blocks.
+                stmt.type = STATEMENT_TYPE_EXPRESSION;
+                struct Expression_S tmp = stmt.variableDefinition.initialValue;
+                avMemcpy(&stmt.expression, &tmp, sizeof(struct Expression_S));
+            }
             return stmt;
         }
         stmt.block.statements = avAllocatorAllocate(sizeof(struct Statement_S)*stmt.block.statementCount, iterator->allocator);
