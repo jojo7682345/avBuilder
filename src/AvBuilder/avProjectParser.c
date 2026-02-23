@@ -459,11 +459,32 @@ static struct Expression_S parseAssignmentExpression(TokenIterator* iterator){
             default:
                 break;
         }
+        struct Expression_S* index = 0;
+        AvString identifier = {0};
+        switch(expr.type){
+            
+            case EXPRESSION_TYPE_INDEX:
+                if(expr.index.expression->type!=EXPRESSION_TYPE_INDEX){
+                    logParserError(iterator, TOKEN_TYPE_TEXT, AV_CSTRA("Expected modifiable value"));
+                    break;
+                }
+                index = expr.index.index;
+                avMemcpy(&expr, &expr.index.expression, sizeof(struct Expression_S));
+            case EXPRESSION_TYPE_IDENTIFIER:
+                avStringUnsafeCopy(&assign.assignment.variable, expr.identifier.identifier);
+            default:
+                logParserError(iterator, TOKEN_TYPE_TEXT, AV_CSTRA("Expected modifiable value"));
+                break;
+        }
+        
+
         struct Expression_S value = parseExpression(iterator);
-        assign.assignment.variable = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
         assign.assignment.value = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
-        avMemcpy(assign.assignment.variable, &expr, sizeof(struct Expression_S));
         avMemcpy(assign.assignment.value, &value, sizeof(struct Expression_S));
+        if(index){
+            assign.assignment.index = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
+            avMemcpy(assign.assignment.index, &index, sizeof(struct Expression_S));
+        }
         return assign;
     }
 
@@ -615,7 +636,7 @@ static struct Statement_S parseFunctionDefinition(TokenIterator* iterator){
 }
 
 static struct Statement_S parseInheritStatement(TokenIterator* iterator){
-    struct Statement_S stmt = {0};
+    struct Statement_S stmt = {.type=STATEMENT_TYPE_INHERIT};
 
     consume(iterator, TOKEN_TYPE_KEYWORD_inherit, "this should never trigger");
     Token* variable = consume(iterator, TOKEN_TYPE_TEXT, "expected variable name");

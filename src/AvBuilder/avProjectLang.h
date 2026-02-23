@@ -90,6 +90,8 @@ struct CallExpression_S{
     AvString function;
     uint32 argumentCount;
     struct Expression_S* arguments;
+    struct Symbol* resolvedSymbol;
+    int32 depth;
 };
 
 struct ComparisonExpression_S{
@@ -117,7 +119,6 @@ struct IdentifierExpression_S{
 
 struct LiteralExpression_S{
     AvString value;
-    int32 depth;
 };
 
 struct NumberExpression_S{
@@ -146,7 +147,8 @@ enum AssignmentOperator{
 };
 
 struct AssignmentExpression_S{
-    struct Expression_S* variable;
+    AvString variable;
+    struct Expression_S* index;
     enum AssignmentOperator operator;
     struct Expression_S* value;
 };
@@ -193,6 +195,7 @@ struct VariableDefinition_S{
     AvString identifier;
     struct Expression_S size;
     struct Expression_S initialValue;
+    struct Symbol* resolvedSymbol;
 };
 
 struct ForeachStatement_S{
@@ -207,7 +210,7 @@ struct ForeachStatement_S{
 struct ReturnStatement_S{
     struct Expression_S* value;
     uint32 returnDepth;
-    Symbol* resolvedVirtualSymbol;
+    struct Symbol* resolvedVirtualSymbol;
 };
 
 struct IfStatement_S{
@@ -238,6 +241,8 @@ struct ImportMapping_S{
     enum DefinitionMappingType type;
     AvString symbol;
     AvString alias;
+    struct Symbol* resolvedSymbol;
+    struct Symbol* resolvedExternal;
 };
 
 struct ImportStatement_S{
@@ -245,11 +250,14 @@ struct ImportStatement_S{
     bool32 local;
     uint32 mappingCount;
     struct ImportMapping_S* mappings;
+    struct Project* project;
 };
 
 struct InheritStatement_S{
     AvString variable;
     struct Expression_S* defaultValue;
+    // struct Symbol* externalSymbol;
+    struct Symbol* resolvedSymbol;
 };
 
 enum StatementType {

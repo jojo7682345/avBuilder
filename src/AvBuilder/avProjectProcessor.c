@@ -35,6 +35,7 @@ void enterScope(enum ScopeType type, struct Statement_S* statement, Project* ctx
 	//ctx->allocator = &scope->allocator;
 	scope->parent = ctx->currentScope;
     scope->type = type;
+    scope->project = ctx;
 	ctx->currentScope = scope;
     if(statement) statement->attachedScope = scope;
 	avDynamicArrayCreate(0, sizeof(Symbol), &scope->symbols);
@@ -164,32 +165,21 @@ bool32 analyseIdentifier(struct Expression_S* expr, uint32 line, struct Expressi
 }
 
 bool32 analyseAssignment(struct Expression_S* expr, uint32 line,  struct ExpressionFlags* flags, Project* ctx){
-    struct Expression_S* left = expr->assignment.variable;
     bool8 ret = true;
 
-    AvString variableIdentifier = {0};
-    if(left->type == EXPRESSION_TYPE_IDENTIFIER){
-        avStringUnsafeCopy(&variableIdentifier, left->identifier.identifier);
-    }else if(left->type == EXPRESSION_TYPE_INDEX){
-        struct IndexExpression_S index = left->index;
-        if(index.expression->type != EXPRESSION_TYPE_IDENTIFIER){
-            semanticError(line, ctx, "Left side of assignment must be modifiable value");
-            ret = false;
-        }else{
-            avStringUnsafeCopy(&variableIdentifier, index.expression->identifier.identifier);
-        }
-        if(!analyseExpression(index.index, line, 0, ctx)){
+    if(expr->assignment.index){
+        if(!analyseExpression(expr->assignment.index, line, 0, ctx)){
             ret = false;
         }
     }
 
-    Symbol* sym = resolveSymbol(variableIdentifier, 0, ctx);
+    Symbol* sym = resolveSymbol(expr->assignment.variable, 0, ctx);
     if(sym->type!=SYMBOL_VARIABLE){
         semanticError(line, ctx, "Unidentified identifier %S", expr->identifier.identifier);
         ret = false;
     }
     if(sym->constant || sym->builtin){
-        semanticError(line, ctx, "%S is a constant and cannot be assigned", variableIdentifier);
+        semanticError(line, ctx, "%S is a constant and cannot be assigned", expr->assignment.variable);
         ret = false;
     }
 
@@ -289,12 +279,14 @@ bool32 analyseCall(struct Expression_S* expr, uint32 line, struct ExpressionFlag
             constant = false;
         }
     }
-
-    Symbol* sym = resolveSymbol(call.function, 0, ctx);
-    if(sym->type != SYMBOL_FUNCTION){
+    int32 depth = 0;
+    Symbol* sym = resolveSymbol(call.function, &depth, ctx);
+    if(sym==NULL || sym->type != SYMBOL_FUNCTION){
         semanticError(line, ctx, "Function %S not found", call.function);
         return false;
     }
+    expr->call.depth = depth;
+    expr->call.resolvedSymbol = sym;
     struct FunctionDefinition_S func;
     if(sym->builtin){
         struct FunctionParameter_S* params = avAllocate(sizeof(struct FunctionParameter_S)*sym->function.builtin->argumentCount, "");
@@ -591,6 +583,7 @@ bool32 analyseImport(struct Statement_S* statement, Project* ctx){
         res = false;
         goto parsingFailed;
     }
+    statement->importStatement.project = importProject;
 
     AvDynamicArray aliases;
     avDynamicArrayClone(ctx->libraryAliases, &aliases);
@@ -635,15 +628,26 @@ bool32 analyseImport(struct Statement_S* statement, Project* ctx){
             continue;
         }
 
-        Symbol* symbol = resolveSymbol(mapping.symbol, 0, importProject);
-        if(!avStringIsEmpty(mapping.alias)){
-            avStringUnsafeCopy(&symbol->identifier, mapping.alias);
-        }
-        if(declareSymbol(*symbol, ctx)==NULL){
-            semanticError(statement->line, ctx, "alias %S already defined", symbol->identifier);
+        Symbol* sym = resolveSymbol(mapping.symbol, 0, importProject);
+        if(!sym){
             res = false;
             continue;
         }
+        
+        statement->importStatement.mappings[i].resolvedExternal = sym;
+        
+        if(resolveSymbol(mapping.alias, 0, ctx) != NULL){
+            semanticError(statement->line, ctx, "alias %S already defined", mapping.alias);
+            res = false;
+            continue;
+        }
+
+        Symbol symbol = *sym;
+        if(!avStringIsEmpty(mapping.alias)){
+            avStringUnsafeCopy(&symbol.identifier, mapping.alias);
+        }
+        symbol.external = true;
+        statement->importStatement.mappings[i].resolvedSymbol = avDynamicArrayGetPtr(avDynamicArrayAdd(&symbol, ctx->currentScope->symbols), ctx->currentScope->symbols);
     }
     
     avStringFree(&importFile);
@@ -670,19 +674,10 @@ bool32 analyseInherit(struct Statement_S* statement, Project* ctx){
         semanticError(statement->line, ctx, "inherit statement not at top level");
         return false;
     }
-    bool32 found = false;
-    Project* project = ctx->parent;
-    while(project){
-        Symbol* sym = resolveSymbol(inherit.variable, 0, project);
-        if(sym->type == SYMBOL_VARIABLE){
-            if(declareSymbol(*sym, ctx)==NULL){
-                semanticError(statement->line, ctx, "variable %S already defined", inherit.variable);
-                ret = false;
-            }
-            found = true;
-            break;
-        }
-        project = project->parent;
+
+    if(resolveSymbol(inherit.variable, 0, ctx)){
+        semanticError(statement->line, ctx, "variable %S already defined", inherit.variable);
+        ret = false;
     }
 
     if(inherit.defaultValue){
@@ -695,11 +690,76 @@ bool32 analyseInherit(struct Statement_S* statement, Project* ctx){
             ret = false;
         }
     }
-    if(!inherit.defaultValue && !found){
-        semanticError(statement->line, ctx, "inherited value for %S not found and default not provided", inherit.variable);
-        ret = false;
+
+    bool32 found = false;
+    Project* project = ctx->parent;
+    Symbol* symbol;
+    while(project){
+        symbol = resolveSymbol(inherit.variable, 0, project);
+        if(symbol && symbol->type==SYMBOL_VARIABLE){
+            found = true;
+        }
+        project = project->parent;
     }
+
+    if(!found){
+        if(!inherit.defaultValue){
+            semanticError(statement->line, ctx, "inherited value for %S not found and default not provided", inherit.variable);
+            ret = false;
+        }else{
+            Symbol sym = {
+                .type = SYMBOL_VARIABLE,
+                .identifier = inherit.variable,
+            };
+            if((symbol = declareSymbol(sym, ctx))==NULL){
+                ret = false;
+            }
+        }
+    }else{
+        symbol = avDynamicArrayGetPtr(avDynamicArrayAdd(symbol, ctx->currentScope->symbols), ctx->currentScope->symbols);
+        symbol->external = true;
+    }
+    statement->inheritStatement.resolvedSymbol = symbol;
+
     return ret;
+
+    // Symbol s = {
+    //     .identifier = statement->inheritStatement.variable,
+    //     .type = SYMBOL_VARIABLE,
+    //     .constValue = true,
+    // };
+    // Symbol* sym = &s;
+    
+    // if((sym = declareSymbol(*sym, ctx))==NULL){
+    //     semanticError(statement->line, ctx, "variable %S already defined", inherit.variable);
+    //     ret = false;
+    // }
+    // statement->inheritStatement.resolvedSymbol = sym;
+    // while(project){
+    //     Symbol* symbol = resolveSymbol(inherit.variable, 0, project);
+    //     if(symbol && symbol->type == SYMBOL_VARIABLE){
+    //         found = true;
+    //         statement->inheritStatement.resolvedSymbol = symbol;
+    //     }
+    //     project = project->parent;
+    // }
+    // statement->inheritStatement.resolvedSymbol->external = true;
+
+    // if(inherit.defaultValue){
+    //     struct ExpressionFlags flags = {0};
+    //     if(!analyseExpression(inherit.defaultValue, statement->line, &flags, ctx)){
+    //         ret = false;
+    //     }
+    //     if(flags.constant==false){
+    //         semanticError(statement->line, ctx, "default value of inherited variable %S is not constant expression", inherit.variable);
+    //         ret = false;
+    //     }
+    // }
+    // if(!inherit.defaultValue && !found){
+    //     semanticError(statement->line, ctx, "inherited value for %S not found and default not provided", inherit.variable);
+    //     ret = false;
+    // }
+    // return ret;
 }
 
 bool32 analyseVariableDefinition(struct Statement_S* statement, Project* ctx){
@@ -731,7 +791,7 @@ bool32 analyseVariableDefinition(struct Statement_S* statement, Project* ctx){
     }
     
     Symbol symbol = {.type = SYMBOL_VARIABLE, .identifier = var.identifier, .constValue = constant};
-    if(declareSymbol(symbol, ctx)==NULL){
+    if((statement->variableDefinition.resolvedSymbol = declareSymbol(symbol, ctx))==NULL){
         semanticError(statement->line, ctx, "variable %S already defined", var.identifier);
         ret = false;
     }

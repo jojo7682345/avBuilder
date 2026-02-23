@@ -168,6 +168,7 @@ typedef struct Symbol {
     bool8 constant;
     bool8 constValue;
     bool8 builtin;
+    bool8 external;
     uint32 localIndex;
     union{
         struct Function function;

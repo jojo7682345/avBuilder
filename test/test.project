@@ -1,12 +1,15 @@
 
+var bar = "test";
 
 import "test2.project" {
     foo;
 }
 
+
 func test(){
 
-    command "echo hello";
+    println(foo());
+    return foo();
 
 }
 

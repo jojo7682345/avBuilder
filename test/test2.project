@@ -1,5 +1,6 @@
 
+inherit bar;
 
 func foo(){
-    return "doSomething";
+    return bar;
 }

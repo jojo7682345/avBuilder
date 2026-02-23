@@ -133,7 +133,7 @@ void printValue(struct Value value){
 	}
 }
 
-static int32 parseNumber(AvString string){
+static int64 parseNumber(AvString string){
 	
 
 	enum NumberType {
@@ -175,7 +175,7 @@ static int32 parseNumber(AvString string){
 
 	uint32 length = string.len - offset;
 	const char* chr = string.chrs+offset;
-	uint32 value = 0;
+	int64 value = 0;
 
 	for(uint32 i = 0; length != 0; length--){
 		switch(type){
@@ -348,6 +348,43 @@ void exitStackFrame(Project* ctx){
 	}
 }
 
+bool32 assignReturnValue(Symbol* symbol, int32 localDepth, Value value, Project* ctx){
+	avAssert(symbol!=NULL, "symbol must be valid");
+	avAssert(value.type!=VALUE_TYPE_NONE, "value must be valid");
+	avAssert(symbol->type==-1, "can only return to the return slot");
+	
+	if(!symbol->builtin){
+		return false;
+	}
+	if(!symbol->constant){
+		return false;
+	}
+
+	StackFrame* frame = ctx->currentStackFrame;
+	Scope* targetScope = frame->scope;
+	for(uint32 i = 0; i < localDepth; i++){
+		if(targetScope == NULL){
+			return false;
+		}
+		targetScope = targetScope->parent;
+	}
+
+	while (frame && frame->scope != targetScope){
+    	frame = frame->parent;
+	}
+
+	if(frame == NULL){
+		return false;
+	}
+	if(symbol->localIndex >= frame->valueCount){
+		return false;
+	}
+	
+	Value* ptr = frame->values + symbol->localIndex;
+	cloneValue(ptr, value);
+	return true;
+}
+
 bool32 assingSymbol(Symbol* symbol, int32 localDepth, Value value, Project* ctx){
 	avAssert(symbol!=NULL, "symbol must be valid");
 	avAssert(value.type!=VALUE_TYPE_NONE, "value must be valid");
@@ -381,6 +418,217 @@ bool32 assingSymbol(Symbol* symbol, int32 localDepth, Value value, Project* ctx)
 	
 	Value* ptr = frame->values + symbol->localIndex;
 	cloneValue(ptr, value);
+	return true;
+}
+
+bool32 retrieveSymbol(Symbol* symbol, int32 localDepth, Value* value, Project* ctx){
+	avAssert(symbol!=NULL, "symbol must be valid");
+	avAssert(value!=NULL, "value must be valid");
+
+	if(symbol->builtin){
+		cloneValue(value, symbol->variable.constValue);
+		return true;
+	}
+	StackFrame* frame = ctx->currentStackFrame;
+	Scope* targetScope = frame->scope;
+	for(uint32 i = 0; i < localDepth; i++){
+		if(targetScope == NULL){
+			return false;
+		}
+		targetScope = targetScope->parent;
+	}
+
+	while (frame && frame->scope != targetScope){
+    	frame = frame->parent;
+	}
+
+	if(frame == NULL){
+		return false;
+	}
+	if(symbol->localIndex >= frame->valueCount){
+		return false;
+	}
+	avMemcpy(value, &frame->values[symbol->localIndex], sizeof(Value));
+	return true;
+}
+
+bool32 checkValueTrue(Value val){
+	if(val.type == VALUE_TYPE_NONE){
+		return false;
+	}
+	if(val.type == VALUE_TYPE_ARRAY){
+		return val.asArray.count != 0;
+	}
+	if(val.type == VALUE_TYPE_NUMBER){
+		return val.asNumber != 0;
+	}
+	if(val.type == VALUE_TYPE_STRING){
+		return !avStringIsEmpty(val.asString);
+	}
+	return false;
+}
+
+bool32 evaluateExpression(Value* value, struct Expression_S expression, Project* ctx);
+
+bool32 evaluateStatement(struct Statement_S* statement, Project* ctx);
+
+bool32 evaluateFunctionCall(Value* value, struct Expression_S expression, Project* ctx){
+	Value* values = 0;
+	if(expression.call.argumentCount){
+		values = avAllocate(sizeof(Value) * expression.call.argumentCount, "");
+	}
+	for(uint32 i = 0; i < expression.call.argumentCount; i++){
+		if(!evaluateExpression(values + i, expression.call.arguments[i], ctx)){
+			return false;
+		}
+	}
+
+	Symbol* sym = expression.call.resolvedSymbol;
+	if(sym->builtin){
+		Value retVal = callBuiltInFunction(*sym->function.builtin, expression.call.argumentCount, values, ctx);
+		cloneValue(value, retVal);
+		if(values) avFree(values);
+		return true;
+	}
+
+	Project* proj = ctx;
+	if(sym->external){
+		proj = sym->scope->project;
+	}
+	
+	enterStackFrame(sym->scope, proj);
+
+	struct FunctionDefinition_S func = sym->function.definition->functionDefinition;
+	for(uint32 i = 0; i < func.parameterCount; i++){
+		uint32 size = 1;
+		if(func.parameters[i].size.type!=EXPRESSION_TYPE_NONE){
+			if(func.parameters[i].resolvedSymbol->variable.constValue.type != VALUE_TYPE_NONE){
+				size = func.parameters[i].resolvedSymbol->variable.constValue.asNumber;
+			}else{
+				Value* value = &func.parameters[i].resolvedSymbol->variable.constValue;
+				if(!evaluateExpression(value, func.parameters[i].size, proj)){
+					exitStackFrame(proj);
+					if(values) avFree(values);
+					return false;
+				}
+				if(value->type != VALUE_TYPE_NUMBER || value->asNumber <= 0){
+					runtimeError(proj, "Parameter %S size does not resolve to valid number", func.parameters[i].name);
+					exitStackFrame(proj);
+					if(values) avFree(values);
+					return false;
+				}
+			}
+		}else if(func.parameters[i].unknownSize){
+			size = expression.call.argumentCount - func.parameterCount + 1;
+		}
+
+		if(values[i].type == VALUE_TYPE_ARRAY){
+			if(size != values[i].asArray.count){
+				runtimeError(proj, "Parameter %S, was not provided with right size of %u", func.parameters[i].name, size);
+				exitStackFrame(proj);
+				if(values) avFree(values);
+				return false;
+			}
+		}else{
+			if(size != 1){
+				runtimeError(proj, "Parameter %S, was not provided with right size of 1", func.parameters[i].name);
+				exitStackFrame(proj);
+				if(values) avFree(values);
+				return false;
+			}
+		}
+
+		if(!assingSymbol(func.parameters[i].resolvedSymbol, 0, values[i], proj)){
+			exitStackFrame(proj);
+			if(values) avFree(values);
+			return false;
+		}
+	}
+
+	if(!evaluateStatement(func.body, proj)){
+		exitStackFrame(proj);
+		if(values) avFree(values);
+		return false;
+	}
+
+	struct Value returnValue = proj->currentStackFrame->values[0];
+	//avMemcpy(value, &returnValue, sizeof(Value));
+	cloneValue(value, returnValue);
+
+	exitStackFrame(proj);
+
+	if(values) avFree(values);
+
+	if(proj->currentStackFrame->scope->type != SCOPE_TYPE_TOPLEVEL){
+		runtimeError(ctx, "Stack inbalance");
+		return false;
+	}
+
+	return true;
+}
+
+bool32 evaluateExpression(Value* value, struct Expression_S expression, Project* ctx){
+	Value tmp = {0};
+	if(value==NULL) value = &tmp;
+	avMemset(value, 0, sizeof(Value));
+	
+	switch (expression.type) {
+	case EXPRESSION_TYPE_IDENTIFIER:
+		if(!retrieveSymbol(
+			expression.identifier.resolvedSymbol, 
+			expression.identifier.depth, 
+			value, 
+			expression.identifier.resolvedSymbol->external ? expression.identifier.resolvedSymbol->scope->project : ctx
+		)){
+			return false;
+		}
+		return true;
+	case EXPRESSION_TYPE_LITERAL:{
+		Value val = {.type = VALUE_TYPE_STRING,.asString = expression.literal.value};
+		avMemcpy(value, &val, sizeof(Value));
+		return true;
+	}
+	case EXPRESSION_TYPE_NUMBER:{
+		Value val = {.type = VALUE_TYPE_NUMBER, .asNumber = parseNumber(expression.number.value)};
+		avMemcpy(value, &val, sizeof(Value));
+		return true;
+	}
+	case EXPRESSION_TYPE_CALL:{
+		return evaluateFunctionCall(value, expression, ctx);
+	}
+	case EXPRESSION_TYPE_ARRAY:{
+		ConstValue* values = avAllocatorAllocate(sizeof(ConstValue)*expression.array.length, ctx->allocator);
+		for(uint32 i = 0; i < expression.array.length; i++){
+			Value tmp;
+			if(!evaluateExpression(&tmp, expression.array.elements[i], ctx)){
+				return false;
+			}
+			toConstValue(tmp, values + i, ctx);
+		}
+		Value val = {
+			.type = VALUE_TYPE_ARRAY,
+			.asArray = {
+				.count = expression.array.length,
+				.values = values,
+			},
+		};
+		avMemcpy(value, &val, sizeof(Value));
+		return true;
+	}
+	case EXPRESSION_TYPE_ASSIGNMENT:{
+		Value val = {0};
+		if(!evaluateExpression(&val, *expression.assignment.value, ctx)){
+			return false;
+		}
+		//TODO: continue here
+	}
+	default:
+		runtimeError(ctx, "Not implemented yet");
+		return false;
+	}
+
+
+
 	return true;
 }
 
@@ -421,7 +669,7 @@ bool32 evaluateForeach(struct Statement_S statement, Project* ctx){
 				return false;
 			}
 		}
-		if(!evaluateStatement(*statement.foreachStatement.statement, ctx)){
+		if(!evaluateStatement(statement.foreachStatement.statement, ctx)){
 			return false;
 		}
 		if(ctx->controlFlow==CONTROLFLOW_BREAK){
@@ -438,14 +686,40 @@ bool32 evaluateForeach(struct Statement_S statement, Project* ctx){
 	}
 
 	exitStackFrame(ctx);
+	return true;
 }
 
-bool32 evaluateStatement(struct Statement_S statement, Project* ctx){
-	switch(statement.type){
+bool32 evaluateImport(struct Statement_S statement, Project* ctx){
+
+	struct ImportStatement_S import = statement.importStatement;
+	for(uint32 i = 0; i < import.mappingCount; i++){
+		struct ImportMapping_S mapping = import.mappings[i];
+		if(mapping.type & DEFINITION_MAPPING_PROVIDE){
+			continue;
+		}
+
+		if(mapping.resolvedExternal->type!=SYMBOL_VARIABLE){
+			continue;
+		}
+		Value value;
+		if(!retrieveSymbol(mapping.resolvedExternal, 0, &value, import.project)){
+			return false;
+		}
+		if(!assingSymbol(mapping.resolvedSymbol, 0, value, ctx)){
+			return false;
+		}
+	}
+	return true;
+}
+
+bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
+	switch(statement->type){
 		case STATEMENT_TYPE_BLOCK:
-			enterStackFrame(statement.attachedScope, ctx);
-			for(uint32 i = 0; i < statement.block.statementCount; i++){
-				if(!evaluateStatement(statement.block.statements[i], ctx)){
+			if(statement->attachedScope){
+				enterStackFrame(statement->attachedScope, ctx);
+			}
+			for(uint32 i = 0; i < statement->block.statementCount; i++){
+				if(!evaluateStatement(&statement->block.statements[i], ctx)){
 					exitStackFrame(ctx);
 					return false;
 				}
@@ -453,28 +727,30 @@ bool32 evaluateStatement(struct Statement_S statement, Project* ctx){
 					break;
 				}
 			}
-			exitStackFrame(ctx);
+			if(statement->attachedScope){
+				exitStackFrame(ctx);
+			}
 			return true;
 		case STATEMENT_TYPE_EXPRESSION:
-			return evaluateExpression(NULL, statement.expression, ctx);
+			return evaluateExpression(NULL, statement->expression, ctx);
 		case STATEMENT_TYPE_IF:{
 			Value value;
-			if(!evaluateExpression(&value, *statement.ifStatement.check, ctx)){
+			if(!evaluateExpression(&value, *statement->ifStatement.check, ctx)){
 				return false;
 			}
 			if(checkValueTrue(value)){
-				if(!evaluateStatement(*statement.ifStatement.branch, ctx)){
+				if(!evaluateStatement(statement->ifStatement.branch, ctx)){
 					return false;
 				}
 			}else{
-				if(!evaluateStatement(*statement.ifStatement.alternativeBranch, ctx)){
+				if(!evaluateStatement(statement->ifStatement.alternativeBranch, ctx)){
 					return false;
 				}
 			}
 			return true;
 		}
 		case STATEMENT_TYPE_FOREACH:
-			return evaluateForeach(statement, ctx);
+			return evaluateForeach(*statement, ctx);
 		case STATEMENT_TYPE_BREAK:
 			ctx->controlFlow = CONTROLFLOW_BREAK;
 			return true;
@@ -482,15 +758,49 @@ bool32 evaluateStatement(struct Statement_S statement, Project* ctx){
 			ctx->controlFlow = CONTROLFLOW_CONTINUE;
 			return true;
 		case STATEMENT_TYPE_RETURN:{
-			Value value;
-			if(!evaluateExpression(&value, *statement.returnStatement.value, ctx)){
-				return false;
-			}
-			if(!assingSymbol(statement.returnStatement.resolvedVirtualSymbol, statement.returnStatement.returnDepth, value, ctx)){
-				return false;
+			if(statement->returnStatement.value){
+				Value value;
+				if(!evaluateExpression(&value, *statement->returnStatement.value, ctx)){
+					return false;
+				}
+				if(!assignReturnValue(statement->returnStatement.resolvedVirtualSymbol, statement->returnStatement.returnDepth, value, ctx)){
+					return false;
+				}
 			}
 			ctx->controlFlow = CONTROLFLOW_RETURN;
+			return true;
 		}
+		case STATEMENT_TYPE_VARIABLE_DEFINITION:
+			if(statement->variableDefinition.initialValue.type != EXPRESSION_TYPE_NONE){
+				Value value;
+				if(!evaluateExpression(&value, statement->variableDefinition.initialValue, ctx)){
+					return false;
+				}
+				if(!assingSymbol(statement->variableDefinition.resolvedSymbol, 0, value, ctx)){
+					return false;
+				}
+			}
+			return true;
+		case STATEMENT_TYPE_INHERIT:
+			if(!statement->inheritStatement.resolvedSymbol->external && statement->inheritStatement.defaultValue){
+				Value val;
+				if(!evaluateExpression(&val, *statement->inheritStatement.defaultValue, ctx)){
+					return false;
+				}
+				if(!assingSymbol(statement->inheritStatement.resolvedSymbol, 0, val, ctx)){
+					return false;
+				}
+			}else if(!statement->inheritStatement.resolvedSymbol->external && !statement->inheritStatement.defaultValue){
+				runtimeError(ctx, "inherit  default valuenot %S not specified", statement->inheritStatement.variable);
+			}else if(statement->inheritStatement.resolvedSymbol->external){
+				// statement->inheritStatement.resolvedSymbol = statement->inheritStatement.externalSymbol;
+				return true;
+			}else{
+				runtimeError(ctx, "Logic Error");
+				return false;
+			}
+		case STATEMENT_TYPE_IMPORT:
+			return evaluateImport(*statement, ctx);
 		default:	
 			runtimeError(ctx, "Not implemented yet");
 			return false;
@@ -501,9 +811,13 @@ bool32 evaluateStatement(struct Statement_S statement, Project* ctx){
 	return true;
 }
 
-bool32 evaluateExpression(Value* value, struct Expression_S expression, Project* ctx){
-
-	return true;
+void exitAllImportedProjectStackFrames(Project* project){
+	for(uint32 index = 0; index < avDynamicArrayGetSize(project->importedProjects); index++) { 
+		Project** element = avDynamicArrayGetPtr(index, project->importedProjects); 
+		while((*element)->currentStackFrame){
+			exitStackFrame(*element);
+		}
+	};
 }
 
 uint32 runProject(Project* project, AvDynamicArray arguments){
@@ -524,11 +838,43 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
 	}
 	
 	enterStackFrame(project->toplevelScope, project);
+	for(uint32 index = 0; index < avDynamicArrayGetSize(project->importedProjects); index++) { 
+		Project** element = avDynamicArrayGetPtr(index, project->importedProjects); 
+		enterStackFrame((*element)->toplevelScope, *element);
+
+		bool32 ret = true;
+		for(uint32 i = 0; i < (*element)->statementCount; i++){
+			struct Statement_S* statement = (*element)->statements+i;
+			switch(statement->type){
+				case STATEMENT_TYPE_VARIABLE_DEFINITION:
+				case STATEMENT_TYPE_INHERIT:
+				case STATEMENT_TYPE_IMPORT:
+					if(!evaluateStatement(statement, (*element))){
+						ret = false;
+					}
+					break;
+				default:
+					break;
+			}
+			if(ret == false){
+				break;
+			}
+		}
+		if(ret==false){
+			while(index-- != 0){
+				exitStackFrame(*element);
+				element = avDynamicArrayGetPtr(index, project->importedProjects); 
+			}
+			exitStackFrame(*element);
+			exitStackFrame(project);
+			return -1;
+		}
+	};
 	bool32 ret = true;
 	// fill the stack frame with values
 	for(uint32 i = 0; i < project->statementCount; i++){
-		struct Statement_S statement = project->statements[i];
-		switch(statement.type){
+		struct Statement_S* statement = project->statements +i;
+		switch(statement->type){
 			case STATEMENT_TYPE_VARIABLE_DEFINITION:
 			case STATEMENT_TYPE_INHERIT:
 			case STATEMENT_TYPE_IMPORT:
@@ -546,8 +892,11 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
 
 	if(ret == false){
 		exitStackFrame(project);
+		exitAllImportedProjectStackFrames(project);
 		return -1;
 	}
+
+
 
 	struct Statement_S functionStatement = *funcSym->function.definition;
 	struct FunctionDefinition_S func = functionStatement.functionDefinition;
@@ -616,11 +965,13 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
 	if(ret == false){
 		exitStackFrame(project);
 		exitStackFrame(project);
+
+		exitAllImportedProjectStackFrames(project);
 		return -1;
 	}
 
 	// we are now ready to rumble
-	evaluateStatement(*func.body, project);
+	evaluateStatement(func.body, project);
 	// we are now done with rumbling
 
 	int32 retVal = -1;
@@ -643,5 +994,8 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
 	exitStackFrame(project);
 	
 	exitStackFrame(project);
+	
+	exitAllImportedProjectStackFrames(project);
+	
 	return retVal;
 }
