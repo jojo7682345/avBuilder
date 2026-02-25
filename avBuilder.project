@@ -12,41 +12,37 @@ import "library/project/import.project"{
     runFunctionFromProject as buildLib;
 }
 
-compiler = "gcc";
-linker = "gcc";
+var compiler = "gcc";
+var linker = "gcc";
 
-flags=[
+var flags=[
     "-ggdb",
 ];
-includes=[
+var includes=[
     "./include",
     "lib/AvUtils/include"
 ];
 
-libDirs=[
+var libDirs=[
     "lib/AvUtils/lib"
 ];
-libs=[
+var libs=[
     "m",
     "avUtils"
 ];
-srcDir = [
+var srcDir = [
     "src"
 ];
 
-avBuilder() {
+func avBuilder() {
  
     if(buildLib("lib/AvUtils/avUtils.project", "avUtils")!=0){
-        perform{
-            println("building AvUtils failed");
-        }
-        return [];
+        println("building AvUtils failed");
+        return -1;
     }
-    perform {
-        println("building AvUtils successfull");
-        changeDir(PROJECT_DIR);
-        executable = build(getSourceFiles(srcDir), "build", flags, [], includes, libDirs, libs, PROJECT_NAME, ".");
-    }
+    println("building AvUtils successfull");
+    changeDir(PROJECT_DIR);
+    build(getSourceFiles(srcDir), "build", flags, [], includes, libDirs, libs, PROJECT_NAME, ".");
 }
 
 

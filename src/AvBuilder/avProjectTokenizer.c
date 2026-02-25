@@ -335,12 +335,12 @@ bool32 tokenizeProject(const AvString projectFileContent, const AvString project
                 .line = line,
                 .character = tokenStart,
             };
-            if(token.str.len==0){
-                return false;
-            }
+            // if(token.str.len==0){
+            //     return false;
+            // }
 
             #define TOKEN(tokenType, tokenName, symbol) \
-            if(avStringEquals(token.str, AV_CSTR(symbol))) { \
+            if(token.type != TOKEN_TYPE_STRING && avStringEquals(token.str, AV_CSTR(symbol))) { \
                  token.type = TOKEN_TYPE_##tokenType##_##tokenName;\
             }
             LIST_OF_TOKENS

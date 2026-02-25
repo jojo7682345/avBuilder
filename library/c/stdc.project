@@ -3,39 +3,30 @@ inherit linker = compiler;
 inherit archiver = "ar";
 inherit validCextensions = [ ".c", ".C", ".s", ".S" ];
 
-compileSource(sourceFile, objectFile, flags, includes){
+func compileSource(sourceFile, objectFile, flags, includes){
     var retCode;
-    var failed;
-    perform {
-        command : retCode {
-            args = [
-                "$flags",
-                "-I*includes"
-            ];
-            makeDirs(filePath(objectFile));
-            command = "$compiler -c $sourceFile $args -o $objectFile";
-        };
-        if(retCode!=0){
-            print("compiling ");
-            print(sourceFile);
-            println(" failed!");
-            failed = 1;
-        }
-    };
-    if(failed){
+    var args = [
+        "$flags",
+        "-I*includes"
+    ];
+    makeDirs(filePath(objectFile));
+    command[retCode] "$compiler -c $sourceFile $args -o $objectFile";
+    if(retCode!=0){
+        println("compiling " + sourceFile + " failed!");
         return "";
     }
     return objectFile;
 }
 
-compile(sources, outDir, flags, includes){
+func compile(sources, outDir, flags, includes){
     var output[arraySize(sources)];
-    var failed;
-    foreach sourceFile[index] from sources perform {
+    var failed = 0;
+    foreach sourceFile[index] from sources {
         objectFile = outDir + "/" + fileBaseName(sourceFile) + ".o";
         output[index] = compileSource(sourceFile, objectFile, flags, includes);
         if(output[index]==""){
             failed = 1;
+            continue;
         }
     };
     if(failed){
@@ -44,60 +35,54 @@ compile(sources, outDir, flags, includes){
     return output;
 }
 
-requiresRecompile(source, object, dependencies){
-    var rebuild;
-    foreach dependency from dependencies perform{
+func requiresRecompile(source, object, dependencies){
+    foreach dependency from dependencies {
         if(fileLastModified(dependency) > fileLastModified(object)){
-            rebuild = 1;
+            return 1;
         }
     }
-    perform{
-        if(fileLastModified(source) > fileLastModified(object)){
-            rebuild = 1;
-        }
+    if(fileLastModified(source) > fileLastModified(object)){
+        return 1;
     }
-    return rebuild;
+    return 0;
 }
 
-requiresRelink(elf, objects, additionalDependencies){
+func requiresRelink(elf, objects, additionalDependencies){
     var relink;
-    foreach dependency from additionalDependencies perform{
+    foreach dependency from additionalDependencies{
         if(fileLastModified(dependency) > fileLastModified(elf)){
-            relink = 1;
+            return 1;
         }
     }
-    foreach object from objects perform{
+    foreach object from objects{
         if(fileLastModified(object) > fileLastModified(elf)){
-            relink = 1;
+            return 1;
         }
     }
-    return relink;
+    return 0;
 }
 
-recompileSource(source, objectFile, flags, includes, dependencies) {
-    var ret;
-    perform{
-        if(requiresRecompile(source, objectFile, dependencies)){
-            ret = compileSource(source, objectFile, flags, includes);
-        }else{
-            ret = objectFile;
-        }
+func recompileSource(source, objectFile, flags, includes, dependencies) {
+    if(requiresRecompile(source, objectFile, dependencies)){
+        return compileSource(source, objectFile, flags, includes);
+    }else{
+        return objectFile;
     }
-    return ret;
 }
 
-recompile(sources, outDir, flags, includes, additionalDependencies){
+func recompile(sources, outDir, flags, includes, additionalDependencies){
     var output[arraySize(sources)];
     var failed;
-    foreach sourceFile[index] from sources perform {
-        objectFile = outDir + "/" + fileBaseName(sourceFile) + ".o";
-        dependencyFile = outDir + "/" + fileBaseName(sourceFile) + ".d";
+    foreach sourceFile[index] from sources {
+        var objectFile = outDir + "/" + fileBaseName(sourceFile) + ".o";
+        var dependencyFile = outDir + "/" + fileBaseName(sourceFile) + ".d";
 
-        dependencies = parseDependencies(dependencyFile, [objectFile, dependencyFile]);
+        var dependencies = parseDependencies(dependencyFile, [objectFile, dependencyFile]);
         
         output[index] = recompileSource(sourceFile, objectFile, flags, includes, dependencies + additionalDependencies);
         if(output[index]==""){
             failed = 1;
+            continue;
         }
     };
     if(failed){
@@ -106,101 +91,74 @@ recompile(sources, outDir, flags, includes, additionalDependencies){
     return output;
 }
 
-archiveLibrary(outDir, libraryName, flags, objects){
+func archiveLibrary(outDir, libraryName, flags, objects){
     var output;
     var retCode;
-    perform command : retCode {
-        makeDirs(outDir);
-        command = "$archiver $flags -o $outDir/$libraryName *objects";
-        output=outDir + "/" + libraryName;
-    }
+    makeDirs(outDir);
+    command[retCode] "$archiver $flags -o $outDir/$libraryName *objects";
+    output=outDir + "/" + libraryName;
     if(retCode){
-        perform{
-            print("linking ");
-            print(libraryName);
-            println(" failed!");
-        }
+        println("linking " + libraryName + " failed!");
         return [];
     }
     return output;
 }
 
-linkExecutable(objects, outDir, libraryName, flags, libDirs, libs){
+func linkExecutable(objects, outDir, libraryName, flags, libDirs, libs){
     var output;
     var retCode;
-    perform {
-        command : retCode {
-            outputExecutable = outDir + "/" + libraryName;
-            command = "$linker $flags *objects -L*libDirs -l*libs -o $outputExecutable";
-            output = libraryName;
-        }
-    }
+    var outputExecutable = outDir + "/" + libraryName;
+    command[retCode] "$linker $flags *objects -L*libDirs -l*libs -o $outputExecutable";
+    output = libraryName;
     
     if(retCode!=0) {
         perform{
-            print("linking ");
-            print(libraryName);
-            println(" failed!");
+            println("linking " + libraryName + " failed!");
         }
         return [];
     }
     return output;
 }
 
-buildExecutable(sources, buildDir, compileFlags, linkFlags, includes, libDirs, libs, executableName, outDir){
-    var executable;
-    var failed;
-    perform{
-        objects = compile(sources, buildDir, compileFlags, includes);
-        if(arraySize(objects)!=0){
-            executable = linkExecutable(objects, outDir, executableName, linkFlags, libDirs, libs);
-            if(arraySize(executable)!=0){ 
-                print("Successfully build ");
-                println(executableName);
-            }else{
-                print("Building ");print(executableName);println(" failed");
-            }
-        }else{
-            executable = [];
-            print("Building ");print(executableName);println(" failed");
-        }
+func buildExecutable(sources, buildDir, compileFlags, linkFlags, includes, libDirs, libs, executableName, outDir){
+    var objects = compile(sources, buildDir, compileFlags, includes);
+    if(arraySize(objects)!=0){
+        println("Building " + executableName + " failed");
+        return [];
     }
-    return executable;
+    var executable = linkExecutable(objects, outDir, executableName, linkFlags, libDirs, libs);
+    if(arraySize(executable)!=0){ 
+        println("Successfully build " + executableName);
+        return executable;
+    }else{
+        println("Building " + executableName + " failed");
+        return [];
+    }
 }
 
-buildStaticLibrary(sources, buildDir, compileFlags, archiveFlags, includes, additionalObjects, libraryName, outDir){
+func buildStaticLibrary(sources, buildDir, compileFlags, archiveFlags, includes, additionalObjects, libraryName, outDir){
     var library;
-    var objects;
-    perform {
-        objects = compile(sources, buildDir, compileFlags, includes);
-    }
+    var objects = compile(sources, buildDir, compileFlags, includes);
+
     if(arraySize(objects)==0){
-        perform{
-            print("compilation failed");
-        }
+        println("compilation failed");
         return [];
     }
     var totalObjects[arraySize(objects) + arraySize(additionalObjects)];
-    foreach object[index] from objects perform {
+    foreach object[index] from objects {
         totalObjects[index] = object;
     }
-    foreach additionalObject[index] from additionalObjects perform {
+    foreach additionalObject[index] from additionalObjects{
         totalObjects[index + arraySize(objects)] = additionalObject;
     }
-    perform {
-        library = archiveLibrary(outDir, "lib" + libraryName + ".a", archiveFlags, totalObjects);
-    }
+    library = archiveLibrary(outDir, "lib" + libraryName + ".a", archiveFlags, totalObjects);
     if(library){
         return library;
-    }
-    perform{
-        print("builing static library ");
-        print(libraryName);
-        println(" failed!");
-    }
+    } 
+    println("builing static library " + libraryName + " failed!");
     return [];
 }
 
-getSourceFiles(dir){
+func getSourceFiles(dir){
     return filter(FILTER_TYPE_ENDS_WITH, validCextensions, files in dir recursive);
 }

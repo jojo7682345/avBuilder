@@ -23,6 +23,7 @@ typedef struct TokenIterator {
     uint64 current;
     AvAllocator* allocator;
     enum IteratorStatus status;
+    AvString projectFile;
 } TokenIterator;
 
 static Token* previous(TokenIterator* iterator){
@@ -86,7 +87,8 @@ static void logParserError(TokenIterator* iterator, TokenType type, AvString str
     Token* token = peek(iterator);
     iterator->status |= ITERATOR_STATUS_ERROR;
     avStringPrintf(
-        AV_CSTR("Unexpected token at line %i\n found %S but expected %S.\n%S\n"), 
+        AV_CSTR("Unexpected token at %S:%i\n\tfound %S but expected %S.\n%S\n"), 
+        iterator->projectFile,
         token->line,
         tokenTypeToString(token->type), // TODO: convert token types to string
         tokenTypeToString(type), // TODO: convert token types to string
@@ -477,7 +479,7 @@ static struct Expression_S parseAssignmentExpression(TokenIterator* iterator){
         switch(expr.type){
             
             case EXPRESSION_TYPE_INDEX:
-                if(expr.index.expression->type!=EXPRESSION_TYPE_INDEX){
+                if(expr.index.expression->type!=EXPRESSION_TYPE_IDENTIFIER){
                     logParserError(iterator, TOKEN_TYPE_TEXT, AV_CSTRA("Expected modifiable value"));
                     break;
                 }
@@ -632,7 +634,7 @@ static struct Statement_S parseFunctionDefinition(TokenIterator* iterator){
             consume(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close, "expected ']'");
         }
         avDynamicArrayAdd(&param, params);
-        if(!check(iterator, TOKEN_TYPE_PUNCTUATOR_comma)){
+        if(!match(iterator, TOKEN_TYPE_PUNCTUATOR_comma)){
             break;
         }
     }
@@ -859,6 +861,7 @@ bool32 parseProject(AV_DS(AvDynamicArray, Token) tokenList, Project* project){
         .tokenCount = tokenCount,
         .tokens = tokens,
         .status = 0,
+        .projectFile = project->projectFileName,
     };
     struct Statement_S projectBlock = parseBlockStatement(&iterator);
     if(projectBlock.type == STATEMENT_TYPE_NONE){

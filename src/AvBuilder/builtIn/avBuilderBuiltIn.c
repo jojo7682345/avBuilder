@@ -1082,92 +1082,41 @@ struct Value currentDir(Project* project, uint32 valueCount, struct Value* value
 
 }
 
-// struct Value call(Project* project, uint32 valueCount, struct Value* values){
-// 	AvString functionIdentifier = values[0].asString;
+struct Value call(Project* project, uint32 valueCount, struct Value* values){
+	AvString functionIdentifier = values[0].asString;
+
+    Symbol* sym = resolveSymbol(functionIdentifier, 0, project);
+    if(!sym || sym->type!=SYMBOL_FUNCTION){
+        runtimeError( project,"unable to find function '%S'", functionIdentifier);
+        return (struct Value) {.type=VALUE_TYPE_NONE};
+    }
 
 
-//     struct FunctionDescription description = findFunction(functionIdentifier, project);
-//     if(!description.project){
-//         runtimeError( project,"unable to find function '%S'", functionIdentifier);
-//         return (struct Value) {.type=VALUE_TYPE_NONE};
-//     }
-//     struct Statement_S statement = (description.project->statements[description.statement]);
-//     if(statement.type != STATEMENT_TYPE_FUNCTION_DEFINITION){
-//         runtimeError( project,"importing function of wrong type");
-//         return (struct Value) {.type=VALUE_TYPE_NONE};
-//     }
-//     struct FunctionDefinition_S function = statement.functionDefinition;
-//     if(function.parameterCount != valueCount-1){
-//         runtimeError( project,"invalid number of arguments calling function %S", functionIdentifier);
-//     }
+    extern bool32 performFunctionCall(Symbol* fn, Value* returnValue, uint32 argumentCount, Value* values, Project* ctx);
+    Value returnValue = {0};
+    if(!performFunctionCall(sym, &returnValue, valueCount - 1, (valueCount>1)?values+1:NULL, project)){
+        runtimeError(project,"Failed during execution of function %S", functionIdentifier);
+        return (Value){0};
+    }
+
+    return returnValue;
+} 
+
+struct Value callExtern(Project* project, uint32 valueCount, struct Value* values){
+    AvString projectFile = values[0].asString;
+    AvString functionName = values[1].asString;
     
-//     startLocalContext(description.project, false);
-//     for(uint32 i = 1; i < valueCount; i++){
-//         struct Value value = values[i];
-//         struct VariableDescription variable = {
-//             .identifier = function.parameters[i-1].name,
-//             .project = description.project,
-//             .statement = description.statement,
-//         };
-//         assignVariable(variable, value, description.project);
-//     }
-//     struct Value returnValue = runFunction(function, description.project);
-//     endLocalContext(description.project);
 
-//     return returnValue;
-// } 
+    for(uint32 i = 0; i < avDynamicArrayGetSize(project->importedProjects); i++){
+        Project* import;
+        avDynamicArrayRead(&import, i, project->importedProjects);
 
-// struct Value callExtern(Project* project, uint32 valueCount, struct Value* values){
-//     AvString projectFile = values[0].asString;
-//     AvString functionName = values[1].asString;
+        if(avStringEquals(projectFile, import->projectFileName)){
 
-//     struct FunctionDescription func = importFunction((struct ImportDescription) {
-//         .extIdentifier=functionName,
-//         .importFile = projectFile,
-//         .isLocalFile = true,
-//         .identifier = functionName,
-//     }, project);
+        }
+    }
 
-//     if(!func.project){
-//         runtimeError(project, "unable to import %S from %S", functionName, projectFile);
-//         return (struct Value) {.type=VALUE_TYPE_ARRAY};
-//     }
-
-//     if(func.statement >= func.project->statementCount){
-//         runtimeError(project, "malformed import %S", functionName);
-//         return (struct Value) {.type=VALUE_TYPE_ARRAY};
-//     }
-
-//     struct Statement_S statement = func.project->statements[func.statement];
-//     if(statement.type!=STATEMENT_TYPE_FUNCTION_DEFINITION){
-//         runtimeError(project, "malformed import %S", functionName);
-//         return (struct Value) {.type=VALUE_TYPE_ARRAY};
-//     }
-
-//     struct FunctionDefinition_S function = statement.functionDefinition;
-    
-//     if(valueCount - 2 > function.parameterCount){
-//         runtimeError(project, "invalid number of arguments");
-//         return (struct Value) {.type=VALUE_TYPE_ARRAY};
-//     }
-    
-//     startLocalContext(func.project, false);
-//     for(uint32 i = 0; i < function.parameterCount; i++){
-//         struct Value value = values[i+2];
-//         struct VariableDescription variable = {
-//             .identifier = function.parameters[i].name,
-//             .project = func.project,
-//             .statement = func.statement,
-//         };
-//         assignVariable(variable, value, func.project);
-//     }
-    
-//     struct Value returnValue = runFunction(function, func.project);
-//     endLocalContext(func.project);
-
-//     return returnValue;
-
-// }
+}
 
 
 struct Rule{

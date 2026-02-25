@@ -530,21 +530,11 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 
 bool32 evaluateStatement(struct Statement_S* statement, Project* ctx);
 
-bool32 evaluateFunctionCall(Value* value, struct Expression_S expression, Project* ctx){
-	Value* values = 0;
-	if(expression.call.argumentCount){
-		values = avCallocate(expression.call.argumentCount, sizeof(Value), "");
-	}
-	for(uint32 i = 0; i < expression.call.argumentCount; i++){
-		if(!evaluateExpression(values + i, expression.call.arguments[i], ctx)){
-			return false;
-		}
-	}
-
-	Symbol* sym = expression.call.resolvedSymbol;
+bool32 performFunctionCall(Symbol* fn, Value* returnValue, uint32 argumentCount, Value* values, Project* ctx){
+	Symbol* sym = fn;
 	if(sym->builtin){
-		Value retVal = callBuiltInFunction(*sym->function.builtin, expression.call.argumentCount, values, ctx);
-		cloneValue(value, retVal);
+		Value retVal = callBuiltInFunction(*sym->function.builtin, argumentCount, values, ctx);
+		cloneValue(returnValue, retVal);
 		if(values) avFree(values);
 		return true;
 	}
@@ -577,7 +567,7 @@ bool32 evaluateFunctionCall(Value* value, struct Expression_S expression, Projec
 				}
 			}
 		}else if(func.parameters[i].unknownSize){
-			size = expression.call.argumentCount - func.parameterCount + 1;
+			size = argumentCount - func.parameterCount + 1;
 		}
 
 		if(values[i].type == VALUE_TYPE_ARRAY){
@@ -609,22 +599,34 @@ bool32 evaluateFunctionCall(Value* value, struct Expression_S expression, Projec
 		return false;
 	}
 
-	struct Value returnValue = proj->currentStackFrame->values[0];
-	if(returnValue.type==VALUE_TYPE_NONE){
+	struct Value retValue = proj->currentStackFrame->values[0];
+	if(retValue.type==VALUE_TYPE_NONE){
 		struct Value none = {.type=VALUE_TYPE_NUMBER,.asNumber= 0};
-		avMemcpy(value, &none, sizeof(Value));
+		avMemcpy(returnValue, &none, sizeof(Value));
 	}else{
-		cloneValue(value, returnValue);
+		cloneValue(returnValue, retValue);
 	}
 
 	exitStackFrame(proj);
+	return true;
+}
+
+bool32 evaluateFunctionCall(Value* value, struct Expression_S expression, Project* ctx){
+	Value* values = 0;
+	if(expression.call.argumentCount){
+		values = avCallocate(expression.call.argumentCount, sizeof(Value), "");
+	}
+	for(uint32 i = 0; i < expression.call.argumentCount; i++){
+		if(!evaluateExpression(values + i, expression.call.arguments[i], ctx)){
+			return false;
+		}
+	}
+
+	if(!performFunctionCall(expression.call.resolvedSymbol, value, expression.call.argumentCount, values, ctx)){
+		return false;
+	}
 
 	if(values) avFree(values);
-
-	// if(proj->currentStackFrame->scope->type != SCOPE_TYPE_TOPLEVEL){
-	// 	runtimeError(ctx, "Stack inbalance");
-	// 	return false;
-	// }
 
 	return true;
 }
