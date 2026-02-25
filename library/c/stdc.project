@@ -112,9 +112,7 @@ func linkExecutable(objects, outDir, libraryName, flags, libDirs, libs){
     output = libraryName;
     
     if(retCode!=0) {
-        perform{
-            println("linking " + libraryName + " failed!");
-        }
+        println("linking " + libraryName + " failed!");
         return [];
     }
     return output;
