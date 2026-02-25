@@ -1,5 +1,5 @@
 inherit compiler = "gcc";
-inherit linker = compiler;
+inherit linker = "gcc";
 inherit archiver = "ar";
 inherit validCextensions = [ ".c", ".C", ".s", ".S" ];
 
