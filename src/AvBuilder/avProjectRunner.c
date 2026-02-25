@@ -1171,9 +1171,14 @@ void performForeach(struct ForeachStatement_S foreach, Project* project){
 			assignVariable(indexVar, (struct Value){.type=VALUE_TYPE_NUMBER, .asNumber=i}, project);
 		}
 
+		project->breakLoop = false;
 		performPerform(foreach.performStatement, project);
-
+		
 		endLocalContext(project);
+		if(project->breakLoop){
+			project->breakLoop = false;
+			break;
+		}
 	}
 	
 
@@ -1842,6 +1847,7 @@ void runIfPerformStatement(struct IfPerformStatement_S statement, Project* proje
 	if(pass){
 		for(uint32 i = 0; i < statement.branch->statementCount; i++){
 			struct PerformStatement_S stat = statement.branch->statements[i];
+			bool32 breakLoop = false;
 			switch(stat.type){
 				case PERFORM_OPERATION_TYPE_FUNCTION_CALL:
 					callFunction(stat.functionCall, project);
@@ -1858,9 +1864,25 @@ void runIfPerformStatement(struct IfPerformStatement_S statement, Project* proje
 				case PERFORM_OPERATION_TYPE_IF_STATEMENT:
 					runIfPerformStatement(stat.ifStatement, project);
 					break;
+				case PERFORM_OPERATION_TYPE_BREAK:
+					project->breakLoop = true;
+					breakLoop = true;
+					break;
+				case PERFORM_OPERATION_TYPE_CONTINUE:
+					breakLoop = true;
+					break;
+				case PERFORM_OPERATION_TYPE_RETURN:
+					struct Value returnValue = getValue(stat.returnStatement.value, project);
+					memcpy(&project->returnValue, &returnValue, sizeof(struct Value));
+					breakLoop = true;
+					break;
 				case PERFORM_OPERATION_TYPE_NONE:
 					avAssert(false, "logic error");
 					break;
+				
+			}
+			if(breakLoop){
+				break;
 			}
 		}
 	}else{
@@ -1870,6 +1892,7 @@ void runIfPerformStatement(struct IfPerformStatement_S statement, Project* proje
 		if(statement.alternativeBranch->check==nullptr){
 			for(uint32 i = 0; i < statement.alternativeBranch->branch->statementCount; i++){
 				struct PerformStatement_S stat = statement.alternativeBranch->branch->statements[i];
+				bool32 breakLoop = false;
 				switch(stat.type){
 					case PERFORM_OPERATION_TYPE_FUNCTION_CALL:
 						callFunction(stat.functionCall, project);
@@ -1886,9 +1909,24 @@ void runIfPerformStatement(struct IfPerformStatement_S statement, Project* proje
 					case PERFORM_OPERATION_TYPE_IF_STATEMENT:
 						runIfPerformStatement(stat.ifStatement, project);
 						break;
+					case PERFORM_OPERATION_TYPE_BREAK:
+						project->breakLoop = true;
+						breakLoop = true;
+						break;
+					case PERFORM_OPERATION_TYPE_CONTINUE:
+						breakLoop = true;
+						break;
+					case PERFORM_OPERATION_TYPE_RETURN:
+						struct Value returnValue = getValue(stat.returnStatement.value, project);
+						memcpy(&project->returnValue, &returnValue, sizeof(struct Value));
+						breakLoop = true;
+						break;
 					case PERFORM_OPERATION_TYPE_NONE:
 						avAssert(false, "logic error");
 						break;
+				}
+				if(breakLoop){
+					break;
 				}
 			}
 		}else{
@@ -1901,7 +1939,7 @@ void performPerform(struct PerformStatementBody_S perform, Project* project){
 	startLocalContext(project, true);
 
 	for(uint32 i = 0; i < perform.statementCount; i++){
-
+		bool32 breakLoop = false;
 		struct PerformStatement_S statement = perform.statements[i];
 		switch(statement.type){
 			case PERFORM_OPERATION_TYPE_FUNCTION_CALL:
@@ -1919,10 +1957,25 @@ void performPerform(struct PerformStatementBody_S perform, Project* project){
 			case PERFORM_OPERATION_TYPE_IF_STATEMENT:
 				runIfPerformStatement(statement.ifStatement, project);
 				break;
+			case PERFORM_OPERATION_TYPE_BREAK:
+				project->breakLoop = true;
+				breakLoop = true;
+				break;
+			case PERFORM_OPERATION_TYPE_CONTINUE:
+				breakLoop = true;
+				break;
+			case PERFORM_OPERATION_TYPE_RETURN:
+				struct Value returnValue = getValue(statement.returnStatement.value, project);
+				memcpy(&project->returnValue, &returnValue, sizeof(struct Value));
+				breakLoop = true;
+				break;
 			case PERFORM_OPERATION_TYPE_NONE:
 				avAssert(false, "logic error");
 				break;
 			
+		}
+		if(breakLoop){
+			break;
 		}
 	}
 	endLocalContext(project);
@@ -1949,12 +2002,21 @@ struct Value runIfFunctionStatement(struct IfFunctionStatement_S statement, bool
 	if(pass){
 		for(uint32 i = 0; i < statement.branch->statementCount; i++){
 			struct FunctionStatement_S stat = statement.branch->statements[i];
+			project->returnValue.type = VALUE_TYPE_NONE;
 			switch(stat.type){
 				case FUNCTION_STATEMENT_TYPE_FOREACH:
 					performForeach(stat.foreachStatement, project);
+					if(project->returnValue.type!=VALUE_TYPE_NONE){
+						memcpy(&value, &project->returnValue, sizeof(struct Value));
+						*returned = true;
+					}
 					break;
 				case FUNCTION_STATEMENT_TYPE_PERFORM:
 					performPerform(stat.performStatement, project);
+					if(project->returnValue.type!=VALUE_TYPE_NONE){
+						memcpy(&value, &project->returnValue, sizeof(struct Value));
+						*returned = true;
+					}
 					break;
 				case FUNCTION_STATEMENT_TYPE_RETURN:{
 					struct Value returnValue = getValue(stat.returnStatement.value, project);
@@ -1987,13 +2049,22 @@ struct Value runIfFunctionStatement(struct IfFunctionStatement_S statement, bool
 		}
 		if(statement.alternativeBranch->check==nullptr){
 			for(uint32 i = 0; i < statement.alternativeBranch->branch->statementCount; i++){
+				project->returnValue.type = VALUE_TYPE_NONE;
 				struct FunctionStatement_S stat = statement.alternativeBranch->branch->statements[i];
 				switch(stat.type){
 					case FUNCTION_STATEMENT_TYPE_FOREACH:
 						performForeach(stat.foreachStatement, project);
+						if(project->returnValue.type!=VALUE_TYPE_NONE){
+							memcpy(&value, &project->returnValue, sizeof(struct Value));
+							*returned = true;
+						}
 						break;
 					case FUNCTION_STATEMENT_TYPE_PERFORM:
 						performPerform(stat.performStatement, project);
+						if(project->returnValue.type!=VALUE_TYPE_NONE){
+							memcpy(&value, &project->returnValue, sizeof(struct Value));
+							*returned = true;
+						}
 						break;
 					case FUNCTION_STATEMENT_TYPE_RETURN:{
 						struct Value returnValue = getValue(stat.returnStatement.value, project);
@@ -2033,12 +2104,25 @@ struct Value runFunction(struct FunctionDefinition_S function, Project* project)
 	bool32 done = false;
 	for(uint32 i = 0; i < function.body.statementCount; i++){
 		struct FunctionStatement_S statement = function.body.statements[i];
+		project->returnValue.type = VALUE_TYPE_NONE;
 		switch(statement.type){
 			case FUNCTION_STATEMENT_TYPE_FOREACH:
 				performForeach(statement.foreachStatement, project);
+				if(project->returnValue.type!=VALUE_TYPE_NONE){
+					memcpy(&value, &project->returnValue, sizeof(struct Value));
+					project->returnValue.type = VALUE_TYPE_NONE;
+					done = true;
+					break;
+				}
 				break;
 			case FUNCTION_STATEMENT_TYPE_PERFORM:
 				performPerform(statement.performStatement, project);
+				if(project->returnValue.type!= VALUE_TYPE_NONE){
+					memcpy(&value, &project->returnValue, sizeof(struct Value));
+					project->returnValue.type = VALUE_TYPE_NONE;
+					done = true;
+					break;
+				}
 				break;
 			case FUNCTION_STATEMENT_TYPE_RETURN:{
 				struct Value returnValue = getValue(statement.returnStatement.value, project);

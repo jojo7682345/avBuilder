@@ -10,9 +10,20 @@ testFunc(arr[]){
     }
 }
 
-test(var1, arr[]) {
+test(str, split) {
     perform{
-        testFunc("1", 2, "3");
+        subStrings = splitString(str, split);
+        println(subStrings);
+        number = decodeHexNumber("0x80000000");
+        println(number);
+        hexStr = encodeHexNumber(number);
+        println(hexStr);
+        chr = getStringChar(hexStr, 2);
+        println(chr);
+        println(trimString("  aa  d "));
+
+        println(stringContains("test", "ese"));
+        println(stringContains("test", "tea"));
+
     }
-    return var1;
 }

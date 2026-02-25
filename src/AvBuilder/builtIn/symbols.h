@@ -28,7 +28,22 @@
     BUILT_IN_FUNC(readFileLines, {{ .type=VALUE_TYPE_STRING|VALUE_TYPE_ARRAY, .name="filePath" } })\
     BUILT_IN_FUNC(writeFileLines, {{ .type=VALUE_TYPE_STRING, .name="filePath" }, { .type=VALUE_TYPE_STRING|VALUE_TYPE_ARRAY, .name="lines" } })\
     BUILT_IN_FUNC(filterUnique, { { .type=VALUE_TYPE_ARRAY, .name="list" } })\
-
+    BUILT_IN_FUNC(splitString, {{ .type=VALUE_TYPE_STRING, .name="str"}, { .type=VALUE_TYPE_STRING, .name="split"}})\
+    BUILT_IN_FUNC(decodeHexNumber, {{ .type=VALUE_TYPE_STRING, .name="str"}})\
+    BUILT_IN_FUNC(decodeNumber, {{ .type=VALUE_TYPE_STRING, .name="str"}})\
+    BUILT_IN_FUNC(encodeHexNumber, {{ .type=VALUE_TYPE_NUMBER, .name="number"}})\
+    BUILT_IN_FUNC(getStringChar, {{ .type=VALUE_TYPE_STRING, .name="str"}, { .type=VALUE_TYPE_NUMBER, .name="index"}})\
+    BUILT_IN_FUNC(truncateFile, {{ .type=VALUE_TYPE_STRING, .name="file"}, { .type=VALUE_TYPE_NUMBER, .name="size"}})\
+    BUILT_IN_FUNC(readFileRaw, {{ .type=VALUE_TYPE_STRING, .name="file"}})\
+    BUILT_IN_FUNC(writeFileRaw, {{ .type=VALUE_TYPE_STRING, .name="file"}, { .type=VALUE_TYPE_ALL, .name="data"}})\
+    BUILT_IN_FUNC(trimString, {{ .type=VALUE_TYPE_STRING, .name="str"}})\
+    BUILT_IN_FUNC(stringContains, {{ .type=VALUE_TYPE_STRING, .name="str"}, { .type=VALUE_TYPE_STRING, .name="find"}})\
+    BUILT_IN_FUNC(stringStartsWith, {{ .type=VALUE_TYPE_STRING, .name="str"}, { .type=VALUE_TYPE_STRING, .name="find"}})\
+    BUILT_IN_FUNC(stringEndsWith, {{ .type=VALUE_TYPE_STRING, .name="str"}, { .type=VALUE_TYPE_STRING, .name="find"}})\
+    BUILT_IN_FUNC(stringLength, {{ .type=VALUE_TYPE_STRING, .name="str"}})\
+    BUILT_IN_FUNC(stringMinimizeWhitespace, {{ .type=VALUE_TYPE_STRING, .name="str"}})\
+    BUILT_IN_FUNC(stringGetSection, {{ .type=VALUE_TYPE_STRING, .name="str"}, {.type=VALUE_TYPE_NUMBER, .name="start"}, {.type=VALUE_TYPE_NUMBER, .name="end"}})\
+    BUILT_IN_FUNC(formatFloat, {{ .type=VALUE_TYPE_NUMBER, .name="number"}, {.type=VALUE_TYPE_NUMBER, .name="decimals"}})\
     // BUILT_IN_FUNC(fileOpenRead, { { .type=VALUE_TYPE_STRING, .name="" } })
     // BUILT_IN_FUNC(fileOpenWrite, { { .type=VALUE_TYPE_STRING, .name="" } })
     // BUILT_IN_FUNC(fileOpenAppend, { { .type=VALUE_TYPE_STRING, .name="" } })

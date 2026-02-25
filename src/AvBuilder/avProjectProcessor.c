@@ -83,12 +83,12 @@ struct ComparisonExpression_S processComparison(struct Comparison* comparison, P
         .right = right,
     };
 }
-
+struct Expression_S* processCombinationExpression(struct Expression_S* expr, struct Combination* combination, Project* project);
 struct CombinationExpression_S processCombination(struct Combination* combination, Project* project){
     struct Expression_S* left = avAllocatorAllocate(sizeof(struct Expression_S)*2, &project->allocator);
     struct Expression_S* right = left +1;
     left = processComparisonExpression(left, combination->left, project);
-    right = processComparisonExpression(right, combination->right, project);
+    right = processCombinationExpression(right, combination->right, project);
     return (struct CombinationExpression_S){
         .left=  left,
         .operator = combination->operator,
@@ -477,6 +477,18 @@ bool32 processPerformStatement(struct PerformStatement_S* stat, struct PerformOp
         stat->type = PERFORM_STATEMENT_TYPE_FUNCTION_CALL;
         return processFunctionCall(&stat->functionCall, statement->functionCall->call, project);
     }
+    if(statement->type==PERFORM_OPERATION_TYPE_BREAK){
+        stat->type = PERFORM_STATEMENT_TYPE_BREAK;
+        return true;
+    }
+    if(statement->type==PERFORM_OPERATION_TYPE_CONTINUE){
+        stat->type = PERFORM_STATEMENT_TYPE_CONTINUE;
+        return true;
+    }
+    if(statement->type==PERFORM_OPERATION_TYPE_RETURN){
+        stat->type = PERFORM_STATEMENT_TYPE_RETURN;
+        return true;
+    }  
     if(statement->type == PERFORM_OPERATION_TYPE_VARIABLE_DEFINITION){
         stat->type = PERFORM_OPERATION_TYPE_VARIABLE_DEFINITION;
         return processVariableDefinitionStatement(&stat->variableDefinition, statement->varStatement, project);

@@ -45,7 +45,7 @@ enum CombinationOperator{
 struct Combination {
     struct Comparison* left;
     enum CombinationOperator operator;
-    struct Comparison* right;
+    struct Combination* right;
 };
 
 struct Array {
@@ -230,6 +230,9 @@ enum PerformOperationType {
     PERFORM_OPERATION_TYPE_FUNCTION_CALL,
     PERFORM_OPERATION_TYPE_VARIABLE_DEFINITION,
     PERFORM_OPERATION_TYPE_IF_STATEMENT,
+    PERFORM_OPERATION_TYPE_BREAK,
+    PERFORM_OPERATION_TYPE_CONTINUE,
+    PERFORM_OPERATION_TYPE_RETURN,
 };
 struct PerformOperation{
     enum PerformOperationType type;
@@ -239,6 +242,7 @@ struct PerformOperation{
         struct FunctionCallStatement* functionCall;
         struct VariableDefinitionStatement* varStatement;
         struct IfPerformStatement* ifStatement;
+        struct Expression* expression;
     };
 };
 
@@ -483,6 +487,13 @@ enum PerformStatementType {
     PERFORM_STATEMENT_TYPE_FUNCTION_CALL,
     PERFORM_STATEMENT_TYPE_VARIABLE_DEFINITION,
     PERFORM_STATEMENT_TYPE_IF_STATEMENT,
+    PERFORM_STATEMENT_TYPE_BREAK,
+    PERFORM_STATEMENT_TYPE_CONTINUE,
+    PERFORM_STATEMENT_TYPE_RETURN,
+};
+
+struct ReturnStatement_S{
+    struct Expression_S* value;
 };
 
 struct PerformStatement_S {
@@ -493,6 +504,7 @@ struct PerformStatement_S {
         struct CallExpression_S functionCall;
         struct VariableDefinition_S variableDefinition;
         struct IfPerformStatement_S ifStatement;
+        struct ReturnStatement_S returnStatement;
     };
 };
 
@@ -508,9 +520,7 @@ struct ForeachStatement_S{
     struct PerformStatementBody_S performStatement;
 };
 
-struct ReturnStatement_S{
-    struct Expression_S* value;
-};
+
 
 struct IfFunctionStatement_S{
     struct Expression_S* check;

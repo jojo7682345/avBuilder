@@ -25,6 +25,8 @@
     TOKEN(KEYWORD,      recursive,  "recursive")\
     TOKEN(KEYWORD,      var,        "var")\
     TOKEN(KEYWORD,      directories,"directories")\
+    TOKEN(KEYWORD,      break,      "break")\
+    TOKEN(KEYWORD,      continue,   "continue")\
     \
     TOKEN(PUNCTUATOR,   less_than_or_equal, "<=")\
     TOKEN(PUNCTUATOR,   greater_than_or_equal, ">=")\
@@ -121,6 +123,10 @@ typedef struct Project {
     AV_DS(AvDynamicArray, struct ConstValue*) arrays;
     uint32 statementCount;
     struct Statement_S** statements;
+
+    bool8 breakLoop;
+
+    struct Value returnValue;
 
     LocalContext* localContext;
     bool32 isLocal;

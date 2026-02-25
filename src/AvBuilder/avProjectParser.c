@@ -366,7 +366,7 @@ static struct Combination* parseCombination(TokenIterator* iterator){
                 avAssert(false, "logic error");
                 break;
         }
-        combination->right = parseComparison(iterator);
+        combination->right = parseCombination(iterator);
     }
     return combination;
 }
@@ -593,6 +593,11 @@ static struct PerformOperation* parsePerformOperation(TokenIterator* iterator) {
 
         return operation;
     }
+    if(match(iterator, TOKEN_TYPE_KEYWORD_return)){
+        operation->type = PERFORM_OPERATION_TYPE_RETURN;
+        operation->expression = parseExpression(iterator);
+        return operation;        
+    }
     if(match(iterator, TOKEN_TYPE_TEXT)){
         if(check(iterator, TOKEN_TYPE_PUNCTUATOR_parenthese_open)){
             recede(iterator);
@@ -603,6 +608,14 @@ static struct PerformOperation* parsePerformOperation(TokenIterator* iterator) {
         recede(iterator);
         operation->type = PERFORM_OPERATION_TYPE_VARIABLE_ASSIGNMENT;
         operation->variableAssignment = parseVariableAssignment(iterator);
+        return operation;
+    }
+    if(match(iterator, TOKEN_TYPE_KEYWORD_break)){
+        operation->type = PERFORM_OPERATION_TYPE_BREAK;
+        return operation;
+    }
+    if(match(iterator, TOKEN_TYPE_KEYWORD_continue)){
+        operation->type = PERFORM_OPERATION_TYPE_CONTINUE;
         return operation;
     }
     if(match(iterator, TOKEN_TYPE_KEYWORD_if)){
