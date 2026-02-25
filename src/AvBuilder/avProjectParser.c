@@ -416,7 +416,7 @@ static struct Expression_S parseCommandExpression(TokenIterator* iterator){
         consume(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close, "expected ']'");
     }
 
-    struct Expression_S command = parseCombination(iterator);
+    struct Expression_S command = parseSummation(iterator);
     expr.command.command = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
     avMemcpy(expr.command.command, &command, sizeof(struct Expression_S));
 
@@ -435,8 +435,8 @@ static struct Expression_S parseCommandExpression(TokenIterator* iterator){
             default:
                 break;
         }
-        struct Expression_S pipeOutput = parseCombination(iterator);
-        expr.command.command = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
+        struct Expression_S pipeOutput = parseCommandExpression(iterator);
+        expr.command.pipeOutput = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
         avMemcpy(expr.command.pipeOutput, &pipeOutput, sizeof(struct Expression_S));
     }
     return expr;

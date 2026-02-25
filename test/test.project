@@ -47,8 +47,10 @@ func test(){
     println(data);
 
 
-    command "echo";
-
+    //println(compileString("$#Path"));
+    var c;
+    var res = command[c] "cat .gitignore" | command "grep result";
+    println(res + c);
     return 0;
 
 }

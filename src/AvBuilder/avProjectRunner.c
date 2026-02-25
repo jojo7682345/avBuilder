@@ -1356,6 +1356,8 @@ static void extractLine(AvDynamicArray currentLine, AvDynamicArray strings, AvAl
 		.memory = NULL,
 	};
 	avDynamicArrayAdd(&tmp, strings);
+	char c = 0;
+	avDynamicArrayClear(&c, currentLine);
 }
 
 static Value extractValueFromPipe(AvPipe* pipe, Project* ctx) {
@@ -1508,6 +1510,7 @@ cleanup:
 		case CMD_OUT_FILE_APPEND:
 		case CMD_OUT_FILE_WRITE:
 			avFileClose(outputFile);
+			avFileHandleDestroy(outputFile);
 			break;
 	}
 	avProcessStartInfoDestroy(&info);
