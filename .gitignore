@@ -2,7 +2,7 @@
 *.so
 build/tmp/
 .vscode/
-avBuilder
+"avBuilder"
 test/test
 *.exe
 result

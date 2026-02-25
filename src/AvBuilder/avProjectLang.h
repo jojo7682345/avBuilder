@@ -126,14 +126,16 @@ struct NumberExpression_S{
 };
 
 enum CommandOutputType{
-    COMMAND_OUTPUT_TYPE_NONE,
-    COMMAND_OUTPUT_TYPE_RETCODE,
-    COMMAND_OUTPUT_TYPE_LINES,
+    COMMAND_OUTPUT_TYPE_PIPE,
+    COMMAND_OUTPUT_TYPE_WRITE,
+    COMMAND_OUTPUT_TYPE_APPEND,
 };
 
 struct CommandExpression_S{
     enum CommandOutputType outputType;
     struct Expression_S* command;
+    struct Expression_S* retcodeVariable;
+    struct Expression_S* retCode;
     struct Expression_S* pipeOutput;
 };
 
@@ -151,6 +153,8 @@ struct AssignmentExpression_S{
     struct Expression_S* index;
     enum AssignmentOperator operator;
     struct Expression_S* value;
+    struct Symbol* resolvedSymbol;
+    int32 depth;
 };
 
 enum ExpressionType {

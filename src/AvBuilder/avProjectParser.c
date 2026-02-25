@@ -242,7 +242,7 @@ static struct Expression_S parseUnary(TokenIterator* iterator){
 }
 
 static struct Expression_S parseEnumeration(TokenIterator* iterator){
-    struct Expression_S expr = {0};
+    struct Expression_S expr = {.type=EXPRESSION_TYPE_ENUMERATION};
 
     if(match(iterator, TOKEN_TYPE_KEYWORD_files, TOKEN_TYPE_KEYWORD_directories)){
         TokenType enumerationType = previous(iterator)->type;
@@ -397,10 +397,11 @@ static struct Expression_S parseCombination(TokenIterator* iterator){
 }
 
 static struct Expression_S parseCommandExpression(TokenIterator* iterator){
-    // command #"echo hello" evaluates to the return code
-    // command "echo hello" evaluates to the return code
-    // command ="echo hello" evaluates to the command output
-    // command ="echo hello"> evaluates to the command output and outputs to the pipe
+    // command[retcode] "echo hello" evaluates to the return code
+    // command "echo hello" evaluates to the command output
+    // command "echo hello" > outputs to file 
+    // command "ehco hello" >> appends to file
+    // command "echo hello" | evaluates to the command output and outputs to the pipe
 
     struct Expression_S expr = {.type=EXPRESSION_TYPE_COMMAND};
 
@@ -408,19 +409,32 @@ static struct Expression_S parseCommandExpression(TokenIterator* iterator){
         return parseCombination(iterator);
     }
 
-    expr.command.outputType = COMMAND_OUTPUT_TYPE_RETCODE;
-    if(match(iterator, TOKEN_TYPE_PUNCTUATOR_hash)){
-        expr.command.outputType = COMMAND_OUTPUT_TYPE_RETCODE;
-    }else{
-        if(match(iterator, TOKEN_TYPE_PUNCTUATOR_equals)){
-            expr.command.outputType = COMMAND_OUTPUT_TYPE_LINES;
-        }
+    if(match(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_open)){
+        struct Expression_S retCode = parseIndex(iterator);
+        expr.command.retCode = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
+        avMemcpy(expr.command.retCode, &retCode, sizeof(struct Expression_S));
+        consume(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close, "expected ']'");
     }
+
     struct Expression_S command = parseCombination(iterator);
     expr.command.command = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
     avMemcpy(expr.command.command, &command, sizeof(struct Expression_S));
 
-    if(match(iterator, TOKEN_TYPE_PUNCTUATOR_greater_than)){
+    if(match(iterator, TOKEN_TYPE_PUNCTUATOR_greater_than, TOKEN_TYPE_PUNCTUATOR_pipe)){
+        Token* prev = previous(iterator);
+        switch(prev->type){
+            case TOKEN_TYPE_PUNCTUATOR_greater_than:
+                expr.command.outputType = COMMAND_OUTPUT_TYPE_WRITE;
+                if(match(iterator, TOKEN_TYPE_PUNCTUATOR_greater_than)){
+                    expr.command.outputType = COMMAND_OUTPUT_TYPE_APPEND;
+                }
+                break;
+            case TOKEN_TYPE_PUNCTUATOR_pipe:
+                expr.command.outputType = COMMAND_OUTPUT_TYPE_PIPE;
+                break;
+            default:
+                break;
+        }
         struct Expression_S pipeOutput = parseCombination(iterator);
         expr.command.command = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
         avMemcpy(expr.command.pipeOutput, &pipeOutput, sizeof(struct Expression_S));
@@ -460,7 +474,6 @@ static struct Expression_S parseAssignmentExpression(TokenIterator* iterator){
                 break;
         }
         struct Expression_S* index = 0;
-        AvString identifier = {0};
         switch(expr.type){
             
             case EXPRESSION_TYPE_INDEX:
@@ -472,6 +485,7 @@ static struct Expression_S parseAssignmentExpression(TokenIterator* iterator){
                 avMemcpy(&expr, &expr.index.expression, sizeof(struct Expression_S));
             case EXPRESSION_TYPE_IDENTIFIER:
                 avStringUnsafeCopy(&assign.assignment.variable, expr.identifier.identifier);
+                break;
             default:
                 logParserError(iterator, TOKEN_TYPE_TEXT, AV_CSTRA("Expected modifiable value"));
                 break;

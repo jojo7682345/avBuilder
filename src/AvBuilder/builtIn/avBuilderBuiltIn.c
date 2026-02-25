@@ -3,6 +3,7 @@
 #include <AvUtils/avMemory.h>
 #include <AvUtils/filesystem/avDirectory.h>
 #include <AvUtils/string/avChar.h>
+#include <AvUtils/avEnvironment.h>
 
 #ifndef _WIN32
 #include <unistd.h>
@@ -613,60 +614,299 @@ struct Value deleteFile(Project* project, uint32 valueCount, struct Value* value
     return result;
 }
 
-// struct Value compileString(Project* project, uint32 valueCount, struct Value* values){
-//     struct Value result = {.type=VALUE_TYPE_ARRAY, .asArray={.count=0}};
+static uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
+	uint32 start = avDynamicArrayGetSize(chars);
+	bool32 ignoreNext = false;
+	for(uint32 i = 0; i < arg.len; i++){
+		char c = arg.chrs[i];
+		if(c=='$' && !ignoreNext){
+			uint32 j = i+1;
+			uint32 w = i;
+			//bool32 important = false;
+			bool32 environment = false;
+			if(j < arg.len && (arg.chrs[j] == '!' || arg.chrs[j] == '#' || arg.chrs[j]=='\\')){
+				if(arg.chrs[j]=='!'){
+					//important = true;
+				}
+				if(arg.chrs[j]=='#'){
+					environment = true;
+				}
+				w++;
+				j++;
+				if(arg.chrs[j-1]=='\\' && j < arg.len && (arg.chrs[j] == '!' || arg.chrs[j] == '#')){
+				   	if(arg.chrs[j]=='!'){
+						//important = true;
+					}
+					if(arg.chrs[j]=='#'){
+						environment = true;
+					}
+					j++;
+					w++;
+				}else{
+				}
+			}
+			for(; j < arg.len; j++){
+				char chr = arg.chrs[j];
+				if(!(avCharIsLetter(chr) || (j-w > 2 && avCharIsNumber(chr)) || chr=='_')){
+					break;
+				}
+			}
+			AvString varName = {
+				.chrs = arg.chrs + w + 1,
+				.len = j - w - 1,
+				.memory = nullptr,
+			};
+			if(varName.len == 0){
+				runtimeError(project, "invalid variable");
+                avDynamicArrayAddRange((char*)varName.chrs-1, varName.len+1, 0, 1, chars);
+				i = j-1;
+				continue;
+			}
+
+			if(environment){
+				AvString variableValue = AV_EMPTY;
+				if(avGetEnvironmentVariable(varName, &variableValue)){
+					avDynamicArrayAddRange(variableValue.chrs, variableValue.len, 0, 1, chars);
+					avStringFree(&variableValue);
+				}
+				i = j - 1;
+				continue;
+			}
+
+            extern bool32 retrieveSymbol(Symbol* symbol, int32 localDepth, Value* value, Project* ctx);
+            extern Symbol* resolveSymbol(AvString identifier, int32* depth, Project* ctx);
+            int32 depth = 0;
+            Symbol* sym = resolveSymbol(varName, &depth, project);
+            if(!sym){
+                runtimeError(project, "unable to find symbol %S", varName);
+                avDynamicArrayAddRange((char*)varName.chrs-1, varName.len+1, 0, 1, chars);
+				i = j-1;
+				continue;
+            } 
+
+            Value value = {0};
+            if(!retrieveSymbol(sym, depth, &value, project)){
+                runtimeError(project, "unable to retrieve variable %S", varName);
+                avDynamicArrayAddRange((char*)varName.chrs-1, varName.len+1, 0, 1, chars);
+				i = j-1;
+				continue;
+            }
+			if(value.type == VALUE_TYPE_STRING){
+				processArg(value.asString, chars, project);
+				i = j-1;
+				continue;
+			}
+			if(value.type == VALUE_TYPE_NUMBER){
+				char buffer[256] = {0};
+				avStringPrintfToBuffer(buffer, sizeof(buffer)-1, AV_CSTR("%i"), value.asNumber);
+				avDynamicArrayAddRange(buffer, avCStringLength(buffer), 0, 1, chars);
+				i = j-1;
+				continue;
+			}
+			if(value.type == VALUE_TYPE_ARRAY){
+				uint32 count = value.asArray.count;
+				struct ConstValue* values = value.asArray.values;
+				for(uint32 k = 0; k < count; k++){
+					struct ConstValue val = values[k];
+					bool32 isEmpty = true;
+					if(val.type == VALUE_TYPE_STRING){
+						if(processArg(val.asString, chars, project)){
+							isEmpty = false;
+						}
+					}
+					if(val.type == VALUE_TYPE_NUMBER){
+						char buffer[256] = {0};
+						avStringPrintfToBuffer(buffer, sizeof(buffer)-1, AV_CSTR("%i"), val.asNumber);
+						avDynamicArrayAddRange(buffer, avCStringLength(buffer), 0, 1, chars);
+						isEmpty = true;
+					}
+					if(k < count -1 && !isEmpty){
+						char tmpChar = ' ';
+						avDynamicArrayAdd(&tmpChar, chars);
+					}
+				}
+
+				i = j-1;
+			}
+
+			continue;
+		}
+		if(c=='*' && !ignoreNext){
+			uint32 j = i+1;
+			for(; j < arg.len; j++){
+				char chr = arg.chrs[j];
+				if(!(avCharIsLetter(chr) || (j-i > 2 && avCharIsNumber(chr)) || chr=='_')){
+					break;
+				}
+			}
+			AvString varName = {
+				.chrs = arg.chrs + i + 1,
+				.len = j - i - 1,
+				.memory = nullptr,
+			};
+			extern bool32 retrieveSymbol(Symbol* symbol, int32 localDepth, Value* value, Project* ctx);
+            extern Symbol* resolveSymbol(AvString identifier, int32* depth, Project* ctx);
+            int32 depth = 0;
+            Symbol* sym = resolveSymbol(varName, &depth, project);
+            if(!sym){
+                runtimeError(project, "unable to find symbol %S", varName);
+                avDynamicArrayAddRange((char*)varName.chrs-1, varName.len+1, 0, 1, chars);
+				i = j-1;
+				continue;
+            } 
+
+            Value value = {0};
+            if(!retrieveSymbol(sym, depth, &value, project)){
+                runtimeError(project, "unable to retrieve variable %S", varName);
+                avDynamicArrayAddRange((char*)varName.chrs-1, varName.len+1, 0, 1, chars);
+				i = j-1;
+				continue;
+            }
+			if(value.type == VALUE_TYPE_STRING){
+				processArg(value.asString, chars, project);
+				i = j-1;
+				continue;
+			}
+			if(value.type == VALUE_TYPE_NUMBER){
+				char buffer[256] = {0};
+				avStringPrintfToBuffer(buffer, sizeof(buffer)-1, AV_CSTR("%i"), value.asNumber);
+				avDynamicArrayAddRange(buffer, avCStringLength(buffer), 0, 1, chars);
+				i = j-1;
+				continue;
+			}
+			if(value.type == VALUE_TYPE_ARRAY){
+				uint32 count = value.asArray.count;
+				struct ConstValue* values = value.asArray.values;
+				uint32 left = i;
+				uint32 right = j;
+				for(; left != -1; left--){
+					char c = arg.chrs[left];
+					if(c==' '){
+						break;
+					}
+				}
+				for(; right < arg.len; right++){
+					char c = arg.chrs[right];
+					if(c==' '){
+						break;
+					}
+				}
+				
+				AvString leftMost = {
+					.chrs = arg.chrs + (left+1),
+					.len = i - (left+1),
+				};
+				AvString rightMost = {
+					.chrs = arg.chrs + j,
+					.len = right - j,
+				};
+				avDynamicArraySetAllowRelocation(true, chars);
+				for(uint32 k = 0; k < leftMost.len; k++){
+					avDynamicArrayRemove(AV_DYNAMIC_ARRAY_LAST, chars);
+				}
+				avDynamicArraySetAllowRelocation(false, chars);
+
+				for(uint32 k = 0; k < count; k++){
+					struct ConstValue val = values[k];
+					avDynamicArrayAddRange((char*)leftMost.chrs, leftMost.len, 0, 1, chars);
+					bool32 isEmpty = true;
+					if(val.type == VALUE_TYPE_STRING){
+						if(processArg(val.asString, chars, project)){
+							isEmpty = false;
+						}
+					}
+					if(val.type == VALUE_TYPE_NUMBER){
+						char buffer[256] = {0};
+						avStringPrintfToBuffer(buffer, sizeof(buffer)-1, AV_CSTR("%i"), val.asNumber);
+						avDynamicArrayAddRange(buffer, avCStringLength(buffer), 0, 1, chars);
+						isEmpty = false;
+					}
+
+					avDynamicArrayAddRange((char*)rightMost.chrs, rightMost.len, 0, 1, chars);
+
+					if(k < count -1 && !isEmpty){
+						char tmpChar = ' ';
+						avDynamicArrayAdd(&tmpChar, chars);
+					}
+				}   
+
+				i = j-1;
+			}
+			continue;
+		}
+		
+		if(c=='\\'){
+			if(!ignoreNext){
+				ignoreNext = true;
+				continue;
+			}else{
+				ignoreNext = false;
+			}
+		}else{
+			ignoreNext = false;
+		}
+
+		avDynamicArrayAdd(&c, chars);
+	}
+	
+	return avDynamicArrayGetSize(chars)-start;
+}
+
+struct Value compileString(Project* project, uint32 valueCount, struct Value* values){
+    struct Value result = {.type=VALUE_TYPE_ARRAY, .asArray={.count=0}};
     
-//     struct ConstValue tmpValue = {0};
-//     uint32 count = 1;
-//     struct ConstValue* vals = &tmpValue;
-//     if(values[0].type == VALUE_TYPE_ARRAY){
-//         count = values[0].asArray.count;
-//         vals = values[0].asArray.values;
-//     }else{
-//         toConstValue(values[0], vals, project);
-//     }
-//     if(count == 0){
-//         return result;
-//     }
+    struct ConstValue tmpValue = {0};
+    uint32 count = 1;
+    struct ConstValue* vals = &tmpValue;
+    if(values[0].type == VALUE_TYPE_ARRAY){
+        count = values[0].asArray.count;
+        vals = values[0].asArray.values;
+    }else{
+        toConstValue(values[0], vals, project);
+    }
+    if(count == 0){
+        return result;
+    }
 
-//     struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*count, project->allocator);
+    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*count, project->allocator);
 
-//     for(uint32 i = 0; i < count; i++){
-//         if(vals[i].type!=VALUE_TYPE_STRING){
-//             runtimeError(project, "invalid type");
-//             return result;
-//         }
-//         AvDynamicArray finalArg = AV_EMPTY;
-//         avDynamicArrayCreate(0, sizeof(char), &finalArg);
+    for(uint32 i = 0; i < count; i++){
+        if(vals[i].type!=VALUE_TYPE_STRING){
+            runtimeError(project, "invalid type");
+            return result;
+        }
+        AvDynamicArray finalArg = AV_EMPTY;
+        avDynamicArrayCreate(0, sizeof(char), &finalArg);
 
-//         processArg(vals[i].asString, finalArg, project);
+        processArg(vals[i].asString, finalArg, project);
 
-//         uint32 count = avDynamicArrayGetSize(finalArg);
-//         char* buffer = avAllocatorAllocate(count+1, project->allocator);
-//         avDynamicArrayReadRange(buffer, count, 0, 1, 0, finalArg);
-//         avDynamicArrayDestroy(finalArg);
+        uint32 count = avDynamicArrayGetSize(finalArg);
+        AvStringHeapMemory memory;
+        avStringMemoryHeapAllocate(count+1, &memory);
+        avDynamicArrayReadRange(memory->data, count, 0, 1, 0, finalArg);
+        avDynamicArrayDestroy(finalArg);
 
-//         struct ConstValue res = {
-//             .type = VALUE_TYPE_STRING,
-//             .asString = AV_CSTR(buffer),
-//         };
-//         memcpy(results+i, &res, sizeof(struct ConstValue));
-//     }
+        struct ConstValue res = {
+            .type = VALUE_TYPE_STRING,
+        };
+        avStringFromMemory(&res.asString, AV_STRING_WHOLE_MEMORY, memory);
+        memcpy(results+i, &res, sizeof(struct ConstValue));
+    }
 
-//     if(count == 1){
-//         struct Value res = {0};
-//         toValue(results[0], &res);
-//         return res;
-//     }else{
-//         return (struct Value){
-//             .type=VALUE_TYPE_ARRAY,
-//             .asArray = {
-//                 .count = count,
-//                 .values = results,
-//             },
-//         };
-//     }
-// }
+    if(count == 1){
+        struct Value res = {0};
+        toValue(results[0], &res);
+        return res;
+    }else{
+        return (struct Value){
+            .type=VALUE_TYPE_ARRAY,
+            .asArray = {
+                .count = count,
+                .values = results,
+            },
+        };
+    }
+}
 
 
 struct Value toUppercase(Project* project, uint32 valueCount, struct Value* values){

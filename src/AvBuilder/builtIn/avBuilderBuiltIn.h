@@ -5,14 +5,14 @@
 #include "../avProjectLang.h"
 #include "../avBuilder.h"
 
-#define VALUE_TYPE_ALL VALUE_TYPE_ARRAY|VALUE_TYPE_STRING|VALUE_TYPE_NUMBER
+#define VALUE_TYPE_ALL (VALUE_TYPE_ARRAY|VALUE_TYPE_STRING|VALUE_TYPE_NUMBER)
 
 #include "symbols.h"
 
 void runtimeError(Project* project, const char* message, ...);
 void toConstValue(struct Value value, struct ConstValue* val, Project* project);
 void toValue(struct ConstValue value, struct Value* val);
-uint32 processArg(AvString arg, AvDynamicArray chars, Project* project);
+//uint32 processArg(AvString arg, AvDynamicArray chars, Project* project);
 Project* importProject(AvString projectFile, bool32 local, Project* baseProject);
 struct VariableDescription findVariable(AvString identifier, Project* project);
 struct FunctionDescription findFunction(AvString identifier, Project* project);

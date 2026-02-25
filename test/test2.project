@@ -1,6 +1,7 @@
 
 inherit bar;
 
+var local = 2;
 func foo(){
-    return bar;
+    return bar + local * 3;
 }

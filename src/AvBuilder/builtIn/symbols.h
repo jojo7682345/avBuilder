@@ -25,10 +25,10 @@
     BUILT_IN_FUNC(readFileLines, {{ .type=VALUE_TYPE_STRING|VALUE_TYPE_ARRAY, .name="filePath" } })\
     BUILT_IN_FUNC(writeFileLines, {{ .type=VALUE_TYPE_STRING, .name="filePath" }, { .type=VALUE_TYPE_STRING|VALUE_TYPE_ARRAY, .name="lines" } })\
     BUILT_IN_FUNC(filterUnique, { { .type=VALUE_TYPE_ARRAY, .name="list" } })\
+    BUILT_IN_FUNC(compileString, { { .type=VALUE_TYPE_STRING|VALUE_TYPE_ARRAY, .name="string" } })\
     
 	//BUILT_IN_FUNC(call, {{ .type=VALUE_TYPE_STRING, .name="functionName" }})
     //BUILT_IN_FUNC(callExtern, {{ .type=VALUE_TYPE_STRING, .name="projectFile" }, { .type=VALUE_TYPE_STRING, .name="functionName" } })
-    //BUILT_IN_FUNC(compileString, { { .type=VALUE_TYPE_STRING|VALUE_TYPE_ARRAY, .name="string" } })
     
     
     // BUILT_IN_FUNC(fileOpenRead, { { .type=VALUE_TYPE_STRING, .name="" } })

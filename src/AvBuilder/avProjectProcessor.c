@@ -172,12 +172,13 @@ bool32 analyseAssignment(struct Expression_S* expr, uint32 line,  struct Express
             ret = false;
         }
     }
-
-    Symbol* sym = resolveSymbol(expr->assignment.variable, 0, ctx);
+    
+    Symbol* sym = resolveSymbol(expr->assignment.variable, &expr->assignment.depth, ctx);
     if(sym->type!=SYMBOL_VARIABLE){
         semanticError(line, ctx, "Unidentified identifier %S", expr->identifier.identifier);
         ret = false;
     }
+    expr->assignment.resolvedSymbol = sym;
     if(sym->constant || sym->builtin){
         semanticError(line, ctx, "%S is a constant and cannot be assigned", expr->assignment.variable);
         ret = false;
@@ -346,26 +347,41 @@ bool32 analyseCommand(struct Expression_S* expr, uint32 line, struct ExpressionF
     bool32 ret = true;
     struct CommandExpression_S command = expr->command;
     
-    if(command.pipeOutput && command.pipeOutput->type != EXPRESSION_TYPE_NONE){
-        if(command.pipeOutput->type==EXPRESSION_TYPE_IDENTIFIER){
-            Symbol* sym = resolveSymbol(command.pipeOutput->identifier.identifier, 0, ctx);
-            if(sym->type != SYMBOL_VARIABLE){
-                ret = false;
-                semanticError(line, ctx, "Unable to find variable %S", command.pipeOutput->identifier.identifier);
-            }
-        }else if(command.pipeOutput->type==EXPRESSION_TYPE_COMMAND){
-            if(!analyseCommand(command.pipeOutput, line, 0, ctx)){
-                ret = false;
-            }
-        }else{
-            if(command.pipeOutput->type!=EXPRESSION_TYPE_LITERAL) {
-                ret = false;
-            }
+    if(command.retCode && command.retCode->type==EXPRESSION_TYPE_INDEX){
+        if(command.retCode->index.expression->type != EXPRESSION_TYPE_IDENTIFIER){
+            ret = false;
+            semanticError(line, ctx, "Retcode variable must be modifiable");
+        }else if(!analyseIndex(command.retCode, line, 0, ctx)){
+            ret = false;
+        }
+    }else if(command.retCode && command.retCode->type==EXPRESSION_TYPE_IDENTIFIER){
+        if(!analyseIdentifier(command.retCode, line, 0, ctx)){
+            ret = false;
         }
     }
+
     if(!analyseExpression(command.command, line, 0, ctx)){
         ret = false;
     }
+    if(command.pipeOutput){
+        switch(command.outputType){
+            case COMMAND_OUTPUT_TYPE_PIPE:
+                if(command.pipeOutput->type != EXPRESSION_TYPE_COMMAND){
+                    semanticError(line, ctx, "Can only pipe into other command");
+                    ret = false;
+                }else if (!analyseCommand(command.pipeOutput, line, 0, ctx)){
+                    ret = false;
+                }
+                break;
+            case COMMAND_OUTPUT_TYPE_WRITE:
+            case COMMAND_OUTPUT_TYPE_APPEND:
+                if(!analyseExpression(command.pipeOutput, line, 0, ctx)){
+                    ret = false;
+                }
+                break;
+        }
+    }
+
     return ret;
 }
 
@@ -425,6 +441,7 @@ bool32 analyseFunction(struct Statement_S* statement, Project* ctx){
     // struct FunctionDefinition_S* currentFunc = ctx->currentFunction;
     // ctx->currentFunction = func;
     enterScope(SCOPE_TYPE_FUNCTION, statement, ctx);
+    statement->attachedScope = ctx->currentScope;
 
     for(uint32 i = 0; i < func->parameterCount; i++){
         struct FunctionParameter_S param = func->parameters[i];
