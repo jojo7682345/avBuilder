@@ -210,6 +210,8 @@ typedef struct Project {
     LocalContext* localContext;
     bool32 isLocal;
 
+    uint64 ID;
+
     ProcessState processState;
     struct ProjectOptions options;
 

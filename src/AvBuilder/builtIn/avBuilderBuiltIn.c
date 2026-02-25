@@ -1105,16 +1105,75 @@ struct Value call(Project* project, uint32 valueCount, struct Value* values){
 struct Value callExtern(Project* project, uint32 valueCount, struct Value* values){
     AvString projectFile = values[0].asString;
     AvString functionName = values[1].asString;
-    
 
+    extern bool32 importProjectFile(AvString importFile, bool32 isLocal, Project** proj, uint32 mappingCount, struct ImportMapping_S* mappings, AvString projectFileName, Project* ctx);
+    extern void enterStackFrame(Scope* scope, Project* ctx);
+    extern void exitStackFrame(Project* ctx);
+    extern bool32 evaluateStatement(struct Statement_S* statement, Project* ctx);
+
+    Project* externProject = NULL;
     for(uint32 i = 0; i < avDynamicArrayGetSize(project->importedProjects); i++){
         Project* import;
         avDynamicArrayRead(&import, i, project->importedProjects);
 
         if(avStringEquals(projectFile, import->projectFileName)){
-
+            externProject = import;
         }
     }
+    if(externProject==NULL){
+        if(!importProjectFile(projectFile, 1, &externProject, 0, NULL, AV_CSTRA("."), project)){
+            runtimeError(project, "Failed to import project %S", projectFile);
+            return (Value){0};
+        }
+
+        enterStackFrame(externProject->toplevelScope, externProject);
+
+        extern void exitAllImportedProjectStackFrames(Project* project);
+        extern bool32 initAllImportedProjects(Project* project);
+        initAllImportedProjects(externProject);
+
+        bool32 ret = true;
+        // fill the stack frame with values
+        for(uint32 i = 0; i < externProject->statementCount; i++){
+            struct Statement_S* statement = externProject->statements +i;
+            switch(statement->type){
+                case STATEMENT_TYPE_VARIABLE_DEFINITION:
+                case STATEMENT_TYPE_INHERIT:
+                case STATEMENT_TYPE_IMPORT:
+                    if(!evaluateStatement(statement, externProject)){
+                        ret = false;
+                    }
+                    break;
+                default:
+                    break;
+            }
+            if(ret == false){
+                break;
+            }
+        }
+
+        if(ret == false){
+            exitStackFrame(externProject);
+            exitAllImportedProjectStackFrames(externProject);
+            runtimeError(externProject, "Error while evaluating top level statements");
+            return (Value){0};
+        }
+    }
+
+    Symbol* sym = resolveSymbol(functionName, 0, externProject);
+    if(sym==NULL || sym->type != SYMBOL_FUNCTION){
+        runtimeError(project, "Failed to find function %S in project %S", functionName, projectFile);
+        return (Value){0};
+    }
+
+    extern bool32 performFunctionCall(Symbol* fn, Value* returnValue, uint32 argumentCount, Value* values, Project* ctx);
+    Value returnValue = {0};
+    if(!performFunctionCall(sym, &returnValue, valueCount - 2, (valueCount>2)?values+2:NULL, externProject)){
+        runtimeError(project,"Failed during execution of function %S", functionName);
+        return (Value){0};
+    }
+
+    return returnValue;
 
 }
 

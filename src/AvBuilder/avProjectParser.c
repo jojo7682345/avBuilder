@@ -484,7 +484,7 @@ static struct Expression_S parseAssignmentExpression(TokenIterator* iterator){
                     break;
                 }
                 index = expr.index.index;
-                avMemcpy(&expr, &expr.index.expression, sizeof(struct Expression_S));
+                avMemcpy(&expr, expr.index.expression, sizeof(struct Expression_S));
             case EXPRESSION_TYPE_IDENTIFIER:
                 avStringUnsafeCopy(&assign.assignment.variable, expr.identifier.identifier);
                 break;
@@ -499,7 +499,7 @@ static struct Expression_S parseAssignmentExpression(TokenIterator* iterator){
         avMemcpy(assign.assignment.value, &value, sizeof(struct Expression_S));
         if(index){
             assign.assignment.index = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
-            avMemcpy(assign.assignment.index, &index, sizeof(struct Expression_S));
+            avMemcpy(assign.assignment.index, index, sizeof(struct Expression_S));
         }
         return assign;
     }
@@ -565,9 +565,9 @@ static struct Statement_S parseForeachStatement(TokenIterator* iterator){
     struct Expression_S expr = parseExpression(iterator);
     struct Statement_S statement = parseStatement(iterator);
     stmt.foreachStatement.collection = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
-    avMemcpy(&stmt.foreachStatement.collection, &expr, sizeof(struct Expression_S));
+    avMemcpy(stmt.foreachStatement.collection, &expr, sizeof(struct Expression_S));
     stmt.foreachStatement.statement = avAllocatorAllocate(sizeof(struct Statement_S), iterator->allocator);
-    avMemcpy(&stmt.foreachStatement.statement, &statement, sizeof(struct Statement_S));
+    avMemcpy(stmt.foreachStatement.statement, &statement, sizeof(struct Statement_S));
 
     return stmt;
 }
@@ -642,7 +642,7 @@ static struct Statement_S parseFunctionDefinition(TokenIterator* iterator){
     stmt.functionDefinition.parameterCount = avDynamicArrayGetSize(params);
     if(stmt.functionDefinition.parameterCount){
         stmt.functionDefinition.parameters = avAllocatorAllocate(sizeof(struct FunctionParameter_S)*stmt.functionDefinition.parameterCount, iterator->allocator);
-        avDynamicArrayReadRange(stmt.functionDefinition.parameters, stmt.functionDefinition.parameterCount, 0, sizeof(struct FunctionDefinition_S), 0, params);
+        avDynamicArrayReadRange(stmt.functionDefinition.parameters, stmt.functionDefinition.parameterCount, 0, sizeof(struct FunctionParameter_S), 0, params);
     }
 
     struct Statement_S functionBody = parseStatement(iterator);
@@ -724,7 +724,7 @@ static struct Statement_S parseImportStatement(TokenIterator* iterator){
         stmt.importStatement.mappingCount = avDynamicArrayGetSize(mappings);
 
         if(stmt.importStatement.mappingCount){
-            stmt.importStatement.mappings = avAllocatorAllocate(sizeof(struct ImportMapping_S), iterator->allocator);
+            stmt.importStatement.mappings = avAllocatorAllocate(sizeof(struct ImportMapping_S)*stmt.importStatement.mappingCount, iterator->allocator);
             avDynamicArrayReadRange(stmt.importStatement.mappings, stmt.importStatement.mappingCount, 0, sizeof(struct ImportMapping_S), 0, mappings);
         }
         return stmt;

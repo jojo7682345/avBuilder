@@ -147,20 +147,38 @@ loadingFailed:
 //     avFree(context);
 // }
 
+uint64 hashFile(AvString content){
+    const uint8* data = (const uint8*)content.chrs;
+    uint64 len = content.len;
+
+    // FNV-1a 64-bit constants
+    uint64 hash = 14695981039346656037ULL; // offset basis
+    const uint64 prime = 1099511628211ULL;
+
+    for (uint64 i = 0; i < len; i++)
+    {
+        hash ^= data[i];
+        hash *= prime;
+    }
+
+    return hash;
+}
+
 void projectCreate(struct Project* project, AvString name, AvString file, AvString content, bool32 isLocal){
     avAllocatorCreate(0, AV_ALLOCATOR_TYPE_DYNAMIC, &project->baseAllocator);
     project->allocator = &project->baseAllocator;
     avDynamicArrayCreate(0, sizeof(struct Alias), &project->libraryAliases);
     avDynamicArrayCreate(0, sizeof(struct Project*), &project->importedProjects);
     avStringClone(&project->name, name);
+
+    project->ID = hashFile(content);
     memcpy(&project->projectFileContent, &content, sizeof(AvString));
     avStringClone(&project->projectFileName, file);
     project->isLocal = isLocal;
     project->localContext = NULL;
 }
 void projectDestroy(struct Project* project){
-    
-
+    avAssert(project!=NULL, "project must be valid");
     for(uint32 i = 0; i < project->statementCount; i++){
         struct Statement_S statement = project->statements[i];
         if(statement.attachedScope){

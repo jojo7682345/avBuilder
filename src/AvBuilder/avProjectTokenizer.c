@@ -144,7 +144,7 @@ bool32 consumeEnclosed(uint64* const readIndex, const AvString projectFileConten
 }
 
 bool32 consumeString(uint64* const readIndex, const AvString projectFileContent){
-    return consumeEnclosed(readIndex, projectFileContent, '"', '"');
+    return consumeEnclosed(readIndex, projectFileContent, '\"', '\"');
 }
 
 bool32 consumeSpecialString(uint64* const readIndex, const AvString projectFileContent){

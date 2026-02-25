@@ -174,7 +174,7 @@ bool32 analyseAssignment(struct Expression_S* expr, uint32 line,  struct Express
     }
     
     Symbol* sym = resolveSymbol(expr->assignment.variable, &expr->assignment.depth, ctx);
-    if(sym->type!=SYMBOL_VARIABLE){
+    if(!sym || sym->type!=SYMBOL_VARIABLE){
         semanticError(line, ctx, "Unidentified identifier %S", expr->identifier.identifier);
         ret = false;
     }
@@ -445,6 +445,7 @@ bool32 analyseFunction(struct Statement_S* statement, Project* ctx){
 
     for(uint32 i = 0; i < func->parameterCount; i++){
         struct FunctionParameter_S param = func->parameters[i];
+        avAssert(!avStringIsEmpty(param.name), "parameter must be valid");
         Symbol paramSym = {.type = SYMBOL_VARIABLE, .identifier = param.name,};
         struct ExpressionFlags flags = {0};
         if(param.size.type != EXPRESSION_TYPE_NONE && !analyseExpression(&param.size, statement->line, &flags, ctx)){
@@ -499,7 +500,7 @@ bool32 analyseForeach(struct Statement_S* statement, Project* ctx){
 
     bool32 ret = true;
     enterScope(SCOPE_TYPE_FOREACH, statement, ctx);
-    if(!avStringIsEmpty(foreach.index) && (statement->foreachStatement.resolvedIndexSymbol = declareSymbol((Symbol){.type=SYMBOL_VARIABLE,.identifier=foreach.variable}, ctx))==NULL){
+    if(!avStringIsEmpty(foreach.variable) && (statement->foreachStatement.resolvedVarSymbol = declareSymbol((Symbol){.type=SYMBOL_VARIABLE,.identifier=foreach.variable}, ctx))==NULL){
         semanticError(statement->line, ctx, "variable %S already defined", foreach.variable);
         ret = false;
     }
@@ -539,37 +540,32 @@ bool32 analyseIf(struct Statement_S* statement, Project* ctx){
     return ret;
 }
 
-
-
-bool32 analyseImport(struct Statement_S* statement, Project* ctx){
-    avStringDebugContextStart;
-    struct ImportStatement_S import = statement->importStatement;
-    if(ctx->currentScope->type != SCOPE_TYPE_TOPLEVEL){
-        semanticError(statement->line, ctx, "Import statement not at top level");
-        return false;
-    }
+bool32 importProjectFile(AvString importFileLoc, bool32 isLocal, Project** proj, uint32 mappingCount, struct ImportMapping_S* mappings, AvString projectFile, Project* ctx){
     bool32 res = true;
-    
-    AvString importFile = AV_EMPTY;
-    avStringClone(&importFile, import.importFile);
 
+    AvString importFile = {0};
+    avStringClone(&importFile, importFileLoc);
     avDynamicArrayForEachElement(struct Alias, ctx->libraryAliases, {
-        if(avStringEquals(import.importFile, element.identifier)){
+        if(avStringEquals(importFile, element.identifier)){
             avStringClone(&importFile, element.alias);
+            isLocal = 1;
         }
     });
 
-    if(!import.local){
+    if(!isLocal){
         AvString homeDir = AV_EMPTY;
 		extern void getInConfigFolder(AvStringRef dest, AvString subDir);
 		getInConfigFolder(&homeDir, templatePath);
-		avStringJoin(&importFile, homeDir, import.importFile);
-		avStringPathNormalize(&importFile);
+        AvString tmp = {0};
+		avStringJoin(&tmp, homeDir, importFile);
+		avStringPathNormalize(&tmp);
+        avStringClone(&importFile, tmp);
         avStringFree(&homeDir);
     }else{
         AvString tmp = {0};
-        avStringPathResolveRelative(&tmp, ctx->projectFileName, import.importFile);
-        avStringMove(&importFile, &tmp);
+        avStringPathResolveRelative(&tmp, projectFile, importFile);
+        avStringClone(&importFile, tmp);
+        avStringFree(&tmp);
     }
 
     AvString projectFileContent = AV_EMPTY;
@@ -593,21 +589,21 @@ bool32 analyseImport(struct Statement_S* statement, Project* ctx){
         goto tokenizingFailed;
     }
    
-    Project* importProject = avAllocatorAllocate(sizeof(Project), ctx->allocator);
+    Project* importProject = avAllocatorAllocate(sizeof(Project), &ctx->baseAllocator);
     projectCreate(importProject, projectFileName, importFile, projectFileContent, false);
     if(!parseProject(tokens, importProject)){
         avStringPrintf(AV_CSTR("Failed to parse project file %S\n"), importFile);
         res = false;
         goto parsingFailed;
     }
-    statement->importStatement.project = importProject;
+    
 
     AvDynamicArray aliases;
     avDynamicArrayClone(ctx->libraryAliases, &aliases);
     avDynamicArrayAppend(importProject->libraryAliases, &aliases);
 
-    for(uint32 i = 0; i < import.mappingCount; i++){
-        struct ImportMapping_S mapping = import.mappings[i];
+    for(uint32 i = 0; i < mappingCount; i++){
+        struct ImportMapping_S mapping = mappings[i];
         enum DefinitionMappingType type = mapping.type;
         if((type & DEFINITION_MAPPING_PROVIDE) == 0){
             continue;
@@ -622,6 +618,11 @@ bool32 analyseImport(struct Statement_S* statement, Project* ctx){
             avStringMoveToAllocator(&libraryMapping, ctx->allocator);
         }else{
             avStringCopyToAllocator(mapping.alias, &libraryMapping, ctx->allocator);
+
+            // AvString tmp = {0};
+            // avStringPathResolveRelative(&tmp, ctx->projectFileName, mapping.alias);
+            // avStringCopyToAllocator(tmp, &libraryMapping, ctx->allocator);
+            // avStringFree(&tmp);
         }
 
         struct Alias alias = {
@@ -631,12 +632,48 @@ bool32 analyseImport(struct Statement_S* statement, Project* ctx){
         avDynamicArrayAdd(&alias, importProject->libraryAliases);
     }
     importProject->parent = ctx;
-    avDynamicArrayAdd(&importProject, ctx->importedProjects);
+    uint32 failedIndex = avDynamicArrayAdd(&importProject, ctx->importedProjects);
     if(!processProject(importProject)){
         avStringPrintf(AV_CSTR("Failed to perform processing on project file %S\n"), importFile);
         res = false;
         goto processingFailed;
     }
+
+    
+
+    (*proj) = importProject;
+
+    return res;
+
+processingFailed:
+parsingFailed:
+    projectDestroy(importProject);
+    avDynamicArrayRemove(failedIndex, ctx->importedProjects);
+tokenizingFailed:
+    avDynamicArrayDestroy(tokens);
+loadingFailed:
+    avStringFree(&projectFileName);
+
+    avStringDebugContextEnd;
+    return res;
+}
+
+bool32 analyseImport(struct Statement_S* statement, Project* ctx){
+    avStringDebugContextStart;
+    struct ImportStatement_S import = statement->importStatement;
+    if(ctx->currentScope->type != SCOPE_TYPE_TOPLEVEL){
+        semanticError(statement->line, ctx, "Import statement not at top level");
+        return false;
+    }
+    AvString importFile = AV_EMPTY;
+    avStringClone(&importFile, import.importFile);
+    Project* importProject;
+    bool32 res = importProjectFile(importFile, import.local, &importProject, import.mappingCount, import.mappings, ctx->projectFileName, ctx);
+    if(!res){
+        avStringFree(&importFile);
+        return false;
+    }
+    statement->importStatement.project = importProject;
 
     for(uint32 i = 0; i < import.mappingCount; i++){
         struct ImportMapping_S mapping = import.mappings[i];
@@ -666,19 +703,8 @@ bool32 analyseImport(struct Statement_S* statement, Project* ctx){
         symbol.external = true;
         statement->importStatement.mappings[i].resolvedSymbol = avDynamicArrayGetPtr(avDynamicArrayAdd(&symbol, ctx->currentScope->symbols), ctx->currentScope->symbols);
     }
-    
-    avStringFree(&importFile);
-    return res;
 
-processingFailed:
-parsingFailed:
-    projectDestroy(importProject);
-tokenizingFailed:
-    avDynamicArrayDestroy(tokens);
-loadingFailed:
-    avStringFree(&projectFileName);
     avStringFree(&importFile);
-    avStringDebugContextEnd;
     return res;
 }
 
@@ -789,15 +815,15 @@ bool32 analyseVariableDefinition(struct Statement_S* statement, Project* ctx){
         if(!analyseExpression(&var.size, statement->line, &flags, ctx)){
             ret = false;
         }
-        if(flags.constant==false){
-            semanticError(statement->line, ctx, "specified size of variable %S is not constant expression", var.identifier);
-            ret = false;
-        }
+        // if(flags.constant==false){
+        //     semanticError(statement->line, ctx, "specified size of variable %S is not constant expression", var.identifier);
+        //     ret = false;
+        // }
     }
     bool32 constant = false;
     if(var.initialValue.type != EXPRESSION_TYPE_NONE){
         struct ExpressionFlags flags = {0};
-        if(!analyseExpression(&var.initialValue, statement->line, &flags, ctx)){
+        if(!analyseExpression(&statement->variableDefinition.initialValue, statement->line, &flags, ctx)){
             ret = false;
         }
         if(!isInFunction(ctx) && flags.constant == false){
@@ -855,6 +881,8 @@ bool32 analyseStatement(struct Statement_S* statement, Project* ctx){
             return analyseImport(statement, ctx);
         case STATEMENT_TYPE_INHERIT:
             return analyseInherit(statement, ctx);
+        case STATEMENT_TYPE_FOREACH:
+            return analyseForeach(statement, ctx);
         case STATEMENT_TYPE_EXPRESSION:
             if(!isInFunction(ctx)){
                 semanticError(statement->line, ctx, "Invalid statement at top level");
@@ -888,9 +916,9 @@ bool32 processProject(Project* project){
 #else
 	AvString platform = AV_CSTRA("LINUX");
 #endif
-    declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .constant = true, .constValue=true, .identifier=AV_CSTR("PROJECT_NAME"),.variable = {.constValue= (struct Value){.type=VALUE_TYPE_STRING,.asString=project->name}}}, project);
-    declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .constant = true, .constValue=true, .identifier=AV_CSTR("PROJECT_DIR"),.variable = {.constValue= currentDir(project, 0, nullptr)}}, project);
-    declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .constant = true, .constValue=true, .identifier=AV_CSTR("PLATFORM"),.variable = {.constValue= (struct Value){.type=VALUE_TYPE_STRING,.asString=platform}}}, project);
+    declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .builtin = true, .constant = true, .constValue=true, .identifier=AV_CSTR("PROJECT_NAME"),.variable = {.constValue= (struct Value){.type=VALUE_TYPE_STRING,.asString=project->name}}}, project);
+    declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .builtin = true, .constant = true, .constValue=true, .identifier=AV_CSTR("PROJECT_DIR"),.variable = {.constValue= currentDir(project, 0, nullptr)}}, project);
+    declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .builtin = true, .constant = true, .constValue=true, .identifier=AV_CSTR("PLATFORM"),.variable = {.constValue= (struct Value){.type=VALUE_TYPE_STRING,.asString=platform}}}, project);
 
     bool32 ret = true;
     for(uint32 i = 0; i < project->statementCount; i++){

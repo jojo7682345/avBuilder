@@ -4,7 +4,7 @@ import "library/c/stdc.project" {
     getSourceFiles;
 }
 
-import "avUtils.project" {
+import "lib/AvUtils/avUtils.project" {
     provide "std/c/stdc.project" as "../../library/c/stdc.project";
 }
 
@@ -42,7 +42,11 @@ func avBuilder() {
     }
     println("building AvUtils successfull");
     changeDir(PROJECT_DIR);
-    build(getSourceFiles(srcDir), "build", flags, [], includes, libDirs, libs, PROJECT_NAME, ".");
+    if(build(getSourceFiles(srcDir), "build", flags, [], includes, libDirs, libs, PROJECT_NAME, ".")==[]){
+        println("building avBuilder failed");
+        return -1;
+    }
+    println("building avBuilder successfull");
 }
 
 

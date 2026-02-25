@@ -356,13 +356,25 @@ void enterStackFrame(Scope* scope, Project* ctx){
 	StackFrame* frame = avAllocatorAllocate(sizeof(StackFrame), &allocator);
 	avMemcpy(&frame->allocator, &allocator, sizeof(AvAllocator));
 	frame->valueCount = avDynamicArrayGetSize(scope->symbols);
-	frame->values = avAllocatorAllocate(sizeof(struct Value) * frame->valueCount, &frame->allocator);
+	if(frame->valueCount) frame->values = avAllocatorAllocate(sizeof(struct Value) * frame->valueCount, &frame->allocator);
+
+	if(ctx->currentStackFrame==0){
+		if(scope->type!=SCOPE_TYPE_TOPLEVEL){
+			runtimeError(ctx, "Scope unbalanced");
+		}
+	}
 
     frame->scope = scope;
 	frame->parent = ctx->currentStackFrame;
 	ctx->currentScope = scope;
 	ctx->currentStackFrame = frame;
 	ctx->allocator = &frame->allocator;
+
+	if(!frame->parent){
+		if(scope->type!=SCOPE_TYPE_TOPLEVEL){
+			runtimeError(ctx, "Scope unbalanced");
+		}
+	}
 }
 
 void exitStackFrame(Project* ctx){
@@ -385,6 +397,8 @@ void exitStackFrame(Project* ctx){
 		ctx->currentScope = ctx->toplevelScope;
 		ctx->allocator = &ctx->baseAllocator;
 	}
+
+	
 }
 
 bool32 assignReturnValue(Symbol* symbol, int32 localDepth, Value value, Project* ctx){
@@ -532,10 +546,10 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx);
 
 bool32 performFunctionCall(Symbol* fn, Value* returnValue, uint32 argumentCount, Value* values, Project* ctx){
 	Symbol* sym = fn;
+	avAssert(fn != NULL, "Function must have valid symbol");
 	if(sym->builtin){
 		Value retVal = callBuiltInFunction(*sym->function.builtin, argumentCount, values, ctx);
 		cloneValue(returnValue, retVal);
-		if(values) avFree(values);
 		return true;
 	}
 
@@ -549,20 +563,20 @@ bool32 performFunctionCall(Symbol* fn, Value* returnValue, uint32 argumentCount,
 	struct FunctionDefinition_S func = sym->function.definition->functionDefinition;
 	for(uint32 i = 0; i < func.parameterCount; i++){
 		uint32 size = 1;
+		bool32 sizeSpecified = false;
 		if(func.parameters[i].size.type!=EXPRESSION_TYPE_NONE){
+			sizeSpecified = true;
 			if(func.parameters[i].resolvedSymbol->variable.constValue.type != VALUE_TYPE_NONE){
 				size = func.parameters[i].resolvedSymbol->variable.constValue.asNumber;
 			}else{
 				Value* value = &func.parameters[i].resolvedSymbol->variable.constValue;
 				if(!evaluateExpression(value, func.parameters[i].size, proj)){
 					exitStackFrame(proj);
-					if(values) avFree(values);
 					return false;
 				}
 				if(value->type != VALUE_TYPE_NUMBER || value->asNumber <= 0){
 					runtimeError(proj, "Parameter %S size does not resolve to valid number", func.parameters[i].name);
 					exitStackFrame(proj);
-					if(values) avFree(values);
 					return false;
 				}
 			}
@@ -571,31 +585,27 @@ bool32 performFunctionCall(Symbol* fn, Value* returnValue, uint32 argumentCount,
 		}
 
 		if(values[i].type == VALUE_TYPE_ARRAY){
-			if(size != values[i].asArray.count){
+			if(sizeSpecified && size != values[i].asArray.count){
 				runtimeError(proj, "Parameter %S, was not provided with right size of %u", func.parameters[i].name, size);
 				exitStackFrame(proj);
-				if(values) avFree(values);
 				return false;
 			}
 		}else{
 			if(size != 1){
 				runtimeError(proj, "Parameter %S, was not provided with right size of 1", func.parameters[i].name);
 				exitStackFrame(proj);
-				if(values) avFree(values);
 				return false;
 			}
 		}
 
-		if(!assignSymbol(func.parameters[i].resolvedSymbol, 0, values[i], 1, proj)){
+		if(!assignSymbol(func.parameters[i].resolvedSymbol, 0, values[i], 0, proj)){
 			exitStackFrame(proj);
-			if(values) avFree(values);
 			return false;
 		}
 	}
 
 	if(!evaluateStatement(func.body, proj)){
 		exitStackFrame(proj);
-		if(values) avFree(values);
 		return false;
 	}
 
@@ -617,6 +627,12 @@ bool32 evaluateFunctionCall(Value* value, struct Expression_S expression, Projec
 		values = avCallocate(expression.call.argumentCount, sizeof(Value), "");
 	}
 	for(uint32 i = 0; i < expression.call.argumentCount; i++){
+		struct Expression_S expr = expression.call.arguments[i];
+		if(expr.type==EXPRESSION_TYPE_IDENTIFIER){
+			if(avStringEquals(expr.identifier.identifier, AV_CSTRA("PROJECT_NAME"))){
+				(void)0;
+			}
+		}
 		if(!evaluateExpression(values + i, expression.call.arguments[i], ctx)){
 			return false;
 		}
@@ -1458,11 +1474,12 @@ Value performCommand(struct CommandExpression_S command, AvPipe* input, Project*
 	if(ctx->options.genCompileCommands){
 		addCommandToCompileCommands(commandStr.chrs);
 	}
+	
 	AvProcessStartInfo info = AV_EMPTY;
 	if(!buildProcessStartInfo(commandStr, &info)){
 		return ret;
 	}
-	avStringFree(&commandStr);
+	
 
 	if(input) {
 		info.input = &input->read;
@@ -1503,7 +1520,12 @@ Value performCommand(struct CommandExpression_S command, AvPipe* input, Project*
 	int32 exitCode = avProcessWaitExit(process);
 	extractRetCode(command, exitCode, ctx);
 
+	if(ctx->options.commandDebug){
+		avStringPrintf(AV_CSTRA("%i = %S\n"), exitCode, commandStr);
+	}
+	
 cleanup:
+	avStringFree(&commandStr);
 	switch(mode){
 		case CMD_OUT_PIPE_TO_COMMAND:
 		case CMD_OUT_RETURN:
@@ -1545,6 +1567,7 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 			value, 
 			expression.identifier.resolvedSymbol->external ? expression.identifier.resolvedSymbol->scope->project : ctx
 		)){
+			runtimeError(ctx, "Failed retrieve symbol %S", expression.identifier.resolvedSymbol ? expression.identifier.resolvedSymbol->identifier : AV_CSTRA("<UNDEFINED>"));
 			return false;
 		}
 		return true;
@@ -1565,7 +1588,8 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 		return evaluateComparison(value, expression, ctx);
 	}
 	case EXPRESSION_TYPE_ARRAY:{
-		ConstValue* values = avAllocatorAllocate(sizeof(ConstValue)*expression.array.length, ctx->allocator);
+		ConstValue* values = NULL;
+		if(expression.array.length) values = avAllocatorAllocate(sizeof(ConstValue)*expression.array.length, ctx->allocator);
 		for(uint32 i = 0; i < expression.array.length; i++){
 			Value tmp;
 			if(!evaluateExpression(&tmp, expression.array.elements[i], ctx)){
@@ -1891,6 +1915,8 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 				if(!assignSymbol(statement->variableDefinition.resolvedSymbol, 0, value, 0, ctx)){
 					return false;
 				}
+			}else{
+				println(ctx, 1, &(Value){.type=VALUE_TYPE_STRING, .asString=AV_CSTR("uninitialized variable")});
 			}
 			return true;
 		case STATEMENT_TYPE_INHERIT:
@@ -1929,27 +1955,11 @@ void exitAllImportedProjectStackFrames(Project* project){
 		while((*element)->currentStackFrame){
 			exitStackFrame(*element);
 		}
+		exitAllImportedProjectStackFrames(*element);
 	};
 }
 
-uint32 runProject(Project* project, AvDynamicArray arguments){
-	project->controlFlow = CONTROLFLOW_NORMAL;
-	AvString* entry = &project->name;
-	if(project->options.entry.len > 0 && project->options.entry.chrs){
-		entry = &project->options.entry;
-	}
-
-	Symbol* funcSym =  resolveSymbol(*entry, 0, project);
-	if(funcSym->type != SYMBOL_FUNCTION){
-		runtimeError(project, "Entry %S is not a function", *entry);
-		return -1;
-	}
-	if(funcSym->builtin){
-		runtimeError(project, "Cannot call builtin function as entry", *entry);
-		return -1;
-	}
-	
-	enterStackFrame(project->toplevelScope, project);
+bool32 initAllImportedProjects(Project* project){
 	for(uint32 index = 0; index < avDynamicArrayGetSize(project->importedProjects); index++) { 
 		Project** element = avDynamicArrayGetPtr(index, project->importedProjects); 
 		enterStackFrame((*element)->toplevelScope, *element);
@@ -1979,9 +1989,35 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
 			}
 			exitStackFrame(*element);
 			exitStackFrame(project);
-			return -1;
+			return false;
 		}
+
+		initAllImportedProjects(*element);
 	};
+	return true;
+}
+
+uint32 runProject(Project* project, AvDynamicArray arguments){
+	project->controlFlow = CONTROLFLOW_NORMAL;
+	AvString* entry = &project->name;
+	if(project->options.entry.len > 0 && project->options.entry.chrs){
+		entry = &project->options.entry;
+	}
+
+	Symbol* funcSym =  resolveSymbol(*entry, 0, project);
+	if(funcSym->type != SYMBOL_FUNCTION){
+		runtimeError(project, "Entry %S is not a function", *entry);
+		return -1;
+	}
+	if(funcSym->builtin){
+		runtimeError(project, "Cannot call builtin function as entry", *entry);
+		return -1;
+	}
+	
+	enterStackFrame(project->toplevelScope, project);
+	initAllImportedProjects(project);
+
+	
 	bool32 ret = true;
 	// fill the stack frame with values
 	for(uint32 i = 0; i < project->statementCount; i++){
@@ -2007,6 +2043,7 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
 		exitAllImportedProjectStackFrames(project);
 		return -1;
 	}
+
 
 
 
@@ -2088,6 +2125,7 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
 			exitStackFrame(project);
 		}
 		exitAllImportedProjectStackFrames(project);
+		runtimeError(project, "Error occured during execution!");
 		return false;
 	}
 	// we are now done with rumbling
