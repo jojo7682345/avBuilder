@@ -728,6 +728,7 @@ static struct Statement_S parseImportStatement(TokenIterator* iterator){
             stmt.importStatement.mappings = avAllocatorAllocate(sizeof(struct ImportMapping_S)*stmt.importStatement.mappingCount, iterator->allocator);
             avDynamicArrayReadRange(stmt.importStatement.mappings, stmt.importStatement.mappingCount, 0, sizeof(struct ImportMapping_S), 0, mappings);
         }
+        avDynamicArrayDestroy(mappings);
         return stmt;
     }else{
         if(match(iterator, TOKEN_TYPE_PUNCTUATOR_semicolon)){
@@ -767,13 +768,16 @@ static struct Statement_S parseBlockStatement(TokenIterator* iterator){
                 struct Expression_S tmp = stmt.variableDefinition.initialValue;
                 avMemcpy(&stmt.expression, &tmp, sizeof(struct Expression_S));
             }
+            avDynamicArrayDestroy(statements);
             return stmt;
         }
         stmt.block.statements = avAllocatorAllocate(sizeof(struct Statement_S)*stmt.block.statementCount, iterator->allocator);
         avDynamicArrayReadRange(stmt.block.statements, stmt.block.statementCount, 0, sizeof(struct Statement_S), 0, statements);
     }else{
+        avDynamicArrayDestroy(statements);
         return (struct Statement_S){.type=STATEMENT_TYPE_NONE};
     }
+    avDynamicArrayDestroy(statements);
     return stmt;
 }
 

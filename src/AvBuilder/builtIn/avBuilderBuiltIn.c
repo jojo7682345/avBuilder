@@ -884,7 +884,7 @@ struct Value compileString(Project* project, uint32 valueCount, struct Value* va
 
         uint32 count = avDynamicArrayGetSize(finalArg);
         AvStringHeapMemory memory;
-        avStringMemoryHeapAllocate(count+1, &memory);
+        avStringMemoryHeapAllocate(count, &memory);
         avDynamicArrayReadRange(memory->data, count, 0, 1, 0, finalArg);
         avDynamicArrayDestroy(finalArg);
 

@@ -77,6 +77,7 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
         AvString entryFlag = AV_CSTR("--entry=");
         AvString commandDebugFlag = AV_CSTR("--debugCommands");
 		AvString compileCommandsFlags = AV_CSTR("--genCompileCommands");
+        AvString debugAttach = AV_CSTR("--debuggerAttach");
         if(avStringStartsWith(argument, entryFlag)){
             AvString entry = {
                 .chrs = argument.chrs + entryFlag.len,
@@ -90,6 +91,26 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
             options.commandDebug = true;
             avDynamicArrayRemove(i, arguments);
             i--;
+        }
+        if(avStringEquals(argument, debugAttach)){
+#ifdef _WIN32 
+            extern unsigned int GetCurrentProcessId();
+            extern int IsDebuggerPresent();
+            extern void DebugBreak();
+            extern void Sleep(unsigned int);
+
+            printf("PID: %u\n", GetCurrentProcessId());
+            printf("Attach debugger now...\n");
+
+            while (!IsDebuggerPresent()) {
+                Sleep(100);  // avoid burning CPU
+            }
+
+            printf("Debugger attached!\n");
+
+            // Optional: trigger a breakpoint immediately
+            DebugBreak();
+#endif
         }
 		if(avStringEquals(argument, compileCommandsFlags)){
 			options.genCompileCommands = true;
@@ -234,7 +255,7 @@ void getInConfigFolder(AvStringRef dest, AvString subDir){
     const AvString pathInHome = AV_CSTRA(".config/AvBuilder");
 #else
     const AvString homeVar = AV_CSTRA("USERPROFILE");
-    const AvString pathInHome = AV_CSTRA(".AvBuilder");
+    const AvString pathInHome = AV_CSTRA(".avBuilder");
 #endif
     AvString homeDir = AV_EMPTY;
     if(!avGetEnvironmentVariable(AV_CSTRA("AVBUILDER_HOME"), &homeDir)){
@@ -643,24 +664,6 @@ const struct Option{
 
 int main(int argC, const char* argV[]){
 
-    // extern unsigned int GetCurrentProcessId();
-    // extern int IsDebuggerPresent();
-    // extern void DebugBreak();
-    // extern void Sleep(unsigned int);
-
-    // printf("PID: %lu\n", GetCurrentProcessId());
-    // printf("Attach debugger now...\n");
-
-    // while (!IsDebuggerPresent()) {
-    //     Sleep(100);  // avoid burning CPU
-    // }
-
-    // printf("Debugger attached!\n");
-
-    // // Optional: trigger a breakpoint immediately
-    // DebugBreak();
-
-    
     avStringDebugContextStart;
 
     if(argC < 2){

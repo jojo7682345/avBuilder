@@ -288,7 +288,7 @@ void destroyConstValue(ConstValue* value){
 	}
 	avAssert(0, "Invalid type");
 }
-
+void cloneConstValue(ConstValue* dst, ConstValue src);
 void cloneValue(Value* dst, Value src){
 	avAssert(dst != NULL, "dst must be valid");
 	avAssert(src.type!=VALUE_TYPE_NONE, "value must be valid");
@@ -301,7 +301,11 @@ void cloneValue(Value* dst, Value src){
 		return;
 	}
 	if(src.type == VALUE_TYPE_STRING){
-		avStringClone(&dst->asString, src.asString);
+		if(avStringIsEmpty(src.asString)){
+			avMemset(&dst->asString, 0, sizeof(AvString));
+		}else{
+			avStringClone(&dst->asString, src.asString);
+		}
 		return;
 	}
 	if(src.type == VALUE_TYPE_ARRAY){
@@ -311,15 +315,7 @@ void cloneValue(Value* dst, Value src){
 			avMemset(values, 0, sizeof(ConstValue)*src.asArray.count);
 		}
 		for(uint32 i = 0; i < src.asArray.count; i++){
-			values[i].type = src.asArray.values[i].type;
-			if(values[i].type == VALUE_TYPE_NUMBER){
-				values[i].asNumber = src.asArray.values[i].asNumber;
-				continue;
-			}
-			if(values[i].type == VALUE_TYPE_STRING){
-				avStringClone(&values[i].asString, src.asArray.values[i].asString);
-				continue;;
-			}
+			cloneConstValue(values+i, src.asArray.values[i]);
 			//avAssert(values[i].type!=VALUE_TYPE_NONE, "value must be valid");
 		}
 		dst->asArray.values = values;
@@ -332,7 +328,6 @@ void cloneValue(Value* dst, Value src){
 
 void cloneConstValue(ConstValue* dst, ConstValue src){
 	avAssert(dst != NULL, "dst must be valid");
-	avAssert(src.type!=VALUE_TYPE_NONE, "value must be valid");
 	if(dst->type!=VALUE_TYPE_NONE){
 		destroyConstValue(dst);
 	}
@@ -342,7 +337,15 @@ void cloneConstValue(ConstValue* dst, ConstValue src){
 		return;
 	}
 	if(src.type == VALUE_TYPE_STRING){
-		avStringClone(&dst->asString, src.asString);
+		if(avStringIsEmpty(src.asString)){
+			avMemset(&dst->asString, 0, sizeof(AvString));
+		}else{
+			avStringClone(&dst->asString, src.asString);
+		}
+		return;
+	}
+	if(src.type==VALUE_TYPE_NONE){
+		avMemset(dst, 0, sizeof(ConstValue));
 		return;
 	}
 	avAssert(0, "Invalid type");
@@ -1980,7 +1983,7 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 					}
 				}
 
-				if(!assignSymbol(statement->variableDefinition.resolvedSymbol, 0, value, 0, ctx)){
+				if(!assignSymbol(statement->variableDefinition.resolvedSymbol, 0, value, -1, ctx)){
 					return false;
 				}
 			}else{
