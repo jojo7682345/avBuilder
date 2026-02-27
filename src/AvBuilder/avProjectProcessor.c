@@ -499,6 +499,11 @@ bool32 analyseForeach(struct Statement_S* statement, Project* ctx){
     struct ForeachStatement_S foreach = statement->foreachStatement;
 
     bool32 ret = true;
+
+    if(!analyseExpression(foreach.collection, statement->line, 0, ctx)){
+        ret = false;
+    }
+
     enterScope(SCOPE_TYPE_FOREACH, statement, ctx);
     if(!avStringIsEmpty(foreach.variable) && (statement->foreachStatement.resolvedVarSymbol = declareSymbol((Symbol){.type=SYMBOL_VARIABLE,.identifier=foreach.variable}, ctx))==NULL){
         semanticError(statement->line, ctx, "variable %S already defined", foreach.variable);
@@ -508,11 +513,7 @@ bool32 analyseForeach(struct Statement_S* statement, Project* ctx){
         semanticError(statement->line, ctx, "variable %S already defined", foreach.index);
         ret = false;
     }
-    
-    if(!analyseExpression(foreach.collection, statement->line, 0, ctx)){
-        ret = false;
-    }
-    
+        
     ctx->skipScope = true;
     if(!analyseStatement(foreach.statement, ctx)){
         ret = false;
@@ -591,6 +592,8 @@ bool32 importProjectFile(AvString importFileLoc, bool32 isLocal, Project** proj,
    
     Project* importProject = avAllocatorAllocate(sizeof(Project), &ctx->baseAllocator);
     projectCreate(importProject, projectFileName, importFile, projectFileContent, false);
+    avMemcpy(&importProject->options, &ctx->options, sizeof(ctx->options));
+    uint32 failedIndex = -1;
     if(!parseProject(tokens, importProject)){
         avStringPrintf(AV_CSTR("Failed to parse project file %S\n"), importFile);
         res = false;
@@ -632,7 +635,7 @@ bool32 importProjectFile(AvString importFileLoc, bool32 isLocal, Project** proj,
         avDynamicArrayAdd(&alias, importProject->libraryAliases);
     }
     importProject->parent = ctx;
-    uint32 failedIndex = avDynamicArrayAdd(&importProject, ctx->importedProjects);
+    failedIndex = avDynamicArrayAdd(&importProject, ctx->importedProjects);
     if(!processProject(importProject)){
         avStringPrintf(AV_CSTR("Failed to perform processing on project file %S\n"), importFile);
         res = false;
@@ -648,7 +651,9 @@ bool32 importProjectFile(AvString importFileLoc, bool32 isLocal, Project** proj,
 processingFailed:
 parsingFailed:
     projectDestroy(importProject);
-    avDynamicArrayRemove(failedIndex, ctx->importedProjects);
+    if(failedIndex != -1){
+        avDynamicArrayRemove(failedIndex, ctx->importedProjects);
+    }
 tokenizingFailed:
     avDynamicArrayDestroy(tokens);
 loadingFailed:
@@ -736,7 +741,7 @@ bool32 analyseInherit(struct Statement_S* statement, Project* ctx){
 
     bool32 found = false;
     Project* project = ctx->parent;
-    Symbol* symbol;
+    Symbol* symbol = NULL;
     while(project){
         symbol = resolveSymbol(inherit.variable, 0, project);
         if(symbol && symbol->type==SYMBOL_VARIABLE){
@@ -810,9 +815,9 @@ bool32 analyseVariableDefinition(struct Statement_S* statement, Project* ctx){
     bool32 ret = true;
     
     
-    if(var.size.type != EXPRESSION_TYPE_NONE){
+    if(var.size && var.size->type != EXPRESSION_TYPE_NONE){
         struct ExpressionFlags flags = {0};
-        if(!analyseExpression(&var.size, statement->line, &flags, ctx)){
+        if(!analyseExpression(var.size, statement->line, &flags, ctx)){
             ret = false;
         }
         // if(flags.constant==false){

@@ -817,8 +817,8 @@ static uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
 					}
 					if(val.type == VALUE_TYPE_NUMBER){
 						char buffer[256] = {0};
-						avStringPrintfToBuffer(buffer, sizeof(buffer)-1, AV_CSTR("%i"), val.asNumber);
-						avDynamicArrayAddRange(buffer, avCStringLength(buffer), 0, 1, chars);
+						uint32 length = avStringPrintfToBuffer(buffer, sizeof(buffer)-1, AV_CSTR("%i"), val.asNumber);
+						avDynamicArrayAddRange(buffer, length, 0, 1, chars);
 						isEmpty = false;
 					}
 
@@ -845,7 +845,9 @@ static uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
 		}else{
 			ignoreNext = false;
 		}
-
+        if(c==0){
+            runtimeError(project, "NULL char");
+        }
 		avDynamicArrayAdd(&c, chars);
 	}
 	

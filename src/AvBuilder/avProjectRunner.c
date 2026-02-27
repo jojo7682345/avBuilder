@@ -262,7 +262,6 @@ void destroyValue(Value* value){
 				avStringFree(&val.asString);
 				continue;
 			}
-			avAssert(0, "Invalid constValue type");
 		}
 		if(src.asArray.values) avFree(src.asArray.values);
 		return;
@@ -321,7 +320,7 @@ void cloneValue(Value* dst, Value src){
 				avStringClone(&values[i].asString, src.asArray.values[i].asString);
 				continue;;
 			}
-			avAssert(values[i].type!=VALUE_TYPE_NONE, "value must be valid");
+			//avAssert(values[i].type!=VALUE_TYPE_NONE, "value must be valid");
 		}
 		dst->asArray.values = values;
 		dst->asArray.count = src.asArray.count;
@@ -470,8 +469,8 @@ bool32 assignSymbol(Symbol* symbol, int32 localDepth, Value value, uint32 index,
 	}
 	
 	Value* ptr = frame->values + symbol->localIndex;
-	
-	if(ptr->type==VALUE_TYPE_ARRAY){
+
+	if(ptr->type==VALUE_TYPE_ARRAY && index != -1){
 		if(index >= ptr->asArray.count){
 			runtimeError(ctx, "Assigning symbol %S out of bounds", symbol->identifier);
 			return false;
@@ -480,6 +479,9 @@ bool32 assignSymbol(Symbol* symbol, int32 localDepth, Value value, uint32 index,
 		toConstValue(value, &tmp, ctx);
 		cloneConstValue(ptr->asArray.values + index, tmp);
 	}else{
+		if(index == -1){
+			index = 0;
+		}
 		if(index > 0){
 			runtimeError(ctx, "Assigning symbol %S out of bounds", symbol->identifier);
 			return false;
@@ -501,7 +503,12 @@ bool32 retrieveSymbol(Symbol* symbol, int32 localDepth, Value* value, Project* c
 		cloneValue(value, symbol->variable.constValue);
 		return true;
 	}
+
 	StackFrame* frame = ctx->currentStackFrame;
+	if(symbol->external){
+		frame = symbol->scope->project->currentStackFrame;
+	}
+	
 	Scope* targetScope = frame->scope;
 	for(uint32 i = 0; i < localDepth; i++){
 		if(targetScope == NULL){
@@ -517,10 +524,14 @@ bool32 retrieveSymbol(Symbol* symbol, int32 localDepth, Value* value, Project* c
 	if(frame == NULL){
 		return false;
 	}
+	// if(avStringEquals(symbol->identifier, AV_CSTRA("sources"))){
+	// 	avStringPrintln(AV_CSTRA("ACCESS"));
+	// }
 	if(symbol->localIndex >= frame->valueCount){
 		return false;
 	}
 	avMemcpy(value, &frame->values[symbol->localIndex], sizeof(Value));
+	
 	return true;
 }
 
@@ -606,8 +617,12 @@ bool32 performFunctionCall(Symbol* fn, Value* returnValue, uint32 argumentCount,
 
 	if(!evaluateStatement(func.body, proj)){
 		exitStackFrame(proj);
+		runtimeError(proj, "Error while evaluating function call");
 		return false;
 	}
+
+	// restore controlflow
+	proj->controlFlow = CONTROLFLOW_NORMAL;
 
 	struct Value retValue = proj->currentStackFrame->values[0];
 	if(retValue.type==VALUE_TYPE_NONE){
@@ -616,6 +631,8 @@ bool32 performFunctionCall(Symbol* fn, Value* returnValue, uint32 argumentCount,
 	}else{
 		cloneValue(returnValue, retValue);
 	}
+
+
 
 	exitStackFrame(proj);
 	return true;
@@ -627,12 +644,6 @@ bool32 evaluateFunctionCall(Value* value, struct Expression_S expression, Projec
 		values = avCallocate(expression.call.argumentCount, sizeof(Value), "");
 	}
 	for(uint32 i = 0; i < expression.call.argumentCount; i++){
-		struct Expression_S expr = expression.call.arguments[i];
-		if(expr.type==EXPRESSION_TYPE_IDENTIFIER){
-			if(avStringEquals(expr.identifier.identifier, AV_CSTRA("PROJECT_NAME"))){
-				(void)0;
-			}
-		}
 		if(!evaluateExpression(values + i, expression.call.arguments[i], ctx)){
 			return false;
 		}
@@ -924,7 +935,7 @@ struct Value concatenateStrings(struct Value left, struct Value right, Project* 
 	}
 	uint64 len = lstr.len + rstr.len;
 	AvStringHeapMemory memory;
-	avStringMemoryHeapAllocate(len + 1, &memory);
+	avStringMemoryHeapAllocate(len, &memory);
 	avStringMemoryStore(lstr, 0, lstr.len, memory);
 	avStringMemoryStore(rstr, lstr.len, rstr.len, memory);
 	AvString str ={0};
@@ -1266,7 +1277,7 @@ bool32 performAssignment(struct Expression_S expression, Value* value, Project* 
 				break;
 		}
 	}
-	uint32 index = 0;
+	uint32 index = -1;
 	if(expression.assignment.index){
 		Value indexVal = {0};
 		if(!evaluateExpression(&indexVal, *expression.assignment.index, ctx)){
@@ -1274,6 +1285,10 @@ bool32 performAssignment(struct Expression_S expression, Value* value, Project* 
 		}
 		if(indexVal.type!=VALUE_TYPE_NUMBER){
 			runtimeError(ctx, "Index expression does not resolve to number");
+			return false;
+		}
+		if(indexVal.asNumber < 0){
+			runtimeError(ctx, "Invalid index value %lli accessing %S", indexVal.asNumber, expression.assignment.variable);
 			return false;
 		}
 		index = indexVal.asNumber;
@@ -1486,8 +1501,8 @@ Value performCommand(struct CommandExpression_S command, AvPipe* input, Project*
 	}
 
 	CommandOutputMode mode;
-	AvFile outputFile;
-	AvPipe pipe;
+	AvFile outputFile = {0};
+	AvPipe pipe = {0};
 	AvFileDescriptor descriptor;
 	if(!routeOutput(command, &mode, &pipe, &outputFile, &descriptor, &info, ctx)){
 		goto cleanup;
@@ -1617,10 +1632,11 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 			return false;
 		}
 		Value ret = performSummation(left, expression.summation.operator, right, ctx);
-		cloneValue(value, ret);
+		
 		if(ret.type==VALUE_TYPE_NONE){
 			return false;
 		}
+		cloneValue(value, ret);
 		return true;
 	}
 	case EXPRESSION_TYPE_MULTIPLICATION:{
@@ -1785,6 +1801,8 @@ bool32 evaluateForeach(struct Statement_S statement, Project* ctx){
 		case VALUE_TYPE_NUMBER:
 			toConstValue(collection, &tmp, ctx);
 			break;
+		case VALUE_TYPE_NONE:
+			return true; // Do nothing and exit loop
 		default:
 			runtimeError(ctx, "Invalid collection type");
 			return false;
@@ -1833,7 +1851,11 @@ bool32 evaluateImport(struct Statement_S statement, Project* ctx){
 		if(mapping.type & DEFINITION_MAPPING_PROVIDE){
 			continue;
 		}
-
+		if(mapping.resolvedExternal==NULL){
+			avStringPrintln(AV_CSTRA("Error"));
+			avStringPrintln(mapping.alias);
+			avStringPrintln(mapping.symbol);
+		}
 		if(mapping.resolvedExternal->type!=SYMBOL_VARIABLE){
 			continue;
 		}
@@ -1906,19 +1928,76 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 			ctx->controlFlow = CONTROLFLOW_RETURN;
 			return true;
 		}
-		case STATEMENT_TYPE_VARIABLE_DEFINITION:
+		case STATEMENT_TYPE_VARIABLE_DEFINITION:{
+			uint32 size = 1;
+			bool32 isArray = false;
+			if(statement->variableDefinition.size &&  statement->variableDefinition.size->type != EXPRESSION_TYPE_NONE){
+				Value value = {0};
+				if(!evaluateExpression(&value, *statement->variableDefinition.size, ctx)){
+					return false;
+				}
+				if(value.type != VALUE_TYPE_NUMBER){
+					runtimeError(ctx, "Variable %S's size does not resolve to number", statement->variableDefinition.identifier);
+					return false;
+				}
+				if(value.asNumber < 1){
+					runtimeError(ctx, "Variable %S's size is not a valid number", statement->variableDefinition.identifier);
+					return false;
+				}
+				size = value.asNumber;
+				isArray = true;
+				
+			}else if(statement->variableDefinition.size && statement->variableDefinition.size->type==EXPRESSION_TYPE_NONE){
+				size = 0;
+				isArray = true;
+			}
+
 			if(statement->variableDefinition.initialValue.type != EXPRESSION_TYPE_NONE){
-				Value value;
+				Value value = {0};
 				if(!evaluateExpression(&value, statement->variableDefinition.initialValue, ctx)){
 					return false;
 				}
+
+				if(isArray){
+					if(value.type!=VALUE_TYPE_ARRAY){
+						ConstValue* values;
+						if(size <= 1){
+							values = avAllocate(sizeof(ConstValue), "");
+							toConstValue(value, values, ctx);
+							Value tmp = {.type=VALUE_TYPE_ARRAY, .asArray.count = 1,.asArray.values = values};
+							avMemcpy(&value, &tmp, sizeof(Value));
+						}else{
+							runtimeError(ctx, "Initial value is not correct size");
+							return false;
+						}
+					}else{
+						if(size != 0){
+							if(value.asArray.count != size){
+								runtimeError(ctx, "Initial value is not correct size");
+								return false;
+							}
+						}
+					}
+				}
+
 				if(!assignSymbol(statement->variableDefinition.resolvedSymbol, 0, value, 0, ctx)){
 					return false;
 				}
 			}else{
-				println(ctx, 1, &(Value){.type=VALUE_TYPE_STRING, .asString=AV_CSTR("uninitialized variable")});
+				// do size
+				if(isArray){
+					Value value = {.type=VALUE_TYPE_ARRAY,.asArray.count = size, .asArray.values = NULL};
+					if(size){
+						value.asArray.values = avAllocate(sizeof(ConstValue)*size, "");
+						avMemset(value.asArray.values, 0, sizeof(ConstValue)*size);
+					}
+					if(!assignSymbol(statement->variableDefinition.resolvedSymbol, 0, value, 0, ctx)){
+						return false;
+					}
+				}
 			}
 			return true;
+		}
 		case STATEMENT_TYPE_INHERIT:
 			if(!statement->inheritStatement.resolvedSymbol->external && statement->inheritStatement.defaultValue){
 				Value val;
@@ -1928,8 +2007,10 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 				if(!assignSymbol(statement->inheritStatement.resolvedSymbol, 0, val, 0, ctx)){
 					return false;
 				}
+				return true;
 			}else if(!statement->inheritStatement.resolvedSymbol->external && !statement->inheritStatement.defaultValue){
 				runtimeError(ctx, "inherit  default valuenot %S not specified", statement->inheritStatement.variable);
+				return false;
 			}else if(statement->inheritStatement.resolvedSymbol->external){
 				// statement->inheritStatement.resolvedSymbol = statement->inheritStatement.externalSymbol;
 				return true;
@@ -1937,6 +2018,8 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 				runtimeError(ctx, "Logic Error");
 				return false;
 			}
+			runtimeError(ctx, "Logic Error");
+			return false;
 		case STATEMENT_TYPE_IMPORT:
 			return evaluateImport(*statement, ctx);
 		default:	
@@ -1949,50 +2032,62 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 	return true;
 }
 
+void exitAllImportedProjectStackFrames(Project* project);
+void exitProject(Project* project){
+	while(project->currentStackFrame){
+		exitStackFrame(project);
+	}
+	exitAllImportedProjectStackFrames(project);
+}
+
 void exitAllImportedProjectStackFrames(Project* project){
 	for(uint32 index = 0; index < avDynamicArrayGetSize(project->importedProjects); index++) { 
 		Project** element = avDynamicArrayGetPtr(index, project->importedProjects); 
-		while((*element)->currentStackFrame){
-			exitStackFrame(*element);
-		}
-		exitAllImportedProjectStackFrames(*element);
+		exitProject(*element);
 	};
+}
+bool32 initAllImportedProjects(Project* project);
+bool32 initProject(Project* project){
+	enterStackFrame(project->toplevelScope, project);
+	bool32 ret = true;
+	for(uint32 i = 0; i < project->statementCount; i++){
+		struct Statement_S* statement = project->statements+i;
+		switch(statement->type){
+			case STATEMENT_TYPE_VARIABLE_DEFINITION:
+			case STATEMENT_TYPE_INHERIT:
+			case STATEMENT_TYPE_IMPORT:
+				if(!evaluateStatement(statement, project)){
+					ret = false;
+				}
+				break;
+			default:
+				break;
+		}
+		if(ret == false){
+			break;
+		}
+	}
+	if(ret==false){
+		exitStackFrame(project);
+		return false;
+	}
+
+	if(!initAllImportedProjects(project)){
+		return false;
+	}
+	return true;
 }
 
 bool32 initAllImportedProjects(Project* project){
 	for(uint32 index = 0; index < avDynamicArrayGetSize(project->importedProjects); index++) { 
 		Project** element = avDynamicArrayGetPtr(index, project->importedProjects); 
-		enterStackFrame((*element)->toplevelScope, *element);
-
-		bool32 ret = true;
-		for(uint32 i = 0; i < (*element)->statementCount; i++){
-			struct Statement_S* statement = (*element)->statements+i;
-			switch(statement->type){
-				case STATEMENT_TYPE_VARIABLE_DEFINITION:
-				case STATEMENT_TYPE_INHERIT:
-				case STATEMENT_TYPE_IMPORT:
-					if(!evaluateStatement(statement, (*element))){
-						ret = false;
-					}
-					break;
-				default:
-					break;
-			}
-			if(ret == false){
-				break;
-			}
-		}
-		if(ret==false){
+		if(!initProject(*element)){
 			while(index-- != 0){
 				exitStackFrame(*element);
 				element = avDynamicArrayGetPtr(index, project->importedProjects); 
 			}
-			exitStackFrame(*element);
-			exitStackFrame(project);
 			return false;
 		}
-
-		initAllImportedProjects(*element);
 	};
 	return true;
 }
@@ -2014,38 +2109,12 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
 		return -1;
 	}
 	
-	enterStackFrame(project->toplevelScope, project);
-	initAllImportedProjects(project);
-
-	
-	bool32 ret = true;
-	// fill the stack frame with values
-	for(uint32 i = 0; i < project->statementCount; i++){
-		struct Statement_S* statement = project->statements +i;
-		switch(statement->type){
-			case STATEMENT_TYPE_VARIABLE_DEFINITION:
-			case STATEMENT_TYPE_INHERIT:
-			case STATEMENT_TYPE_IMPORT:
-				if(!evaluateStatement(statement, project)){
-					ret = false;
-				}
-				break;
-			default:
-				break;
-		}
-		if(ret == false){
-			break;
-		}
-	}
-
-	if(ret == false){
-		exitStackFrame(project);
-		exitAllImportedProjectStackFrames(project);
+	if(!initProject(project)){
+		runtimeError(project, "Initializing imported projects failed");
 		return -1;
 	}
 
-
-
+	bool32 ret = true;
 
 	struct Statement_S functionStatement = *funcSym->function.definition;
 	struct FunctionDefinition_S func = functionStatement.functionDefinition;
@@ -2112,19 +2181,13 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
 
 	}
 	if(ret == false){
-		exitStackFrame(project);
-		exitStackFrame(project);
-
-		exitAllImportedProjectStackFrames(project);
+		exitProject(project);
 		return -1;
 	}
 
 	// we are now ready to rumble
 	if(!evaluateStatement(func.body, project)){
-		while(project->currentStackFrame){
-			exitStackFrame(project);
-		}
-		exitAllImportedProjectStackFrames(project);
+		exitProject(project);
 		runtimeError(project, "Error occured during execution!");
 		return false;
 	}
@@ -2147,11 +2210,7 @@ uint32 runProject(Project* project, AvDynamicArray arguments){
 		retVal = 0;
 	}
 	
-	exitStackFrame(project);
-	
-	exitStackFrame(project);
-	
-	exitAllImportedProjectStackFrames(project);
+	exitProject(project);
 	
 	return retVal;
 }

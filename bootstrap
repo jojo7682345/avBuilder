@@ -38,7 +38,7 @@ exit $ret
 #endif
 
 #define CC "gcc"
-#define CFLAGS "-std=c11 -Wall -ggdb -fPIC -lm"
+#define CFLAGS "-std=c11 -O0 -Wall -ggdb -fPIC -lm"
 #define INCLUDES "include"
 #define PROGRAM "avBuilder"
 

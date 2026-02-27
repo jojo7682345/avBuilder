@@ -5,52 +5,20 @@ import "test2.project" {
     foo;
 }
 
-var array = [
-    "a",
-    "b", 
-    "c",
-    "d",
-];
-
-func recursionTest(){
-    if(bar > 0){
-        bar -= 1;
-        println(foo());
-        recursionTest();
-    }
+func add(a, b){
+    return a + b;
 }
 
-func localFuncTest(){
-    println(foo());
+func extraNested(){
+    return 2;
+}
+
+func nested(){
+    return extraNested();
 }
 
 func test(){
-
-    var a = 3;
-    println(a);
-    a += 3;
-    println(a);
-
-    println(array);
-
-    println(foo());
-
-    localFuncTest();
-    println("recursionTest");
-    recursionTest();
-    println("success");
-    var arr = [0,2];
-    println(array[[0,2,2]]);
-
-
-    var data = directories in "test";
-    println(data);
-
-
-    //println(compileString("$#Path"));
-    var c;
-    var res = command[c] "cat .gitignore" | command "grep result";
-    println(res + c);
+    println(add(foo(), nested()));
     return 0;
 
 }

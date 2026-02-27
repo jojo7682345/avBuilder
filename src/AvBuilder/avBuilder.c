@@ -68,18 +68,6 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
    
     Project project = AV_EMPTY;
     projectCreate(&project, projectFileName, projectFilePath, projectFileContent, false);
-    if(!parseProject(tokens, &project)){
-        avStringPrintf(AV_CSTR("Failed to parse project file %S\n"), projectFilePath);
-        result = -1;
-        goto parsingFailed;
-    }
-    
-    if(!processProject(&project)){
-        avStringPrintf(AV_CSTR("Failed to perform processing on project file %S\n"), projectFilePath);
-        result = -1;
-        goto processingFailed;
-    }
-
     struct ProjectOptions options = {0};
     avDynamicArraySetAllowRelocation(true, arguments);
 
@@ -112,6 +100,21 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
         
     }
     memcpy(&project.options, &options, sizeof(struct ProjectOptions));
+    
+    
+    if(!parseProject(tokens, &project)){
+        avStringPrintf(AV_CSTR("Failed to parse project file %S\n"), projectFilePath);
+        result = -1;
+        goto parsingFailed;
+    }
+    
+    if(!processProject(&project)){
+        avStringPrintf(AV_CSTR("Failed to perform processing on project file %S\n"), projectFilePath);
+        result = -1;
+        goto processingFailed;
+    }
+
+    
     uint32 returnCode = runProject(&project, arguments);
     result = returnCode;
 
@@ -639,6 +642,25 @@ const struct Option{
 };
 
 int main(int argC, const char* argV[]){
+
+    // extern unsigned int GetCurrentProcessId();
+    // extern int IsDebuggerPresent();
+    // extern void DebugBreak();
+    // extern void Sleep(unsigned int);
+
+    // printf("PID: %lu\n", GetCurrentProcessId());
+    // printf("Attach debugger now...\n");
+
+    // while (!IsDebuggerPresent()) {
+    //     Sleep(100);  // avoid burning CPU
+    // }
+
+    // printf("Debugger attached!\n");
+
+    // // Optional: trigger a breakpoint immediately
+    // DebugBreak();
+
+    
     avStringDebugContextStart;
 
     if(argC < 2){

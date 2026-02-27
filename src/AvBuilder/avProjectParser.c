@@ -528,13 +528,14 @@ static struct Statement_S parseVariableDefinition(TokenIterator* iterator){
     memcpy(&(stmt.variableDefinition.identifier),&(variableName->str), sizeof(AvString));
 
     if(match(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_open)){
+        stmt.variableDefinition.size = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
         if(check(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close)){
             struct Expression_S size = {.type=EXPRESSION_TYPE_NONE};
-            avMemcpy(&stmt.variableDefinition.size, &size, sizeof(struct Expression_S));
+            avMemcpy(stmt.variableDefinition.size, &size, sizeof(struct Expression_S));
         }else{
             struct Expression_S size = parseExpression(iterator);
             consume(iterator, TOKEN_TYPE_PUNCTUATOR_bracket_close, "expected ']' after array index");
-            avMemcpy(&stmt.variableDefinition.size, &size, sizeof(struct Expression_S));
+            avMemcpy(stmt.variableDefinition.size, &size, sizeof(struct Expression_S));
         }
     }
     if(match(iterator, TOKEN_TYPE_PUNCTUATOR_equals)){

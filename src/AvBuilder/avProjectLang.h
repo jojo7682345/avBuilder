@@ -197,7 +197,7 @@ struct Expression_S {
 
 struct VariableDefinition_S{
     AvString identifier;
-    struct Expression_S size;
+    struct Expression_S* size;
     struct Expression_S initialValue;
     struct Symbol* resolvedSymbol;
 };

@@ -2,6 +2,12 @@
 inherit bar;
 
 var local = 2;
-func foo(){
+
+func nestedFoo(){
     return bar + local * 3;
 }
+
+func foo(){
+    return nestedFoo();
+}
+
