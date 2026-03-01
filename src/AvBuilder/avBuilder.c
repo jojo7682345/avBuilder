@@ -39,6 +39,32 @@ const uint32 punctuatorCount = sizeof(punctuators)/sizeof(AvString);
 
 const AvString templatePath = AV_CSTRA("library/"); 
 
+#ifndef _WIN32
+
+#include <stdio.h>
+#include <unistd.h>
+#include <signal.h>
+#include <string.h>
+#include <stdlib.h>
+
+int is_debugger_present() {
+    FILE *status = fopen("/proc/self/status", "r");
+    if (!status) return 0;
+
+    char line[256];
+    while (fgets(line, sizeof(line), status)) {
+        if (strncmp(line, "TracerPid:", 10) == 0) {
+            int tracer_pid = atoi(line + 10);
+            fclose(status);
+            return tracer_pid != 0;
+        }
+    }
+
+    fclose(status);
+    return 0;
+}
+#endif
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wjump-misses-init"
 uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray arguments){
@@ -110,6 +136,22 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
 
             // Optional: trigger a breakpoint immediately
             DebugBreak();
+#else
+
+
+        printf("PID: %d\n", getpid());
+        printf("Attach debugger now...\n");
+
+        while (!is_debugger_present()) {
+            extern void usleep(int);
+            usleep(100000);  // 100 ms
+        }
+
+        printf("Debugger attached!\n");
+
+        // Trigger breakpoint
+        raise(SIGTRAP);
+
 #endif
         }
 		if(avStringEquals(argument, compileCommandsFlags)){

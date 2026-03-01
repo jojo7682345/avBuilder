@@ -179,7 +179,7 @@ bool32 analyseAssignment(struct Expression_S* expr, uint32 line,  struct Express
         ret = false;
     }
     expr->assignment.resolvedSymbol = sym;
-    if(sym->constant || sym->builtin){
+    if(sym && (sym->constant || sym->builtin)){
         semanticError(line, ctx, "%S is a constant and cannot be assigned", expr->assignment.variable);
         ret = false;
     }
