@@ -5,6 +5,9 @@
 #include <AvUtils/string/avChar.h>
 #include <AvUtils/avEnvironment.h>
 
+#define AV_DYNAMIC_ARRAY_ADVANCED
+#include <AvUtils/dataStructures/avDynamicArray.h>
+
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -209,7 +212,7 @@ struct Value fileName(Project* project, uint32 valueCount, struct Value* values)
         .memory = nullptr,
     };
     AvString tmpStr = AV_EMPTY;
-    avStringCopyToAllocator(str, &tmpStr, project->allocator);
+    avStringClone(&tmpStr, str);
     avArrayFree(&filePaths);
 
     return (struct Value){
@@ -231,7 +234,7 @@ struct Value fileFullName(Project* project, uint32 valueCount, struct Value* val
         .memory = nullptr,
     };
     AvString tmpStr = AV_EMPTY;
-    avStringCopyToAllocator(str, &tmpStr, project->allocator);
+    avStringClone(&tmpStr, str);
     avArrayFree(&filePaths);
 
 
@@ -263,7 +266,7 @@ struct Value fileBaseName(Project* project, uint32 valueCount, struct Value* val
         .memory = nullptr,
     };
     AvString tmpStr = AV_EMPTY;
-    avStringCopyToAllocator(str, &tmpStr, project->allocator);
+    avStringClone(&tmpStr, str);
     avArrayFree(&filePaths);
 
     return (struct Value){
@@ -363,7 +366,11 @@ struct Value filter(Project* project, uint32 valueCount, struct Value* values){
     }
     for(uint32 i = 0; i < count; i++){
         if(allowed[i]){
-            avDynamicArrayAdd(vals+i, newValues);
+            //avDynamicArrayAdd(vals+i, newValues);
+            ConstValue* value = NULL;
+            avDynamicArrayAddEmpty((void**)&value, newValues);
+            extern void cloneConstValue_(ConstValue* dst, ConstValue src, const char* file, uint32 line);
+            cloneConstValue_(value, vals[i], __FILE__, __LINE__);
         }
     }
     avFree(allowed);
@@ -371,7 +378,7 @@ struct Value filter(Project* project, uint32 valueCount, struct Value* values){
     struct ConstValue* filteredValues = nullptr;
     uint32 allowedCount = avDynamicArrayGetSize(newValues);
     if(allowedCount > 0){
-        filteredValues = avAllocatorAllocate(sizeof(struct ConstValue)*allowedCount, project->allocator);
+        filteredValues = avAllocate(sizeof(struct ConstValue)*allowedCount, "");
         avDynamicArrayReadRange(filteredValues, allowedCount, 0, sizeof(struct ConstValue), 0, newValues);
     }
     struct Value filtered = {
@@ -410,17 +417,20 @@ struct Value filePath(Project* project, uint32 valueCount, struct Value* values)
     AvString* paths = (AvString*)filePaths.data;
     if(paths[filePaths.count-1].len==0){
         avArrayFree(&filePaths);
-        return values[0];
+        Value tmpVal = {0};
+        cloneValue(&tmpVal, values[0]);
+        return tmpVal;
     }
-    
+    AvString subStr = {
+        .chrs=values[0].asString.chrs,
+        .len = values[0].asString.len - paths[filePaths.count-1].len,
+        .memory = nullptr,
+    };
     struct Value returnValue = (struct Value){
         .type = VALUE_TYPE_STRING,
-        .asString = {
-            .chrs=values[0].asString.chrs,
-            .len = values[0].asString.len - paths[filePaths.count-1].len,
-            .memory = nullptr,
-        },
+        .asString = {0},
     };
+    avStringClone(&returnValue.asString, subStr);
     avArrayFree(&filePaths);
     return returnValue;
 }
@@ -456,8 +466,9 @@ struct Value print(Project* project, uint32 valueCount, struct Value* values){
         default:
             runtimeError(project, "logic error");
     }
-
-    return values[0];
+    Value tmp = {0};
+    cloneValue(&tmp, values[0]);
+    return tmp;
 }
 
 struct Value println(Project* project, uint32 valueCount, struct Value* values){
@@ -490,7 +501,9 @@ struct Value println(Project* project, uint32 valueCount, struct Value* values){
             runtimeError(project, "logic error");
     }
 
-    return values[0];
+    Value tmpVal = {0};
+    cloneValue(&tmpVal, values[0]);
+    return tmpVal;
 }
 
 #include <sys/stat.h>
@@ -504,7 +517,7 @@ struct Value makeDir(Project* project, uint32 valueCount, struct Value* values){
     int ret = avMakeDirectory(dir);
     if(ret == -1){
         avStringFree(&dir);
-        struct ConstValue* vals = avAllocatorAllocate(sizeof(struct ConstValue)*2, project->allocator);
+        struct ConstValue* vals = avCallocate(2, sizeof(struct ConstValue), "");
         vals[0].type = VALUE_TYPE_NUMBER;
         vals[0].asNumber = errno;
         memcpy(&vals[1].asString, &AV_CSTR(strerror(errno)), sizeof(AvString));
@@ -518,7 +531,9 @@ struct Value makeDir(Project* project, uint32 valueCount, struct Value* values){
         };
     }
     avStringFree(&dir);
-    return values[0];
+    Value tmpVal = {0};
+    cloneValue(&tmpVal, values[0]);
+    return tmpVal;
 }
 #ifndef _WIN32
 #include <linux/limits.h>
@@ -535,7 +550,7 @@ struct Value makeDirs(Project* project, uint32 valueCount, struct Value* values)
     int ret = avMakeDirectoryRecursive(dir);
     if(ret == -1){
         avStringFree(&dir);
-        struct ConstValue* vals = avAllocatorAllocate(sizeof(struct ConstValue)*2, project->allocator);
+        struct ConstValue* vals = avCallocate(2, sizeof(struct ConstValue), "");
         vals[0].type = VALUE_TYPE_NUMBER;
         vals[0].asNumber = errno;
         vals[1].type = VALUE_TYPE_STRING;
@@ -550,7 +565,9 @@ struct Value makeDirs(Project* project, uint32 valueCount, struct Value* values)
         };
     }
     avStringFree(&dir);
-    return values[0];
+    Value tmp = {0};
+    cloneValue(&tmp, values[0]);
+    return tmp;
 }
 
 struct Value deleteDir(Project* project, uint32 valueCount, struct Value* values){
@@ -673,7 +690,7 @@ static uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
 				continue;
 			}
 
-            extern bool32 retrieveSymbol(Symbol* symbol, int32 localDepth, Value* value, Project* ctx);
+            extern bool32 retrieveSymbol_(Symbol* symbol, int32 localDepth, Value* value, Project* ctx, const char* file, uint32 line);
             extern Symbol* resolveSymbol(AvString identifier, int32* depth, Project* ctx);
             int32 depth = 0;
             Symbol* sym = resolveSymbol(varName, &depth, project);
@@ -684,16 +701,20 @@ static uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
 				continue;
             } 
 
+            extern void destroyValue_(Value* value, const char* file, uint32 line);
+
             Value value = {0};
-            if(!retrieveSymbol(sym, depth, &value, project)){
+            if(!retrieveSymbol_(sym, depth, &value, project, __FILE__, __LINE__)){
                 runtimeError(project, "unable to retrieve variable %S", varName);
                 avDynamicArrayAddRange((char*)varName.chrs-1, varName.len+1, 0, 1, chars);
 				i = j-1;
+                destroyValue_(&value, __FILE__, __LINE__);
 				continue;
             }
 			if(value.type == VALUE_TYPE_STRING){
 				processArg(value.asString, chars, project);
 				i = j-1;
+                destroyValue_(&value, __FILE__, __LINE__);
 				continue;
 			}
 			if(value.type == VALUE_TYPE_NUMBER){
@@ -701,6 +722,7 @@ static uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
 				avStringPrintfToBuffer(buffer, sizeof(buffer)-1, AV_CSTR("%i"), value.asNumber);
 				avDynamicArrayAddRange(buffer, avCStringLength(buffer), 0, 1, chars);
 				i = j-1;
+                destroyValue_(&value, __FILE__, __LINE__);
 				continue;
 			}
 			if(value.type == VALUE_TYPE_ARRAY){
@@ -728,7 +750,8 @@ static uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
 
 				i = j-1;
 			}
-
+            
+            destroyValue_(&value, __FILE__, __LINE__);
 			continue;
 		}
 		if(c=='*' && !ignoreNext){
@@ -744,8 +767,9 @@ static uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
 				.len = j - i - 1,
 				.memory = nullptr,
 			};
-			extern bool32 retrieveSymbol(Symbol* symbol, int32 localDepth, Value* value, Project* ctx);
+			extern bool32 retrieveSymbol_(Symbol* symbol, int32 localDepth, Value* value, Project* ctx, const char* file, uint32 line);
             extern Symbol* resolveSymbol(AvString identifier, int32* depth, Project* ctx);
+            extern void destroyValue_(Value* value, const char* file, uint32 line);
             int32 depth = 0;
             Symbol* sym = resolveSymbol(varName, &depth, project);
             if(!sym){
@@ -756,7 +780,7 @@ static uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
             } 
 
             Value value = {0};
-            if(!retrieveSymbol(sym, depth, &value, project)){
+            if(!retrieveSymbol_(sym, depth, &value, project, __FILE__, __LINE__)){
                 runtimeError(project, "unable to retrieve variable %S", varName);
                 avDynamicArrayAddRange((char*)varName.chrs-1, varName.len+1, 0, 1, chars);
 				i = j-1;
@@ -765,6 +789,7 @@ static uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
 			if(value.type == VALUE_TYPE_STRING){
 				processArg(value.asString, chars, project);
 				i = j-1;
+                destroyValue_(&value, __FILE__, __LINE__);
 				continue;
 			}
 			if(value.type == VALUE_TYPE_NUMBER){
@@ -772,6 +797,7 @@ static uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
 				avStringPrintfToBuffer(buffer, sizeof(buffer)-1, AV_CSTR("%i"), value.asNumber);
 				avDynamicArrayAddRange(buffer, avCStringLength(buffer), 0, 1, chars);
 				i = j-1;
+                destroyValue_(&value, __FILE__, __LINE__);
 				continue;
 			}
 			if(value.type == VALUE_TYPE_ARRAY){
@@ -832,6 +858,8 @@ static uint32 processArg(AvString arg, AvDynamicArray chars, Project* project){
 
 				i = j-1;
 			}
+            
+            destroyValue_(&value, __FILE__, __LINE__);
 			continue;
 		}
 		
@@ -870,7 +898,7 @@ struct Value compileString(Project* project, uint32 valueCount, struct Value* va
         return result;
     }
 
-    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*count, project->allocator);
+    struct ConstValue* results = avCallocate(count, sizeof(struct ConstValue), "");
 
     for(uint32 i = 0; i < count; i++){
         if(vals[i].type!=VALUE_TYPE_STRING){
@@ -927,7 +955,7 @@ struct Value toUppercase(Project* project, uint32 valueCount, struct Value* valu
         return result;
     }
 
-    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*count, project->allocator);
+    struct ConstValue* results = avCallocate(count, sizeof(struct ConstValue), "");
 
     for(uint32 i = 0; i < count; i++){
         if(vals[i].type!=VALUE_TYPE_STRING){
@@ -979,7 +1007,7 @@ struct Value toLowercase(Project* project, uint32 valueCount, struct Value* valu
         return result;
     }
 
-    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*count, project->allocator);
+    struct ConstValue* results = avCallocate(count, sizeof(struct ConstValue), "");
 
     for(uint32 i = 0; i < count; i++){
         if(vals[i].type!=VALUE_TYPE_STRING){
@@ -1031,7 +1059,7 @@ struct Value changeDir(Project* project, uint32 valueCount, struct Value* values
         return result;
     }
 
-    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*count, project->allocator);
+    struct ConstValue* results = avCallocate(count, sizeof(struct ConstValue)*count, "");
 
     for(uint32 i = 0; i < count; i++){
         if(vals[i].type!=VALUE_TYPE_STRING){
@@ -1210,6 +1238,7 @@ struct Value parseDependencies(Project* project, uint32 valueCount, struct Value
     
     if(!avFileOpen(file, AV_FILE_OPEN_READ_DEFAULT)){
         avFileHandleDestroy(file);
+        avStringDebugContextEnd;
         return (struct Value) {.type=VALUE_TYPE_ARRAY};
     }
 
@@ -1428,7 +1457,7 @@ struct Value parseDependencies(Project* project, uint32 valueCount, struct Value
         goto doneConvert;
     }
     //convert to value
-    struct ConstValue* results = avAllocatorAllocate(sizeof(struct ConstValue)*avDynamicArrayGetSize(dependencies), project->allocator);
+    struct ConstValue* results = avCallocate(avDynamicArrayGetSize(dependencies), sizeof(struct ConstValue), "");
     for(uint32 i = 0; i < avDynamicArrayGetSize(dependencies); i++){
         
         AvString str = {0};
@@ -1446,6 +1475,7 @@ struct Value parseDependencies(Project* project, uint32 valueCount, struct Value
         struct Value res = {0};
         toValue(results[0], &res);
         memcpy(&result, &res, sizeof(struct Value));
+        avFree(results);
     }else{
         struct Value ret = (struct Value){
             .type=VALUE_TYPE_ARRAY,
@@ -1540,14 +1570,14 @@ struct Value readFileLines(Project* project, uint32 valueCount, struct Value* va
 
     uint32 lineCount = avDynamicArrayGetSize(lines);
     if(lineCount == 1){
-        AvString tmp;
+        AvString tmp = {0};
         avDynamicArrayRead(&tmp, 0, lines);
         avStringCopyToAllocator(tmp, &result.asString, project->allocator);
         result.type = VALUE_TYPE_STRING;
     }else if(lineCount != 0){
-        struct ConstValue* retVals = avAllocatorAllocate(sizeof(struct ConstValue)*lineCount, project->allocator);
+        struct ConstValue* retVals = avCallocate(lineCount, sizeof(struct ConstValue), "");
         for(uint32 index = 0; index < avDynamicArrayGetSize(lines); index++) { 
-            AvString element; avDynamicArrayRead(&element, index, (lines)); 
+            AvString element = {0}; avDynamicArrayRead(&element, index, (lines)); 
             
             retVals[index].type = VALUE_TYPE_STRING; 
             if(avStringIsEmpty(element)){ 
@@ -1613,7 +1643,9 @@ struct Value writeFileLines(Project* project, uint32 valueCount, struct Value* v
 struct Value filterUnique(Project* project, uint32 valueCount, struct Value* values){
     struct Value result = {.type = VALUE_TYPE_ARRAY, .asArray.count = 0};
     if(values[0].type != VALUE_TYPE_ARRAY){
-        return values[0];
+        Value tmpVal = {0};
+        cloneValue(&tmpVal, values[0]);
+        return tmpVal;
     }
     uint32 maxItemCount = values[0].asArray.count;
     if(maxItemCount == 0){
@@ -1624,7 +1656,7 @@ struct Value filterUnique(Project* project, uint32 valueCount, struct Value* val
         return result;
     }
 
-    struct ConstValue* vals = avAllocatorAllocate(sizeof(struct ConstValue)*maxItemCount, project->allocator);
+    struct ConstValue* vals = avCallocate(maxItemCount, sizeof(struct ConstValue), "");
     uint32 uniqueCount = 0;
     for(uint32 i = 0; i < values[0].asArray.count; i++){
         struct ConstValue val = values[0].asArray.values[i];

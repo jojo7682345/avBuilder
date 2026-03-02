@@ -72,7 +72,7 @@ func recompileSource(source, objectFile, flags, includes, dependencies) {
 
 func recompile(sources, outDir, flags, includes, additionalDependencies){
     var output[arraySize(sources)];
-    var failed;
+    var failed = 0;
     foreach sourceFile[index] from sources {
         var objectFile = outDir + "/" + fileBaseName(sourceFile) + ".o";
         var dependencyFile = outDir + "/" + fileBaseName(sourceFile) + ".d";

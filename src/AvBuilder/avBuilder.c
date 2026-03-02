@@ -185,8 +185,6 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
 		finalizeCompileCommands();
 	}
 
-    return result;
-
 processingFailed:
 parsingFailed:
     projectDestroy(&project);
@@ -252,6 +250,7 @@ void projectDestroy(struct Project* project){
 	        avDynamicArrayDestroy(statement.attachedScope->symbols);
         }
     }
+    avDynamicArrayDestroy(project->toplevelScope->symbols);
 
     for(uint32 i = 0; i < avDynamicArrayGetSize(project->importedProjects); i++){
         Project* proj = 0;
@@ -399,7 +398,7 @@ static uint32 openProject(const int argC, const char* argV[]){
     }
     avStringPrintln(AV_CSTR("Multiple files found with the same name, please specify which"));
     for(uint32 index = 0; index < avDynamicArrayGetSize(files); index++) { 
-        AvString element; avDynamicArrayRead(&element, index, (files));
+        AvString element = {0}; avDynamicArrayRead(&element, index, (files));
         avStringPrintf(AV_CSTR("%i)  %S\n"), index, element);
     };
     avStringPrint(AV_CSTR("Enter file number: "));
@@ -461,7 +460,7 @@ static uint32 removeProject(const int argC, const char* argV[]){
     }
     avStringPrintln(AV_CSTR("Multiple files found with the same name, please specify which"));
     for(uint32 index = 0; index < avDynamicArrayGetSize(files); index++) { 
-        AvString element; avDynamicArrayRead(&element, index, (files));
+        AvString element = {0}; avDynamicArrayRead(&element, index, (files));
         avStringPrintf(AV_CSTR("%i)  %S\n"), index, element);
     };
     avStringPrint(AV_CSTR("Enter file number: "));
@@ -678,6 +677,7 @@ dirDoesNotExist:
 }
 
 static uint32 performProject(const int argC, const char* argV[]){
+    avStringDebugContextStart;
     AvDynamicArray arguments = NULL;
     avDynamicArrayCreate(argC, sizeof(AvString), &arguments);
     for(uint32 i = 1; i < argC; i++){
@@ -725,5 +725,7 @@ int main(int argC, const char* argV[]){
             return options[i].execute(argC-2, argV+2);
         }
     }
-    return performProject(argC-1, argV+1);
+    uint32 ret = performProject(argC-1, argV+1);
+    avStringDebugContextEnd;
+    return ret;
 }

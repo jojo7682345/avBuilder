@@ -241,7 +241,7 @@ void toValue(struct ConstValue value, struct Value* val){
 	}
 }
 
-void destroyValue(Value* value){
+void destroyValue_(Value* value, LOC_PARAM){
 	avAssert(value != NULL, "dst must be valid");
 	Value src = *value;
 	avMemset(value, 0, sizeof(Value));
@@ -272,7 +272,7 @@ void destroyValue(Value* value){
 	avAssert(0, "Invalid type");
 }
 
-void destroyConstValue(ConstValue* value){
+void destroyConstValue_(ConstValue* value, LOC_PARAM){
 	avAssert(value != NULL, "dst must be valid");
 	ConstValue src = *value;
 	avMemset(value, 0, sizeof(ConstValue));
@@ -288,12 +288,12 @@ void destroyConstValue(ConstValue* value){
 	}
 	avAssert(0, "Invalid type");
 }
-void cloneConstValue(ConstValue* dst, ConstValue src);
-void cloneValue(Value* dst, Value src){
+void cloneConstValue_(ConstValue* dst, ConstValue src, LOC_PARAM);
+void cloneValue_(Value* dst, Value src, LOC_PARAM){
 	avAssert(dst != NULL, "dst must be valid");
 	avAssert(src.type!=VALUE_TYPE_NONE, "value must be valid");
 	if(dst->type!=VALUE_TYPE_NONE){
-		destroyValue(dst);
+		destroyValue_(dst, LOC_PASS);
 	}
 	dst->type = src.type;
 	if(src.type == VALUE_TYPE_NUMBER){
@@ -304,7 +304,7 @@ void cloneValue(Value* dst, Value src){
 		if(avStringIsEmpty(src.asString)){
 			avMemset(&dst->asString, 0, sizeof(AvString));
 		}else{
-			avStringClone(&dst->asString, src.asString);
+			avStringClone_(&dst->asString, src.asString, LOC_PASS);
 		}
 		return;
 	}
@@ -315,7 +315,7 @@ void cloneValue(Value* dst, Value src){
 			avMemset(values, 0, sizeof(ConstValue)*src.asArray.count);
 		}
 		for(uint32 i = 0; i < src.asArray.count; i++){
-			cloneConstValue(values+i, src.asArray.values[i]);
+			cloneConstValue_(values+i, src.asArray.values[i], LOC_PASS);
 			//avAssert(values[i].type!=VALUE_TYPE_NONE, "value must be valid");
 		}
 		dst->asArray.values = values;
@@ -326,10 +326,10 @@ void cloneValue(Value* dst, Value src){
 }
 
 
-void cloneConstValue(ConstValue* dst, ConstValue src){
+void cloneConstValue_(ConstValue* dst, ConstValue src, LOC_PARAM){
 	avAssert(dst != NULL, "dst must be valid");
 	if(dst->type!=VALUE_TYPE_NONE){
-		destroyConstValue(dst);
+		destroyConstValue_(dst, LOC_PASS);
 	}
 	dst->type = src.type;
 	if(src.type == VALUE_TYPE_NUMBER){
@@ -340,7 +340,7 @@ void cloneConstValue(ConstValue* dst, ConstValue src){
 		if(avStringIsEmpty(src.asString)){
 			avMemset(&dst->asString, 0, sizeof(AvString));
 		}else{
-			avStringClone(&dst->asString, src.asString);
+			avStringClone_(&dst->asString, src.asString, LOC_PASS);
 		}
 		return;
 	}
@@ -498,7 +498,8 @@ bool32 assignSymbol(Symbol* symbol, int32 localDepth, Value value, uint32 index,
 	return true;
 }
 
-bool32 retrieveSymbol(Symbol* symbol, int32 localDepth, Value* value, Project* ctx){
+#define retrieveSymbol(symbol, localDepth, value, ctx, ...) retrieveSymbol_(symbol, localDepth, value, ctx __VA_OPT__(,) __VA_ARGS__, LOC)
+bool32 retrieveSymbol_(Symbol* symbol, int32 localDepth, Value* value, Project* ctx, LOC_PARAM){
 	avAssert(symbol!=NULL, "symbol must be valid");
 	avAssert(value!=NULL, "value must be valid");
 
@@ -533,8 +534,13 @@ bool32 retrieveSymbol(Symbol* symbol, int32 localDepth, Value* value, Project* c
 	if(symbol->localIndex >= frame->valueCount){
 		return false;
 	}
-	avMemcpy(value, &frame->values[symbol->localIndex], sizeof(Value));
-	
+	//avMemcpy(value, &frame->values[symbol->localIndex], sizeof(Value));
+	Value val = frame->values[symbol->localIndex];
+	if(val.type==VALUE_TYPE_NONE){
+		runtimeError(ctx, "Reading undefined variable %S", symbol->identifier);
+		return false;
+	}
+	cloneValue_(value, val, LOC_PASS);
 	return true;
 }
 
@@ -564,6 +570,7 @@ bool32 performFunctionCall(Symbol* fn, Value* returnValue, uint32 argumentCount,
 	if(sym->builtin){
 		Value retVal = callBuiltInFunction(*sym->function.builtin, argumentCount, values, ctx);
 		cloneValue(returnValue, retVal);
+		destroyValue(&retVal);
 		return true;
 	}
 
@@ -646,6 +653,9 @@ bool32 evaluateFunctionCall(Value* value, struct Expression_S expression, Projec
 	if(expression.call.argumentCount){
 		values = avCallocate(expression.call.argumentCount, sizeof(Value), "");
 	}
+	if(avStringEquals(AV_CSTRA("makeDirs"), expression.call.resolvedSymbol->identifier)){
+		ctx->ID = 1; //TODO: remove
+	}
 	for(uint32 i = 0; i < expression.call.argumentCount; i++){
 		if(!evaluateExpression(values + i, expression.call.arguments[i], ctx)){
 			return false;
@@ -656,6 +666,9 @@ bool32 evaluateFunctionCall(Value* value, struct Expression_S expression, Projec
 		return false;
 	}
 
+	for(uint32 i = 0; i < expression.call.argumentCount; i++){
+		destroyValue(&values[i]);
+	}
 	if(values) avFree(values);
 
 	return true;
@@ -856,13 +869,14 @@ struct Value compareStrings(Project* project, struct Value left, enum Comparison
 }
 
 bool32 evaluateComparison(Value* value, struct Expression_S expression, Project* ctx){
-	struct Value left;
-	struct Value right;
+	struct Value left = {0};
+	struct Value right = {0};
 
 	if(!evaluateExpression(&left, *expression.comparison.left, ctx)){
 		return false;
 	}
 	if(!evaluateExpression(&right, *expression.comparison.right, ctx)){
+		destroyValue(&left);
 		return false;
 	}
 
@@ -875,12 +889,18 @@ bool32 evaluateComparison(Value* value, struct Expression_S expression, Project*
 		switch(right.type){
 			case VALUE_TYPE_ARRAY:
 				cloneValue(value, compareArrays(ctx, left, expression.comparison.operator, right));
+				destroyValue(&left);
+				destroyValue(&right);
 				return true;
 			case VALUE_TYPE_NUMBER:
 				cloneValue(value, compareArrayNumber(ctx, left, expression.comparison.operator, right));
+				destroyValue(&left);
+				destroyValue(&right);
 				return true;
 			case VALUE_TYPE_STRING:
 				cloneValue(value, compareArrayString(ctx, left, expression.comparison.operator, right));
+				destroyValue(&left);
+				destroyValue(&right);
 				return true;
 			default: break;
 		}
@@ -889,12 +909,18 @@ bool32 evaluateComparison(Value* value, struct Expression_S expression, Project*
 		switch(right.type){
 			case VALUE_TYPE_ARRAY:
 				cloneValue(value, compareNumberArray(ctx, left, expression.comparison.operator, right));
+				destroyValue(&left);
+				destroyValue(&right);
 				return true;
 			case VALUE_TYPE_NUMBER:
 				cloneValue(value, compareNumbers(ctx, left, expression.comparison.operator, right));
+				destroyValue(&left);
+				destroyValue(&right);
 				return true;
 			case VALUE_TYPE_STRING:
 				cloneValue(value, compareNumberString(ctx, left, expression.comparison.operator, right));
+				destroyValue(&left);
+				destroyValue(&right);
 				return true;
 			default: break;
 		}
@@ -903,18 +929,25 @@ bool32 evaluateComparison(Value* value, struct Expression_S expression, Project*
 		switch(right.type){
 			case VALUE_TYPE_ARRAY:
 				cloneValue(value, compareStringArray(ctx, left, expression.comparison.operator, right));
+				destroyValue(&left);
+				destroyValue(&right);
 				return true;
 			case VALUE_TYPE_NUMBER:
 				cloneValue(value, compareStringNumber(ctx, left, expression.comparison.operator, right));
+				destroyValue(&left);
+				destroyValue(&right);
 				return true;
 			case VALUE_TYPE_STRING:
 				cloneValue(value, compareStrings(ctx, left, expression.comparison.operator, right));
+				destroyValue(&left);
+				destroyValue(&right);
 				return true;
 			default: break;
 		}
 	}
-
 	runtimeError(ctx, "logic error");
+	destroyValue(&left);
+	destroyValue(&right);
 	return false; 
 }
 
@@ -956,24 +989,32 @@ struct Value concatenateArray(struct Value left, struct Value right, Project* pr
 			.type=VALUE_TYPE_NONE,
 		};
 	}
-	struct ConstValue* results = avAllocate(sizeof(struct ConstValue)*size, "");
+	struct ConstValue* results = avCallocate(size, sizeof(struct ConstValue), "");
 	uint32 index = 0;
 	if(left.type == VALUE_TYPE_ARRAY){
-		memcpy(results, left.asArray.values, sizeof(struct ConstValue)*left.asArray.count);
+		// avMemcpy(results, left.asArray.values, sizeof(struct ConstValue)*left.asArray.count);
+		for(uint32 i = 0; i < left.asArray.count; i++){
+			cloneConstValue(results + i + index, left.asArray.values[i]);
+		}
 		index += left.asArray.count;
 	}else{
 		struct ConstValue res = {0};
 		toConstValue(left, &res, project);
-		memcpy(results, &res, sizeof(struct ConstValue));
+		cloneConstValue(results + index, res);
+		// memcpy(results, &res, sizeof(struct ConstValue));
 		index += 1;
 	}
 	if(right.type==VALUE_TYPE_ARRAY){
-		memcpy(results+index, right.asArray.values, sizeof(struct ConstValue)*right.asArray.count);
+		// memcpy(results+index, right.asArray.values, sizeof(struct ConstValue)*right.asArray.count);
+		for(uint32 i = 0; i < right.asArray.count; i++){
+			cloneConstValue(results + i + index, right.asArray.values[i]);
+		}
 		index += right.asArray.count;
 	}else{
 		struct ConstValue res = {0};
 		toConstValue(right, &res, project);
-		memcpy(results+index, &res, sizeof(struct ConstValue));
+		cloneConstValue(results + index, res);
+		//memcpy(results+index, &res, sizeof(struct ConstValue));
 		index += 1;
 	}
 	return (struct Value){
@@ -1127,7 +1168,7 @@ struct Value enumerateFiles(struct EnumerationExpression_S enumeration, Project*
 	};
 
 
-	struct Value directory;
+	struct Value directory = {0};
 	if(!evaluateExpression(&directory, *enumeration.directory, project)){
 		return value;
 	} 
@@ -1145,6 +1186,7 @@ struct Value enumerateFiles(struct EnumerationExpression_S enumeration, Project*
 		memcpy(&constDirectory, &constDir, sizeof(struct ConstValue));
 		directories = &constDirectory;
 	}
+	
 
 	AvDynamicArray files = AV_EMPTY;
 	avDynamicArrayCreate(0, sizeof(AvString), &files);
@@ -1161,6 +1203,7 @@ struct Value enumerateFiles(struct EnumerationExpression_S enumeration, Project*
 
 	uint32 fileCount = avDynamicArrayGetSize(files);
 
+	destroyValue(&directory);
 	
 	if(fileCount == 0){
 		goto end;
@@ -1258,27 +1301,43 @@ bool32 performAssignment(struct Expression_S expression, Value* value, Project* 
 		return false;
 	}
 	if(expression.assignment.operator != ASSIGNMENT_OPERATOR_ASSIGN){
-		Value init;
+		Value init = {0};
 		if(!retrieveSymbol(expression.assignment.resolvedSymbol, expression.assignment.depth, &init, ctx)){
 			return false;
 		}
 		switch(expression.assignment.operator){
-			case ASSIGNMENT_OPERATOR_INCREMENT_ASSIGN:
+			case ASSIGNMENT_OPERATOR_INCREMENT_ASSIGN:{
 				Value tmp = performSummation(init, SUMMATION_OPERATOR_ADD, *value, ctx);
+				destroyValue(value);
 				cloneValue(value, tmp);
+				destroyValue(&tmp);
 				break;
-			case ASSIGNMENT_OPERATOR_DECREMENT_ASSIGN:
-				cloneValue(value, performSummation(init, SUMMATION_OPERATOR_SUBTRACT, *value, ctx));
+			}
+			case ASSIGNMENT_OPERATOR_DECREMENT_ASSIGN:{
+				Value tmp = performSummation(init, SUMMATION_OPERATOR_SUBTRACT, *value, ctx);
+				destroyValue(value);
+				cloneValue(value, tmp);
+				destroyValue(&tmp);
 				break;
-			case ASSIGNMENT_OPERATOR_MULTIPLY_ASSIGN:
-				cloneValue(value, performMultiplication(init, MULTIPLICATION_OPERATOR_MULTIPLY, *value, ctx));
+			}
+			case ASSIGNMENT_OPERATOR_MULTIPLY_ASSIGN:{
+				Value tmp = performMultiplication(init, MULTIPLICATION_OPERATOR_MULTIPLY, *value, ctx);
+				destroyValue(value);
+				cloneValue(value, tmp);
+				destroyValue(&tmp);
 				break;
-			case ASSIGNMENT_OPERATOR_DIVIDE_ASSIGN:
-				cloneValue(value, performMultiplication(init, MULTIPLICATION_OPERATOR_DIVIDE, *value, ctx));
+			}
+			case ASSIGNMENT_OPERATOR_DIVIDE_ASSIGN:{
+				Value tmp = performMultiplication(init, MULTIPLICATION_OPERATOR_DIVIDE, *value, ctx);
+				destroyValue(value);
+				cloneValue(value, tmp);
+				destroyValue(&tmp);
 				break;
+			}
 			default:
 				break;
 		}
+		destroyValue(&init);
 	}
 	uint32 index = -1;
 	if(expression.assignment.index){
@@ -1287,6 +1346,7 @@ bool32 performAssignment(struct Expression_S expression, Value* value, Project* 
 			return false;
 		}
 		if(indexVal.type!=VALUE_TYPE_NUMBER){
+			destroyValue(&indexVal);
 			runtimeError(ctx, "Index expression does not resolve to number");
 			return false;
 		}
@@ -1300,7 +1360,7 @@ bool32 performAssignment(struct Expression_S expression, Value* value, Project* 
 }
 
 static bool32 getCommandString(struct CommandExpression_S command, Project* ctx, AvStringRef outStr){
-	Value commandString;
+	Value commandString = {0};
 	if(!evaluateExpression(&commandString, *command.command, ctx)){
 		return false;
 	}
@@ -1352,7 +1412,7 @@ static bool32 routeOutput(struct CommandExpression_S command, CommandOutputMode*
 			break;
 		case CMD_OUT_FILE_WRITE:
 		case CMD_OUT_FILE_APPEND:{
-			Value outputFileVal;
+			Value outputFileVal = {0};
 			if(!evaluateExpression(&outputFileVal, *command.pipeOutput, ctx)){
 				return false;
 			}
@@ -1588,6 +1648,13 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 			runtimeError(ctx, "Failed retrieve symbol %S", expression.identifier.resolvedSymbol ? expression.identifier.resolvedSymbol->identifier : AV_CSTRA("<UNDEFINED>"));
 			return false;
 		}
+		if(value->type == VALUE_TYPE_ARRAY){
+			for(uint32 i = 0; i < value->asArray.count; i++){
+				if(value->asArray.values[i].type==VALUE_TYPE_STRING && strcmp(value->asArray.values[i].asString.chrs, "build/engine/src/containers/darray.o")==0){
+					return true;
+				}
+			}
+		}
 		return true;
 	case EXPRESSION_TYPE_LITERAL:{
 		Value val = {.type = VALUE_TYPE_STRING,.asString = expression.literal.value};
@@ -1607,13 +1674,16 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 	}
 	case EXPRESSION_TYPE_ARRAY:{
 		ConstValue* values = NULL;
-		if(expression.array.length) values = avAllocatorAllocate(sizeof(ConstValue)*expression.array.length, ctx->allocator);
+		if(expression.array.length) values = avCallocate(expression.array.length, sizeof(ConstValue), "");
 		for(uint32 i = 0; i < expression.array.length; i++){
-			Value tmp;
+			Value tmp = {0};
 			if(!evaluateExpression(&tmp, expression.array.elements[i], ctx)){
 				return false;
 			}
-			toConstValue(tmp, values + i, ctx);
+			ConstValue constTmp;
+			toConstValue(tmp, &constTmp, ctx);
+			cloneConstValue(values + i, constTmp);
+			destroyValue(&tmp);
 		}
 		Value val = {
 			.type = VALUE_TYPE_ARRAY,
@@ -1626,51 +1696,61 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 		return true;
 	}
 	case EXPRESSION_TYPE_SUMMATION:{
-		Value left;
+		Value left = {0};
 		if(!evaluateExpression(&left, *expression.summation.left, ctx)){
 			return false;
 		}
-		Value right;
+		Value right = {0};
 		if(!evaluateExpression(&right, *expression.summation.right, ctx)){
+			destroyValue(&left);
 			return false;
 		}
 		Value ret = performSummation(left, expression.summation.operator, right, ctx);
 		
+		destroyValue(&left);
+		destroyValue(&right);
+
 		if(ret.type==VALUE_TYPE_NONE){
 			return false;
 		}
 		cloneValue(value, ret);
+		destroyValue(&ret);
 		return true;
 	}
 	case EXPRESSION_TYPE_MULTIPLICATION:{
-		Value left;
+		Value left = {0};
 		if(!evaluateExpression(&left, *expression.multiplication.left, ctx)){
 			return false;
 		}
-		Value right;
+		Value right = {0};
 		if(!evaluateExpression(&right, *expression.multiplication.right, ctx)){
+			destroyValue(&left);
 			return false;
 		}
 		Value ret = performMultiplication(left, expression.multiplication.operator, right, ctx);
-		cloneValue(value, ret);
+		destroyValue(&left);
+		destroyValue(&right);
 		if(ret.type==VALUE_TYPE_NONE){
 			return false;
 		}
+		cloneValue(value, ret);
+		destroyValue(&ret);
 		return true;
 	}
 	case EXPRESSION_TYPE_ASSIGNMENT:{
 		if(!evaluateExpression(value, *expression.assignment.value, ctx)){
 			return false;
 		}
-		return performAssignment(expression, value, ctx);
+		return (performAssignment(expression, value, ctx));
 	}
 	case EXPRESSION_TYPE_INDEX:{
-		Value left;
+		Value left = {0};
 		if(!evaluateExpression(&left, *expression.index.expression, ctx)){
 			return false;
 		}
-		Value index;
+		Value index = {0};
 		if(!evaluateExpression(&index, *expression.index.index, ctx)){
+			destroyValue(&left);
 			return false;
 		}
 		uint32 size = 1;
@@ -1680,18 +1760,21 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 		ConstValue* indices = toIterableArray(&index, VALUE_TYPE_NUMBER, &indexSize);
 		if(indices==0){
 			runtimeError(ctx, "index with invalid value type");
+			destroyValue(&left);
+			destroyValue(&index);
 			return false;
 		}
 
 		ConstValue* newValues = avCallocate(indexSize, sizeof(ConstValue), "");
 		for(uint32 i = 0; i < indexSize; i++){
-			int64 index = indices[i].asNumber;
-			if(index < 0 || index > size){
+			int64 indexNr = indices[i].asNumber;
+			if(indexNr < 0 || indexNr > size){
 				runtimeError(ctx, "array index out of bounds");
-				avFree(newValues);
+				destroyValue(&left);
+				destroyValue(&index);
 				return false;
 			}
-			cloneConstValue(newValues + i, values[index]);
+			cloneConstValue(newValues + i, values[indexNr]);
 		}
 
 		Value val = {
@@ -1701,15 +1784,18 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 		};
 		cloneValue(value, val);
 		destroyValue(&val);
+		destroyValue(&left);
+		destroyValue(&index);
 
 		return true;
 	}
 	case EXPRESSION_TYPE_UNARY:{
-		Value val;
+		Value val = {0};
 		if(!evaluateExpression(&val, *expression.unary.expression, ctx)){
 			return false;
 		}
 		if(val.type!=VALUE_TYPE_NUMBER){
+			destroyValue(&val);
 			runtimeError(ctx, "Invalid type for unary operator");
 			return false;
 		}
@@ -1728,6 +1814,7 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 				runtimeError(ctx, "Invalid operator");
 				break;
 		}
+		destroyValue(&val);
 		Value tmp = {
 			.type = VALUE_TYPE_NUMBER,
 			.asNumber = newVal,
@@ -1736,7 +1823,7 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 		return true;
 	}
 	case EXPRESSION_TYPE_COMBINATION:{
-		Value left;
+		Value left = {0};
 		if(!evaluateExpression(&left, *expression.combination.left, ctx)){
 			return false;
 		}
@@ -1744,13 +1831,13 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 		switch(expression.combination.operator){
 			case COMBINATION_OPERATOR_AND:
 				if(!leftVal){
-					cloneValue(value, (Value){.type=VALUE_TYPE_NUMBER, .asNumber = 0,});
+					cloneValue(value, (Value){.type=VALUE_TYPE_NUMBER, .asNumber = 0});
 					return true;
 				}
 				break;
 			case COMBINATION_OPERATOR_OR:
 				if(leftVal){
-					cloneValue(value, (Value){.type=VALUE_TYPE_NUMBER, .asNumber = 1,});
+					cloneValue(value, (Value){.type=VALUE_TYPE_NUMBER, .asNumber = 1});
 					return true;
 				}
 				break;
@@ -1758,12 +1845,14 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 				runtimeError(ctx, "Invalid operator");
 				return false;
 		}
-		Value right;
+		destroyValue(&left);
+		Value right = {0};
 		if(!evaluateExpression(&right, *expression.combination.right, ctx)){
 			return false;
 		}
 		bool32 rightVal = checkValueTrue(right);
-		cloneValue(value, (Value){.type=VALUE_TYPE_NUMBER, .asNumber = rightVal,});
+		destroyValue(&right);
+		cloneValue(value, (Value){.type=VALUE_TYPE_NUMBER, .asNumber = rightVal});
 		return true;
 	}
 	case EXPRESSION_TYPE_ENUMERATION:
@@ -1778,7 +1867,7 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 	case EXPRESSION_TYPE_COMMAND:
 		return evaluateCommand(value, expression, ctx);
 	default:
-		runtimeError(ctx, "Not implemented yet");
+		runtimeError(ctx, "Expression type not implemented yet");
 		return false;
 	}
 
@@ -1788,7 +1877,7 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 }
 
 bool32 evaluateForeach(struct Statement_S statement, Project* ctx){
-	Value collection;
+	Value collection = {0};
 	if(!evaluateExpression(&collection, *statement.foreachStatement.collection, ctx)){
 		return false;
 	}
@@ -1805,28 +1894,33 @@ bool32 evaluateForeach(struct Statement_S statement, Project* ctx){
 			toConstValue(collection, &tmp, ctx);
 			break;
 		case VALUE_TYPE_NONE:
+			destroyValue(&collection);
 			return true; // Do nothing and exit loop
 		default:
 			runtimeError(ctx, "Invalid collection type");
+			destroyValue(&collection);
 			return false;
 	}
 
 	enterStackFrame(statement.attachedScope, ctx);
 
 	for(uint32 i = 0; i < count; i++){
-		Value value;
+		Value value = {0};
 		toValue(values[i], &value);
 		if(!assignSymbol(statement.foreachStatement.resolvedVarSymbol, 0, value, 0, ctx)){
 			exitStackFrame(ctx);
+			destroyValue(&collection);
 			return false;
 		}
 		if(statement.foreachStatement.resolvedIndexSymbol){
 			if(!assignSymbol(statement.foreachStatement.resolvedIndexSymbol, 0, (Value){.type=VALUE_TYPE_NUMBER, .asNumber=i}, 0, ctx)){
 				exitStackFrame(ctx);
+				destroyValue(&collection);
 				return false;
 			}
 		}
 		if(!evaluateStatement(statement.foreachStatement.statement, ctx)){
+			destroyValue(&collection);
 			return false;
 		}
 		if(ctx->controlFlow==CONTROLFLOW_BREAK){
@@ -1841,7 +1935,7 @@ bool32 evaluateForeach(struct Statement_S statement, Project* ctx){
 			break;
 		}
 	}
-
+	destroyValue(&collection);
 	exitStackFrame(ctx);
 	return true;
 }
@@ -1862,7 +1956,7 @@ bool32 evaluateImport(struct Statement_S statement, Project* ctx){
 		if(mapping.resolvedExternal->type!=SYMBOL_VARIABLE){
 			continue;
 		}
-		Value value;
+		Value value = {0};
 		if(!retrieveSymbol(mapping.resolvedExternal, 0, &value, import.project)){
 			return false;
 		}
@@ -1892,22 +1986,29 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 				exitStackFrame(ctx);
 			}
 			return true;
-		case STATEMENT_TYPE_EXPRESSION:
-			return evaluateExpression(NULL, statement->expression, ctx);
+		case STATEMENT_TYPE_EXPRESSION:{
+			Value tmp ={0};
+			bool32 ret =evaluateExpression(&tmp, statement->expression, ctx);
+			destroyValue(&tmp);
+			return ret;
+		}
 		case STATEMENT_TYPE_IF:{
-			Value value;
+			Value value = {0};
 			if(!evaluateExpression(&value, *statement->ifStatement.check, ctx)){
 				return false;
 			}
 			if(checkValueTrue(value)){
 				if(!evaluateStatement(statement->ifStatement.branch, ctx)){
+					destroyValue(&value);
 					return false;
 				}
 			}else if(statement->ifStatement.alternativeBranch) {
 				if(!evaluateStatement(statement->ifStatement.alternativeBranch, ctx)){
+					destroyValue(&value);
 					return false;
 				}
 			}
+			destroyValue(&value);
 			return true;
 		}
 		case STATEMENT_TYPE_FOREACH:
@@ -1920,13 +2021,15 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 			return true;
 		case STATEMENT_TYPE_RETURN:{
 			if(statement->returnStatement.value){
-				Value value;
+				Value value = {0};
 				if(!evaluateExpression(&value, *statement->returnStatement.value, ctx)){
 					return false;
 				}
 				if(!assignReturnValue(statement->returnStatement.resolvedVirtualSymbol, statement->returnStatement.returnDepth, value, ctx)){
+					destroyValue(&value);
 					return false;
 				}
+				destroyValue(&value);
 			}
 			ctx->controlFlow = CONTROLFLOW_RETURN;
 			return true;
@@ -1940,6 +2043,7 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 					return false;
 				}
 				if(value.type != VALUE_TYPE_NUMBER){
+					destroyValue(&value);
 					runtimeError(ctx, "Variable %S's size does not resolve to number", statement->variableDefinition.identifier);
 					return false;
 				}
@@ -1968,6 +2072,7 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 							values = avAllocate(sizeof(ConstValue), "");
 							toConstValue(value, values, ctx);
 							Value tmp = {.type=VALUE_TYPE_ARRAY, .asArray.count = 1,.asArray.values = values};
+							destroyValue(&value);
 							avMemcpy(&value, &tmp, sizeof(Value));
 						}else{
 							runtimeError(ctx, "Initial value is not correct size");
@@ -1984,8 +2089,10 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 				}
 
 				if(!assignSymbol(statement->variableDefinition.resolvedSymbol, 0, value, -1, ctx)){
+					destroyValue(&value);
 					return false;
 				}
+				destroyValue(&value);
 			}else{
 				// do size
 				if(isArray){
@@ -1997,19 +2104,22 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 					if(!assignSymbol(statement->variableDefinition.resolvedSymbol, 0, value, 0, ctx)){
 						return false;
 					}
+					destroyValue(&value);
 				}
 			}
 			return true;
 		}
 		case STATEMENT_TYPE_INHERIT:
 			if(!statement->inheritStatement.resolvedSymbol->external && statement->inheritStatement.defaultValue){
-				Value val;
+				Value val = {0};
 				if(!evaluateExpression(&val, *statement->inheritStatement.defaultValue, ctx)){
 					return false;
 				}
 				if(!assignSymbol(statement->inheritStatement.resolvedSymbol, 0, val, 0, ctx)){
+					destroyValue(&val);
 					return false;
 				}
+				destroyValue(&val);
 				return true;
 			}else if(!statement->inheritStatement.resolvedSymbol->external && !statement->inheritStatement.defaultValue){
 				runtimeError(ctx, "inherit  default valuenot %S not specified", statement->inheritStatement.variable);

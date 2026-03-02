@@ -561,6 +561,7 @@ bool32 importProjectFile(AvString importFileLoc, bool32 isLocal, Project** proj,
 		avStringJoin(&tmp, homeDir, importFile);
 		avStringPathNormalize(&tmp);
         avStringClone(&importFile, tmp);
+        avStringFree(&tmp);
         avStringFree(&homeDir);
     }else{
         AvString tmp = {0};
@@ -645,7 +646,8 @@ bool32 importProjectFile(AvString importFileLoc, bool32 isLocal, Project** proj,
     
 
     (*proj) = importProject;
-
+    avStringFree(&importFile);
+    avStringFree(&projectFileName);
     return res;
 
 processingFailed:
@@ -658,8 +660,7 @@ tokenizingFailed:
     avDynamicArrayDestroy(tokens);
 loadingFailed:
     avStringFree(&projectFileName);
-
-    avStringDebugContextEnd;
+    avStringFree(&importFile);
     return res;
 }
 
@@ -668,6 +669,7 @@ bool32 analyseImport(struct Statement_S* statement, Project* ctx){
     struct ImportStatement_S import = statement->importStatement;
     if(ctx->currentScope->type != SCOPE_TYPE_TOPLEVEL){
         semanticError(statement->line, ctx, "Import statement not at top level");
+        avStringDebugContextEnd;
         return false;
     }
     AvString importFile = AV_EMPTY;
@@ -676,6 +678,7 @@ bool32 analyseImport(struct Statement_S* statement, Project* ctx){
     bool32 res = importProjectFile(importFile, import.local, &importProject, import.mappingCount, import.mappings, ctx->projectFileName, ctx);
     if(!res){
         avStringFree(&importFile);
+        avStringDebugContextEnd;
         return false;
     }
     statement->importStatement.project = importProject;
@@ -710,6 +713,7 @@ bool32 analyseImport(struct Statement_S* statement, Project* ctx){
     }
 
     avStringFree(&importFile);
+    avStringDebugContextEnd;
     return res;
 }
 

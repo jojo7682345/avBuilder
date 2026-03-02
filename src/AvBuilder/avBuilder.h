@@ -247,5 +247,19 @@ void enterScope(enum ScopeType type, struct Statement_S* statement, Project* ctx
 void exitScope(Project* ctx);
 
 Symbol* resolveSymbol(AvString identifier, int32* depth, Project* ctx);
+#define LOC __FILE__, __LINE__
+#define LOC_PARAM const char* file, uint32 line
+#define LOC_PASS file, line
+
+#define destroyValue(valuePtr, ...) destroyValue_(valuePtr __VA_OPT__(,) __VA_ARGS__, LOC)
+#define destroyConstValue(valuePtr, ...) destroyConstValue_(valuePtr __VA_OPT__(,) __VA_ARGS__, LOC)
+
+#define cloneValue(dstPtr, src, ...) cloneValue_(dstPtr, src __VA_OPT__(,) __VA_ARGS__, LOC)
+#define cloneConstValue(dstPtr, src, ...) cloneConstValue_(dstPtr, src __VA_OPT__(,) __VA_ARGS__, LOC)
+
+void destroyValue_(Value* value, LOC_PARAM);
+void destroyConstValue_(ConstValue* value, LOC_PARAM);
+void cloneValue_(Value* dst, Value src, LOC_PARAM);
+void cloneConstValue_(ConstValue* dst, ConstValue src, LOC_PARAM);
 
 #endif//__AV_BUILDER__ 
