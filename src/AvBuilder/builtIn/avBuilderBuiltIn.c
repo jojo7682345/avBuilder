@@ -491,7 +491,7 @@ struct Value println(Project* project, uint32 valueCount, struct Value* values){
                         avStringPrintf(AV_CSTR("%i"), val.asNumber);
                         break;
                     default:
-                        runtimeError(project, "logic error");
+                        runtimeError(project, "cannot print uninitialized value");
                         break;
                 }
                 avStringPrint(AV_CSTRA("\n"));

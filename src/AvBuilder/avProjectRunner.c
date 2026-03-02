@@ -653,9 +653,6 @@ bool32 evaluateFunctionCall(Value* value, struct Expression_S expression, Projec
 	if(expression.call.argumentCount){
 		values = avCallocate(expression.call.argumentCount, sizeof(Value), "");
 	}
-	if(avStringEquals(AV_CSTRA("makeDirs"), expression.call.resolvedSymbol->identifier)){
-		ctx->ID = 1; //TODO: remove
-	}
 	for(uint32 i = 0; i < expression.call.argumentCount; i++){
 		if(!evaluateExpression(values + i, expression.call.arguments[i], ctx)){
 			return false;
@@ -1648,13 +1645,13 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 			runtimeError(ctx, "Failed retrieve symbol %S", expression.identifier.resolvedSymbol ? expression.identifier.resolvedSymbol->identifier : AV_CSTRA("<UNDEFINED>"));
 			return false;
 		}
-		if(value->type == VALUE_TYPE_ARRAY){
-			for(uint32 i = 0; i < value->asArray.count; i++){
-				if(value->asArray.values[i].type==VALUE_TYPE_STRING && strcmp(value->asArray.values[i].asString.chrs, "build/engine/src/containers/darray.o")==0){
-					return true;
-				}
-			}
-		}
+		// if(value->type == VALUE_TYPE_ARRAY){
+		// 	for(uint32 i = 0; i < value->asArray.count; i++){
+		// 		if(value->asArray.values[i].type==VALUE_TYPE_STRING && strcmp(value->asArray.values[i].asString.chrs, "build/engine/src/containers/darray.o")==0){
+		// 			return true;
+		// 		}
+		// 	}
+		// }
 		return true;
 	case EXPRESSION_TYPE_LITERAL:{
 		Value val = {.type = VALUE_TYPE_STRING,.asString = expression.literal.value};
@@ -1776,14 +1773,21 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 			}
 			cloneConstValue(newValues + i, values[indexNr]);
 		}
-
-		Value val = {
-			.type= VALUE_TYPE_ARRAY,
-			.asArray.count = indexSize,
-			.asArray.values = newValues,
-		};
-		cloneValue(value, val);
-		destroyValue(&val);
+		if(indexSize == 1){
+			Value tmp = {0};
+			toValue(newValues[0], &tmp);
+			avFree(newValues);
+			cloneValue(value, tmp);
+			destroyValue(&tmp);
+		}else{
+			Value val = {
+				.type= VALUE_TYPE_ARRAY,
+				.asArray.count = indexSize,
+				.asArray.values = newValues,
+			};
+			cloneValue(value, val);
+			destroyValue(&val);
+		}
 		destroyValue(&left);
 		destroyValue(&index);
 

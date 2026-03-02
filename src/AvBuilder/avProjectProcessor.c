@@ -467,8 +467,18 @@ bool32 analyseFunction(struct Statement_S* statement, Project* ctx){
         }
     }
     ctx->skipScope = true;
-    ret = analyseStatement(func->body, ctx);
+    if(!func->body){
+        ret = false;
+        semanticError(statement->line, ctx, "Function without body");
+    }else{
+        if(func->body->type==STATEMENT_TYPE_NONE){
+            ret = true;
+        }else{
+            ret = analyseStatement(func->body, ctx);
+        }
+    }
     exitScope(ctx);
+
     //ctx->currentFunction = currentFunc;
     return ret;
 }
@@ -513,7 +523,7 @@ bool32 analyseForeach(struct Statement_S* statement, Project* ctx){
         semanticError(statement->line, ctx, "variable %S already defined", foreach.index);
         ret = false;
     }
-        
+
     ctx->skipScope = true;
     if(!analyseStatement(foreach.statement, ctx)){
         ret = false;
