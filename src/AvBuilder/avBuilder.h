@@ -49,6 +49,7 @@
     TOKEN(PUNCTUATOR,   divide, "/")\
     TOKEN(PUNCTUATOR,   semicolon, ";")\
     TOKEN(PUNCTUATOR,   colon, ":")\
+    TOKEN(PUNCTUATOR,   question, "?")\
     TOKEN(PUNCTUATOR,   pipe, "|")\
     TOKEN(PUNCTUATOR,   error_pipe, "~")\
     TOKEN(PUNCTUATOR,   less_than, "<")\

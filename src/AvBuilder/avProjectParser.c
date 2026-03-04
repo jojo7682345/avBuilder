@@ -444,8 +444,28 @@ static struct Expression_S parseCommandExpression(TokenIterator* iterator){
     return expr;
 }
 
-static struct Expression_S parseAssignmentExpression(TokenIterator* iterator){
+static struct Expression_S parseTernary(TokenIterator* iterator){
     struct Expression_S expr = parseCommandExpression(iterator);
+    if(match(iterator, TOKEN_TYPE_PUNCTUATOR_question)){
+        struct Expression_S truePath = parseCommandExpression(iterator);
+        consume(iterator, TOKEN_TYPE_PUNCTUATOR_colon, "Expected ':' after '?'");
+        struct Expression_S falsePath = parseCommandExpression(iterator);
+
+        struct Expression_S ternary = {.type=EXPRESSION_TYPE_TERNARY};
+        ternary.ternary.expr = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
+        ternary.ternary.truePath = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
+        ternary.ternary.falsePath = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
+
+        avMemcpy(ternary.ternary.expr, &expr, sizeof(struct Expression_S));
+        avMemcpy(ternary.ternary.truePath, &truePath, sizeof(struct Expression_S));
+        avMemcpy(ternary.ternary.falsePath, &falsePath, sizeof(struct Expression_S));
+        return ternary;
+    }
+    return expr;
+}
+
+static struct Expression_S parseAssignmentExpression(TokenIterator* iterator){
+    struct Expression_S expr = parseTernary(iterator);
     
     if(match(iterator, 
         TOKEN_TYPE_PUNCTUATOR_equals, 

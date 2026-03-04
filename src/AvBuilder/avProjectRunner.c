@@ -513,13 +513,13 @@ bool32 retrieveSymbol_(Symbol* symbol, int32 localDepth, Value* value, Project* 
 		frame = symbol->scope->project->currentStackFrame;
 	}
 	
-	Scope* targetScope = frame->scope;
-	for(uint32 i = 0; i < localDepth; i++){
-		if(targetScope == NULL){
-			return false;
-		}
-		targetScope = targetScope->parent;
-	}
+	Scope* targetScope = symbol->scope;
+	// for(uint32 i = 0; i < localDepth; i++){
+	// 	if(targetScope == NULL){
+	// 		return false;
+	// 	}
+	// 	targetScope = targetScope->parent;
+	// }
 
 	while (frame && frame->scope != targetScope){
     	frame = frame->parent;
@@ -1573,7 +1573,7 @@ Value performCommand(struct CommandExpression_S command, AvPipe* input, Project*
 		runtimeError(ctx, "Failed to start process %S", info.executable);
 		goto cleanup;
 	}
-	if(mode ==CMD_OUT_PIPE_TO_COMMAND || mode == CMD_OUT_RETURN) avPipeConsumeWriteChannel(&pipe);
+	if(mode == CMD_OUT_PIPE_TO_COMMAND || mode == CMD_OUT_RETURN) avPipeConsumeWriteChannel(&pipe);
 	if(input) avPipeConsumeReadChannel(input);
 
 	switch(mode) {
@@ -1625,14 +1625,16 @@ bool32 evaluateCommand(Value* value, struct Expression_S expression, Project* ct
 	if(val.type==VALUE_TYPE_NONE){
 		return false;
 	}
-	avMemcpy(value, &val, sizeof(Value));
+	if(value) avMemcpy(value, &val, sizeof(Value));
 	return true;
 }
 
 bool32 evaluateExpression(Value* value, struct Expression_S expression, Project* ctx){
-	Value tmp = {0};
-	if(value==NULL) value = &tmp;
-	avMemset(value, 0, sizeof(Value));
+	if(value==NULL) {
+		runtimeError(ctx, "NULL value specified for expression not of type command");
+		return false;
+	}
+	if(value) avMemset(value, 0, sizeof(Value));
 	
 	switch (expression.type) {
 	case EXPRESSION_TYPE_IDENTIFIER:
@@ -1798,27 +1800,38 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 		if(!evaluateExpression(&val, *expression.unary.expression, ctx)){
 			return false;
 		}
+		int64 numericVal = 0;
+		enum ValueType type = val.type;
 		if(val.type!=VALUE_TYPE_NUMBER){
-			destroyValue(&val);
-			runtimeError(ctx, "Invalid type for unary operator");
-			return false;
+			numericVal = checkValueTrue(val);
+		}else{
+			numericVal = val.asNumber;
 		}
+		destroyValue(&val);
+		
 		int64 newVal = 0;
 		switch(expression.unary.operator){
 			case UNARY_OPERATOR_MINUS:
-				newVal = -val.asNumber;
+				if(type != VALUE_TYPE_NUMBER){
+					runtimeError(ctx, "Invalid type for '-' operator");
+					return false;
+				}
+				newVal = -numericVal;
 				break;
 			case UNARY_OPERATOR_PLUS:
-				newVal = val.asNumber;
+				if(type != VALUE_TYPE_NUMBER){
+					runtimeError(ctx, "Invalid type for '-' operator");
+					return false;
+				}
+				newVal = numericVal;
 				break;
 			case UNARY_OPERATOR_NOT:
-				newVal = !val.asNumber;
+				newVal = !numericVal;
 				break;
 			default:
 				runtimeError(ctx, "Invalid operator");
 				break;
 		}
-		destroyValue(&val);
 		Value tmp = {
 			.type = VALUE_TYPE_NUMBER,
 			.asNumber = newVal,
@@ -1859,7 +1872,7 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 		cloneValue(value, (Value){.type=VALUE_TYPE_NUMBER, .asNumber = rightVal});
 		return true;
 	}
-	case EXPRESSION_TYPE_ENUMERATION:
+	case EXPRESSION_TYPE_ENUMERATION:{
 		Value val = enumerateFiles(expression.enumeration, ctx);
 		if(val.type == VALUE_TYPE_NONE){
 			destroyValue(&val);
@@ -1868,8 +1881,22 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 		cloneValue(value, val);
 		destroyValue(&val);
 		return true;
+	}
 	case EXPRESSION_TYPE_COMMAND:
 		return evaluateCommand(value, expression, ctx);
+	case EXPRESSION_TYPE_TERNARY:{
+		Value testVal = {0};
+		if(!evaluateExpression(&testVal, *expression.ternary.expr, ctx)){
+			return false;
+		}
+		bool32 path = checkValueTrue(testVal);
+		destroyValue(&testVal);
+		if(!evaluateExpression(value, (path) ? (*expression.ternary.truePath) : (*expression.ternary.falsePath), ctx)){
+			return false;
+		}
+		return true;
+	}
+		
 	default:
 		runtimeError(ctx, "Expression type not implemented yet");
 		return false;
@@ -1992,7 +2019,7 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 			return true;
 		case STATEMENT_TYPE_EXPRESSION:{
 			Value tmp ={0};
-			bool32 ret =evaluateExpression(&tmp, statement->expression, ctx);
+			bool32 ret = evaluateExpression(&tmp, statement->expression, ctx);
 			destroyValue(&tmp);
 			return ret;
 		}

@@ -385,6 +385,27 @@ bool32 analyseCommand(struct Expression_S* expr, uint32 line, struct ExpressionF
     return ret;
 }
 
+bool32 analyseTernary(struct Expression_S* expr, uint32 line, struct ExpressionFlags* flags, Project* ctx){
+    bool32 ret = true;
+    struct ExpressionFlags exprFlags = {0};
+    if(!analyseExpression(expr->ternary.expr, line, &exprFlags, ctx)){
+        ret = false;
+    }
+    struct ExpressionFlags trueFlags = {0};
+    if(!analyseExpression(expr->ternary.truePath, line, &trueFlags, ctx)){
+        ret = false;
+    }
+    struct ExpressionFlags falseFlags = {0};
+    if(!analyseExpression(expr->ternary.falsePath, line, &falseFlags, ctx)){
+        ret = false;
+    }
+
+    if(flags) flags->constant = exprFlags.constant && trueFlags.constant && falseFlags.constant;
+
+    return ret;
+
+}
+
 bool32 analyseExpression(struct Expression_S* expression, uint32 line, struct ExpressionFlags* flags, Project* ctx){
     switch(expression->type){
         case EXPRESSION_TYPE_IDENTIFIER:
@@ -415,6 +436,8 @@ bool32 analyseExpression(struct Expression_S* expression, uint32 line, struct Ex
             return analyseEnumeration(expression, line, flags, ctx);
         case EXPRESSION_TYPE_COMMAND:
             return analyseCommand(expression, line, flags, ctx);
+        case EXPRESSION_TYPE_TERNARY:
+            return analyseTernary(expression, line, flags, ctx);
         default:
             if(flags) flags->constant = false;
             semanticError(line, ctx, "invalid expression type %u", expression->type);

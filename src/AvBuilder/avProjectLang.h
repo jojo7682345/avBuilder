@@ -157,6 +157,12 @@ struct AssignmentExpression_S{
     int32 depth;
 };
 
+struct TernaryExpression_S {
+    struct Expression_S* expr;
+    struct Expression_S* truePath;
+    struct Expression_S* falsePath;
+};
+
 enum ExpressionType {
     EXPRESSION_TYPE_NONE = 0,
     EXPRESSION_TYPE_ARRAY,
@@ -173,6 +179,7 @@ enum ExpressionType {
     EXPRESSION_TYPE_COMBINATION,
     EXPRESSION_TYPE_COMMAND,
     EXPRESSION_TYPE_ASSIGNMENT,
+    EXPRESSION_TYPE_TERNARY,
 };
 
 struct Expression_S {
@@ -192,6 +199,7 @@ struct Expression_S {
         struct CombinationExpression_S combination;
         struct AssignmentExpression_S assignment;
         struct CommandExpression_S command;
+        struct TernaryExpression_S ternary;
     };
 };
 
