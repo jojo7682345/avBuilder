@@ -1033,6 +1033,14 @@ struct Value filterValues(struct FilterExpression_S filter, Project* project){
 					}
 				}
 				if(filt.type==VALUE_TYPE_STRING){
+					if(values[i].type!=VALUE_TYPE_STRING){
+						filterPassed = false;
+						continue;
+					}
+					if(avStringEquals(values[i].asString, filt.asString)){
+						filterPassed = true;
+						break;
+					}
 					runtimeError(project, "filtering with strings is not supported");
 					filterPassed = false;
 				}
