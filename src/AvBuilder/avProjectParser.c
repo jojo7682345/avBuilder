@@ -388,7 +388,7 @@ static struct Expression_S parseCombination(TokenIterator* iterator){
                 avAssert(false, "logic error");
                 break;
         }
-        struct Expression_S right = parseComparison(iterator);
+        struct Expression_S right = parseCombination(iterator);
         expr.combination.left = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
         expr.combination.right = avAllocatorAllocate(sizeof(struct Expression_S), iterator->allocator);
         avMemcpy(expr.combination.left, &left, sizeof(struct Expression_S));
