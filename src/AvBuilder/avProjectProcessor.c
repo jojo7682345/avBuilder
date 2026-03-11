@@ -474,10 +474,10 @@ bool32 analyseFunction(struct Statement_S* statement, Project* ctx){
         if(param.size.type != EXPRESSION_TYPE_NONE && !analyseExpression(&param.size, statement->line, &flags, ctx)){
             ret = false;
         }
-        if(param.unknownSize && !flags.constant){
-            semanticError(statement->line, ctx, "parameter %S's size is not constant or variadic", param.name);
-            ret = false;
-        }
+        // if(param.unknownSize && !flags.constant){
+        //     semanticError(statement->line, ctx, "parameter %S's size is not constant or variadic", param.name);
+        //     ret = false;
+        // }
         if(param.unknownSize && i != func->parameterCount - 1){
             semanticError(statement->line, ctx, "variadic parameter %S's is not last parameter", param.name);
             ret = false;

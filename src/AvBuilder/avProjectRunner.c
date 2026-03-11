@@ -1767,7 +1767,7 @@ bool32 evaluateExpression(Value* value, struct Expression_S expression, Project*
 		ConstValue* newValues = avCallocate(indexSize, sizeof(ConstValue), "");
 		for(uint32 i = 0; i < indexSize; i++){
 			int64 indexNr = indices[i].asNumber;
-			if(indexNr < 0 || indexNr > size){
+			if(indexNr < 0 || indexNr >= size){
 				runtimeError(ctx, "array index out of bounds");
 				destroyValue(&left);
 				destroyValue(&index);

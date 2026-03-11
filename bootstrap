@@ -42,7 +42,7 @@ exit $ret
 #ifdef _WIN32
 #define CFLAGS "-std=c11 -O0 -Wall -ggdb -fPIC -lm -fno-omit-frame-pointer" //" -fsanitize=address "
 #else
-#define CFLAGS "-std=c11 -O0 -Wall -ggdb -fPIC -lm -fno-omit-frame-pointer" " -fsanitize=address,undefined"
+#define CFLAGS "-std=c11 -O0 -Wall -ggdb -fPIC -lm -fno-omit-frame-pointer"// " -fsanitize=address,undefined"
 #endif
 
 #define INCLUDES "include"

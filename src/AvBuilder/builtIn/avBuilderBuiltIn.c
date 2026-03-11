@@ -1653,7 +1653,9 @@ struct Value filterUnique(Project* project, uint32 valueCount, struct Value* val
         return result;
     }
     if(maxItemCount == 1){
-        toValue(values[0].asArray.values[0], &result);
+        Value val;
+        toValue(values[0].asArray.values[0], &val);
+        cloneValue(&result, val);
         return result;
     }
 
@@ -1693,7 +1695,10 @@ struct Value filterUnique(Project* project, uint32 valueCount, struct Value* val
     }
     result.asArray.values = vals;
     result.asArray.count = uniqueCount;
-    return result;
+    Value tmp;
+    cloneValue(&tmp, result);
+    avFree(vals);
+    return tmp;
 }
 
 
@@ -1708,7 +1713,9 @@ struct Value splitString(Project* project, uint32 valueCount, struct Value* valu
 
     if(subStrings == 0){
         avArrayFree(&strs);
-        return values[0];
+        Value res = {0};
+        cloneValue(&res, values[0]);
+        return res;
     }
 
     struct ConstValue* vals = avAllocate(sizeof(struct ConstValue)*subStrings, "");
@@ -1923,9 +1930,9 @@ struct Value trimString(Project* project, uint32 valueCount, struct Value* value
 
     struct Value ret = {
         .type = VALUE_TYPE_STRING,
-        .asString = values[0].asString,
+        //.asString = values[0].asString,
     };
-
+    avStringClone(&ret.asString, values[0].asString);
     AvString str = values[0].asString;
 
     uint32 start = 0;
