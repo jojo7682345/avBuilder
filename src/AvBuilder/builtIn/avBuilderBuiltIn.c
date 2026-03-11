@@ -7,10 +7,11 @@
 
 #define AV_DYNAMIC_ARRAY_ADVANCED
 #include <AvUtils/dataStructures/avDynamicArray.h>
+#include <AvUtils/avMath.h>
 
-#ifndef _WIN32
-#include <unistd.h>
-#endif
+// #ifndef _WIN32
+// #include <unistd.h>
+// #endif
 
 #define TS(str) sizeof(#str)
 
@@ -966,7 +967,7 @@ struct Value toUppercase(Project* project, uint32 valueCount, struct Value* valu
         AvString str =vals[i].asString;
         avStringToUppercase(&str);
         AvString tmpStr = AV_EMPTY;
-        avStringCopyToAllocator(str, &tmpStr, project->allocator);
+        avStringClone(&tmpStr, str);
         avStringFree(&str);
 
         struct ConstValue res = {
@@ -1018,7 +1019,7 @@ struct Value toLowercase(Project* project, uint32 valueCount, struct Value* valu
         AvString str =vals[i].asString;
         avStringToUppercase(&str);
         AvString tmpStr = AV_EMPTY;
-        avStringCopyToAllocator(str, &tmpStr, project->allocator);
+        avStringClone(&tmpStr, str);
         avStringFree(&str);
         
         struct ConstValue res = {
@@ -1101,7 +1102,7 @@ struct Value currentDir(Project* project, uint32 valueCount, struct Value* value
         struct Value res = {
             .type= VALUE_TYPE_STRING,
         };
-        avStringCopyToAllocator(AV_CSTR(cwd), &res.asString, project->allocator);
+        avStringClone(&res.asString, AV_CSTR(cwd));
         return res;
     } else {
         runtimeError(project, "getcwd() error");
@@ -1463,7 +1464,7 @@ struct Value parseDependencies(Project* project, uint32 valueCount, struct Value
         AvString str = {0};
         avDynamicArrayRead(&str, i, dependencies);
         AvString tmpStr = AV_EMPTY;
-        avStringCopyToAllocator(str, &tmpStr, project->allocator);
+        avStringClone(&tmpStr, str);
         struct ConstValue res = {
             .type = VALUE_TYPE_STRING,
             .asString = tmpStr,
@@ -1572,7 +1573,7 @@ struct Value readFileLines(Project* project, uint32 valueCount, struct Value* va
     if(lineCount == 1){
         AvString tmp = {0};
         avDynamicArrayRead(&tmp, 0, lines);
-        avStringCopyToAllocator(tmp, &result.asString, project->allocator);
+        avStringClone(&result.asString, tmp);
         result.type = VALUE_TYPE_STRING;
     }else if(lineCount != 0){
         struct ConstValue* retVals = avCallocate(lineCount, sizeof(struct ConstValue), "");
@@ -1585,7 +1586,7 @@ struct Value readFileLines(Project* project, uint32 valueCount, struct Value* va
                 avStringUnsafeCopy(&retVals[index].asString, tmp); 
                 continue; 
             } 
-            avStringCopyToAllocator(element, &retVals[index].asString, project->allocator); 
+            avStringClone(&retVals[index].asString, element); 
             avStringFree(&element);
         };
         result.asArray.count = lineCount;
@@ -1695,3 +1696,520 @@ struct Value filterUnique(Project* project, uint32 valueCount, struct Value* val
     return result;
 }
 
+
+struct Value splitString(Project* project, uint32 valueCount, struct Value* values){
+
+
+    AvString str = values[0].asString;
+    AvString split = values[1].asString;
+
+    AvArray strs = {0};
+    uint32 subStrings = avStringSplit(&strs, split, str);
+
+    if(subStrings == 0){
+        avArrayFree(&strs);
+        return values[0];
+    }
+
+    struct ConstValue* vals = avAllocate(sizeof(struct ConstValue)*subStrings, "");
+    for(uint32 index = 0; index < (&strs)->count; index++) { 
+        AvString subStr; avArrayRead(&subStr, index, (&strs)); 
+        { 
+            avMemset(vals + index, 0, sizeof(struct ConstValue));
+            vals[index].type = VALUE_TYPE_STRING;
+            avStringClone(&vals[index].asString, subStr); 
+        }
+    };
+    avArrayFree(&strs);
+
+    return (struct Value){
+        .type = VALUE_TYPE_ARRAY,
+        .asArray = {
+            .count = subStrings,
+            .values = vals,
+        },
+    };
+}
+
+struct Value decodeHexNumber(Project* project, uint32 valueCount, struct Value* values){
+    struct Value ret = {
+        .type = VALUE_TYPE_NUMBER,
+        .asNumber = -1,
+    };
+
+    AvString str = values[0].asString;
+
+    uint64 value = 0;
+    bool8 prefix = false;
+    for(uint32 i = 0; i < str.len; i++){
+
+        
+        char c = str.chrs[i];
+        if(i == 0 && c == '0'){
+            prefix = true;
+            continue;
+        }
+        if(prefix && i == 1 && (c=='x' || c=='X')){
+            continue;
+        }
+
+        if(!avCharIsHexNumber(c)){
+            return ret;
+        }
+
+        c = avCharToLowercase(c);
+        switch(c){
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+                value += c - '0';
+                break;
+            case 'a':
+            case 'b':
+            case 'c':
+            case 'd':
+            case 'e':
+            case 'f':
+                value += c - 'a' + 10;
+                break;
+        }
+        if(i != str.len - 1){
+            value <<= 4;
+        }
+    }
+
+    ret.asNumber = value;
+
+    return ret;
+}
+
+struct Value decodeNumber(Project* project, uint32 valueCount, struct Value* values){
+    struct Value ret = {
+        .type = VALUE_TYPE_NUMBER,
+        .asNumber = -1,
+    };
+
+    AvString str = values[0].asString;
+
+    uint64 value = 0;
+    for(uint32 i = 0; i < str.len; i++){
+
+        
+        char c = str.chrs[i];
+
+        if(!avCharIsNumber(c)){
+            return ret;
+        }
+
+        c = avCharToLowercase(c);
+        value += c - '0';
+        if(i != str.len - 1){
+            value *= 10;
+        }
+    }
+
+    ret.asNumber = value;
+
+    return ret;
+}
+
+struct Value encodeHexNumber(Project* project, uint32 valueCount, struct Value* values){
+    char buffer[512];
+
+    struct Value ret = {
+        .type = VALUE_TYPE_STRING,
+        .asString = AV_CSTRA("0"),
+    };
+
+    uint64 num = values[0].asNumber;
+    uint32 len = 0;
+    // print hex number
+    //avStringPrintfToBuffer(buffer, 511, AV_CSTR("%x"), num);
+    // Inline hex conversion (like %x)
+    {
+        static const char hex[] = "0123456789abcdef";
+        char tmp[32];          // enough for 64-bit hex
+        int i = 0;
+
+        if (num == 0) {
+            buffer[0] = '0';
+            buffer[1] = '\0';
+            len = 1;
+        } else {
+            while (num > 0) {
+                tmp[i++] = hex[num & 0xF];
+                num >>= 4;
+            }
+
+            // reverse into buffer
+            int j = 0;
+            while (i > 0) {
+                buffer[j++] = tmp[--i];
+            }
+            buffer[j] = '\0';
+            len = j;
+        }
+    }
+    buffer[len] = '\0';
+    avStringClone(&ret.asString, AV_STR(buffer, len));
+    return ret;
+}
+
+struct Value getStringChar(Project* project, uint32 valueCount, struct Value* values){
+
+    struct Value ret = {
+        .type = VALUE_TYPE_STRING,
+        .asString = AV_CSTRA(""),
+    };
+
+    AvString str = values[0].asString;
+    if(str.len == 0){
+        return ret;
+    }
+    if(str.len <= values[1].asNumber){
+        return ret;
+    }
+    AvString chr = (AvString){.chrs = str.chrs + values[1].asNumber, .len = 1, .memory = nullptr};
+    avStringClone(&ret.asString, chr);
+    return ret;
+}
+
+
+
+struct Value truncateFile(Project* project, uint32 valueCount, struct Value* values){
+
+    struct Value result = {
+        .type = VALUE_TYPE_NUMBER,
+        .asNumber = 0,
+    };
+
+    AvString filePath = values[0].asString;
+    
+    AvFile file = avFileHandleCreate(filePath);
+    if(!avFileOpen(file, AV_FILE_OPEN_READ_BINARY_DEFAULT)){
+        avFileHandleDestroy(file);
+        return result;
+    }
+    uint64 truncSize = values[1].asNumber;
+    uint64 size = avFileGetSize(file);
+    if(size == 0){
+        avFileHandleDestroy(file);
+        return result;
+    }
+    byte* buffer = avAllocate(truncSize, "file buffer");
+    avMemset(buffer, 0xff, truncSize);
+    avFileRead(buffer, AV_MIN(truncSize, size), file);
+    avFileClose(file);
+    if(!avFileOpen(file, AV_FILE_OPEN_WRITE_BINARY_DEFAULT)){
+        avFileHandleDestroy(file);
+        avFree(buffer);
+        return result;
+    }
+    avFileWrite(buffer, truncSize, file);
+    avFree(buffer);
+    avFileHandleDestroy(file);
+    result.asNumber = 1;
+    return result;
+}
+
+struct Value trimString(Project* project, uint32 valueCount, struct Value* values){
+
+    struct Value ret = {
+        .type = VALUE_TYPE_STRING,
+        .asString = values[0].asString,
+    };
+
+    AvString str = values[0].asString;
+
+    uint32 start = 0;
+    uint32 end = str.len;
+
+    // Trim leading whitespace
+    while(start < end){
+        char c = str.chrs[start];
+        if(c != ' ' && c != '\t' && c != '\n' && c != '\r'){
+            break;
+        }
+        start++;
+    }
+
+    // Trim trailing whitespace
+    while(end > start){
+        char c = str.chrs[end - 1];
+        if(c != ' ' && c != '\t' && c != '\n' && c != '\r'){
+            break;
+        }
+        end--;
+    }
+
+    // If unchanged, return original string
+    if(start == 0 && end == str.len){
+        return ret;
+    }
+
+    // Create trimmed string
+    AvString trimmed = AV_STR(
+        str.chrs + start,
+        end - start
+    );
+
+    avStringClone(
+        &ret.asString,
+        trimmed
+    );
+
+    return ret;
+}
+
+struct Value stringContains(Project* project, uint32 valueCount, struct Value* values){
+
+    struct Value ret = {
+        .type = VALUE_TYPE_NUMBER,
+        .asNumber = 0,
+    };
+
+    AvString str = values[0].asString;
+    if(avStringContains(str, values[1].asString)){
+        ret.asNumber = 1;
+    }
+
+    return ret;
+
+}
+
+struct Value stringStartsWith(Project* project, uint32 valueCount, struct Value* values){
+
+    struct Value ret = {
+        .type = VALUE_TYPE_NUMBER,
+        .asNumber = 0,
+    };
+
+    AvString str = values[0].asString;
+    if(avStringStartsWith(str, values[1].asString)){
+        ret.asNumber = 1;
+    }
+
+    return ret;
+
+}
+
+struct Value stringEndsWith(Project* project, uint32 valueCount, struct Value* values){
+
+    struct Value ret = {
+        .type = VALUE_TYPE_NUMBER,
+        .asNumber = 0,
+    };
+
+    AvString str = values[0].asString;
+    if(avStringEndsWith(str, values[1].asString)){
+        ret.asNumber = 1;
+    }
+
+    return ret;
+
+}
+struct Value stringLength(Project* project, uint32 valueCount, struct Value* values){
+
+    struct Value ret = {
+        .type = VALUE_TYPE_NUMBER,
+        .asNumber = 0,
+    };
+
+    AvString str = values[0].asString;
+    ret.asNumber = str.len;
+    return ret;
+
+}
+
+struct Value stringGetSection(Project* project, uint32 valueCount, struct Value* values){
+
+    struct Value ret = {
+        .type = VALUE_TYPE_STRING,
+        .asString = AV_EMPTY_STRING,
+    };
+
+    AvString str = values[0].asString;
+    AvString tmp = AV_EMPTY;
+    int64 start = values[1].asNumber;
+    if(start < 0){
+        return ret;
+    }
+    if(start >= str.len){
+        return ret;
+    }
+    int64 end =  values[2].asNumber;
+    if(end >= str.len){
+        end = str.len - 1;
+    }
+    if(end < start){
+        return ret;
+    }
+    uint64 length = end - start + 1;
+    avStringCopySection(&tmp, start, length, str);
+    avStringClone(&ret.asString, tmp);
+    avStringFree(&tmp);
+    return ret;
+
+}
+
+struct Value stringMinimizeWhitespace(Project* project, uint32 valueCount, struct Value* values){
+
+    struct Value ret = {
+        .type = VALUE_TYPE_STRING,
+        .asString = AV_EMPTY_STRING,
+    };
+
+    AvString str = values[0].asString;
+
+    AvStringMemory memory = AV_EMPTY;
+    avStringMemoryAllocate(str.len, &memory);
+    uint64 index = 0;
+    bool32 hasText = false;
+    for(uint64 i = 0; i < str.len; i++){
+        char c = str.chrs[i];
+        if(avCharIsWhiteSpace(c)){
+            if(hasText){
+                memory.data[index++] = ' ';
+                hasText = false;
+            }
+            continue;
+        }
+        hasText = true;
+        memory.data[index++] = c;
+    }
+    if(index == 0){
+        return ret;
+    }
+    AvString tmp = AV_EMPTY;
+    avStringFromMemory(&tmp, 0, index, &memory);
+    avStringClone(&ret.asString, tmp);
+    avStringFree(&tmp);
+    return ret;
+
+}
+
+struct Value formatFloat(Project* project, uint32 valueCount, struct Value* values){
+
+    struct Value ret = {
+        .type = VALUE_TYPE_STRING,
+        .asString = AV_CSTRA("0"),
+    };
+
+    int64 num = values[0].asNumber;
+    AvStringMemory memory = AV_EMPTY;
+    avStringMemoryAllocate(512, &memory);
+    uint64 index = 0;
+    if(num==0){
+        return ret;
+    }
+    bool32 neg = false;
+    if(num < 0){
+        neg = true;
+        num = -num;
+    }
+
+    while(num){
+        int64 digit = num % 10;
+        memory.data[index++] = '0' + digit;
+        if(index == values[1].asNumber){
+            memory.data[index++] = '.';
+        }
+        num /= 10;
+    }
+    if(values[1].asNumber == index-1){
+        memory.data[index++] = '0';
+    }
+    if(neg){
+        memory.data[index++] = '-';
+    }
+
+
+    AvString tmp = AV_EMPTY;
+    avStringFromMemory(&tmp, 0, index, &memory);
+    avStringFlip(&tmp);
+    avStringClone(&ret.asString, tmp);
+    avStringFree(&tmp);
+    return ret;
+
+}
+
+struct Value readFileRaw(Project* project, uint32 valueCount, struct Value* values){
+    struct Value result = {.type = VALUE_TYPE_STRING, .asString = {0}};
+    
+    AvString str = values[0].asString;
+
+    AvFile file = avFileHandleCreate(str);
+    if(!avFileExists(file)){
+        avFileHandleDestroy(file);
+        return result;
+    }
+    
+    if(!avFileOpen(file, AV_FILE_OPEN_READ_BINARY_DEFAULT)){
+        avFileHandleDestroy(file);
+        return result;
+    }
+    
+    uint64 size = avFileGetSize(file);
+    if(size == 0){
+        avFileHandleDestroy(file);
+        return result;
+    }
+    
+    AvStringMemory memory = {0};
+    avStringMemoryAllocate(size+1, &memory);
+    avFileRead(memory.data, size, file);
+    avFileHandleDestroy(file);
+    avStringFromMemory(&result.asString, 0, size, &memory);
+    return result;
+
+}
+
+struct Value writeFileRaw(Project* project, uint32 valueCount, struct Value* values){
+    struct Value result = {.type = VALUE_TYPE_NUMBER, .asNumber = 0};
+    
+    AvString filePath = values[0].asString;
+
+    struct ConstValue tmpConst = {0};
+    struct ConstValue* lines = &tmpConst;
+    uint32 lineCount = 1;
+
+    if(values[1].type == VALUE_TYPE_ARRAY){
+        lines = values[1].asArray.values;
+        lineCount = values[1].asArray.count;
+    }else{
+        toConstValue(values[1], &tmpConst, project);
+    }
+
+    AvFile file = avFileHandleCreate(filePath);
+    if(!avFileOpen(file, AV_FILE_OPEN_WRITE_BINARY_DEFAULT)){
+        avFileHandleDestroy(file);
+        return result;
+    }
+    for(uint32 i = 0; i < lineCount; i++){
+        struct ConstValue val = lines[i];
+        switch(val.type){
+            case VALUE_TYPE_NUMBER:
+                byte data = val.asNumber & 0xff;
+                avFileWrite(&data, 1, file);
+                break;
+            case VALUE_TYPE_STRING:
+                avFileWrite((void*)val.asString.chrs, val.asString.len, file);
+                break;
+            default:
+                runtimeError(project, "invalid value type");
+                break;
+        }
+    }
+
+    avFileHandleDestroy(file);
+    result.asNumber = 1;
+    return result;
+
+}
