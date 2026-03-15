@@ -291,7 +291,8 @@ void destroyConstValue_(ConstValue* value, LOC_PARAM){
 void cloneConstValue_(ConstValue* dst, ConstValue src, LOC_PARAM);
 void cloneValue_(Value* dst, Value src, LOC_PARAM){
 	avAssert(dst != NULL, "dst must be valid");
-	avAssert(src.type!=VALUE_TYPE_NONE, "value must be valid");
+	if(src.type==VALUE_TYPE_NONE) return;
+	//avAssert(src.type!=VALUE_TYPE_NONE, "value must be valid");
 	if(dst->type!=VALUE_TYPE_NONE){
 		destroyValue_(dst, LOC_PASS);
 	}
@@ -371,6 +372,15 @@ void enterStackFrame(Scope* scope, Project* ctx){
 	ctx->currentScope = scope;
 	ctx->currentStackFrame = frame;
 	ctx->allocator = &frame->allocator;
+	//{
+		//StackFrame* frame = ctx->currentStackFrame;
+		//printf(AV_STRING_PRINTF_CODE, (int32)ctx->name.len, ctx->name.chrs);
+		//while(frame){
+		//	printf("\t");
+		//	frame = frame->parent;
+		//}
+		//printf("Enter StackFrame\n");
+	//}
 
 	if(!frame->parent){
 		if(scope->type!=SCOPE_TYPE_TOPLEVEL){
@@ -380,6 +390,17 @@ void enterStackFrame(Scope* scope, Project* ctx){
 }
 
 void exitStackFrame(Project* ctx){
+
+	// {
+	// 	StackFrame* frame = ctx->currentStackFrame;
+	// 	printf(AV_STRING_PRINTF_CODE, (int32)ctx->name.len, ctx->name.chrs);
+	// 	while(frame){
+	// 		printf("\t");
+	// 		frame = frame->parent;
+	// 	}
+	// 	printf("Exit StackFrame\n");
+	// }
+	
 	StackFrame* frame = ctx->currentStackFrame;
 	avAssert(frame!=NULL, "stackframe inbalance");
 
@@ -399,7 +420,7 @@ void exitStackFrame(Project* ctx){
 		ctx->currentScope = ctx->toplevelScope;
 		ctx->allocator = &ctx->baseAllocator;
 	}
-
+	
 	
 }
 
@@ -442,7 +463,7 @@ bool32 assignReturnValue(Symbol* symbol, int32 localDepth, Value value, Project*
 
 bool32 assignSymbol(Symbol* symbol, int32 localDepth, Value value, uint32 index, Project* ctx){
 	avAssert(symbol!=NULL, "symbol must be valid");
-	avAssert(value.type!=VALUE_TYPE_NONE, "value must be valid");
+	//avAssert(value.type!=VALUE_TYPE_NONE, "value must be valid");
 	
 	if(symbol->builtin){
 		return false;
@@ -573,12 +594,12 @@ bool32 performFunctionCall(Symbol* fn, Value* returnValue, uint32 argumentCount,
 		destroyValue(&retVal);
 		return true;
 	}
-
+	
 	Project* proj = ctx;
 	if(sym->external){
 		proj = sym->scope->project;
 	}
-	
+	//printf("Function Call: " AV_STRING_PRINTF_CODE ":\n", (int)sym->function.definition->functionDefinition.functionName.len,sym->function.definition->functionDefinition.functionName.chrs);
 	enterStackFrame(sym->function.definition->attachedScope, proj);
 
 	struct FunctionDefinition_S func = sym->function.definition->functionDefinition;
@@ -2020,7 +2041,7 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 			Value tmp ={0};
 			ret = evaluateExpression(&tmp, statement->expression, ctx);
 			destroyValue(&tmp);
-			return ret;
+			break;
 		}
 		case STATEMENT_TYPE_IF:{
 			Value value = {0};
@@ -2034,7 +2055,6 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 					ret = false;
 					break;
 				}
-				if(statement->attachedScope) exitStackFrame(ctx);
 			}else if(statement->ifStatement.alternativeBranch) {
 				if(!evaluateStatement(statement->ifStatement.alternativeBranch, ctx)){
 					destroyValue(&value);

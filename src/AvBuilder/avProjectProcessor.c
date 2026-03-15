@@ -560,7 +560,7 @@ bool32 analyseForeach(struct Statement_S* statement, Project* ctx){
 bool32 analyseIf(struct Statement_S* statement, Project* ctx){
     struct IfStatement_S stmt = statement->ifStatement;
     bool32 ret = true;
-
+    ctx->skipScope = false;
     if(!analyseExpression(stmt.check, statement->line, 0, ctx)){
         ret = false;
     }
@@ -572,6 +572,7 @@ bool32 analyseIf(struct Statement_S* statement, Project* ctx){
     }
     exitScope(ctx);
     if(stmt.alternativeBranch){
+        ctx->skipScope = false;
         enterScope(SCOPE_TYPE_ELSE, statement->ifStatement.alternativeBranch, ctx);
         ctx->skipScope = true;
         if(!analyseStatement(stmt.alternativeBranch, ctx)){
