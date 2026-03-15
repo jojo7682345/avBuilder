@@ -36,7 +36,7 @@ var srcDir = [
 
 func avBuilder() {
  
-    if(buildLib("lib/AvUtils/avUtils.project", "avUtils")!=0){
+    if(buildLib("lib/AvUtils/avUtils.project", "avUtils")==-1){
         println("building AvUtils failed");
         return -1;
     }

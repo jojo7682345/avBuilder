@@ -669,6 +669,7 @@ static struct Statement_S parseFunctionDefinition(TokenIterator* iterator){
     struct Statement_S functionBody = parseStatement(iterator);
     stmt.functionDefinition.body = avAllocatorAllocate(sizeof(struct Statement_S), iterator->allocator);
     avMemcpy(stmt.functionDefinition.body, &functionBody, sizeof(struct Statement_S));
+    avDynamicArrayDestroy(params);
     return stmt;
 }
 

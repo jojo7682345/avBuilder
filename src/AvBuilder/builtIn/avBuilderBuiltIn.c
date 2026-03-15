@@ -927,6 +927,7 @@ struct Value compileString(Project* project, uint32 valueCount, struct Value* va
     if(count == 1){
         struct Value res = {0};
         toValue(results[0], &res);
+        avFree(results);
         return res;
     }else{
         return (struct Value){
@@ -980,6 +981,7 @@ struct Value toUppercase(Project* project, uint32 valueCount, struct Value* valu
     if(count == 1){
         struct Value res = {0};
         toValue(results[0], &res);
+        avFree(results);
         return res;
     }else{
         return (struct Value){
@@ -1032,6 +1034,7 @@ struct Value toLowercase(Project* project, uint32 valueCount, struct Value* valu
     if(count == 1){
         struct Value res = {0};
         toValue(results[0], &res);
+        avFree(results);
         return res;
     }else{
         return (struct Value){
@@ -1083,6 +1086,7 @@ struct Value changeDir(Project* project, uint32 valueCount, struct Value* values
     if(count == 1){
         struct Value res = {0};
         toValue(results[0], &res);
+        avFree(results);
         return res;
     }else{
         return (struct Value){

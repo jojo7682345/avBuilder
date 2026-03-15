@@ -1613,6 +1613,7 @@ cleanup:
 			break;
 	}
 	avProcessStartInfoDestroy(&info);
+	if(process) avProcessDiscard(process);
 	return ret;
 	
 }
@@ -1999,71 +2000,76 @@ bool32 evaluateImport(struct Statement_S statement, Project* ctx){
 }
 
 bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
+	bool32 ret = true;
+	if(statement->attachedScope) enterStackFrame(statement->attachedScope, ctx);
 	switch(statement->type){
 		case STATEMENT_TYPE_BLOCK:
-			if(statement->attachedScope){
-				enterStackFrame(statement->attachedScope, ctx);
-			}
+			
 			for(uint32 i = 0; i < statement->block.statementCount; i++){
 				if(!evaluateStatement(&statement->block.statements[i], ctx)){
 					exitStackFrame(ctx);
-					return false;
+					ret = false;
+					break;
 				}
 				if(ctx->controlFlow!=CONTROLFLOW_NORMAL){
 					break;
 				}
 			}
-			if(statement->attachedScope){
-				exitStackFrame(ctx);
-			}
-			return true;
+			break;
 		case STATEMENT_TYPE_EXPRESSION:{
 			Value tmp ={0};
-			bool32 ret = evaluateExpression(&tmp, statement->expression, ctx);
+			ret = evaluateExpression(&tmp, statement->expression, ctx);
 			destroyValue(&tmp);
 			return ret;
 		}
 		case STATEMENT_TYPE_IF:{
 			Value value = {0};
 			if(!evaluateExpression(&value, *statement->ifStatement.check, ctx)){
-				return false;
+				ret = false;
+				break;
 			}
 			if(checkValueTrue(value)){
 				if(!evaluateStatement(statement->ifStatement.branch, ctx)){
 					destroyValue(&value);
-					return false;
+					ret = false;
+					break;
 				}
+				if(statement->attachedScope) exitStackFrame(ctx);
 			}else if(statement->ifStatement.alternativeBranch) {
 				if(!evaluateStatement(statement->ifStatement.alternativeBranch, ctx)){
 					destroyValue(&value);
-					return false;
+					ret = false;
+					break;
 				}
 			}
 			destroyValue(&value);
-			return true;
+			break;
 		}
 		case STATEMENT_TYPE_FOREACH:
-			return evaluateForeach(*statement, ctx);
+			ret = evaluateForeach(*statement, ctx);
+			break;
 		case STATEMENT_TYPE_BREAK:
 			ctx->controlFlow = CONTROLFLOW_BREAK;
-			return true;
+			break;
 		case STATEMENT_TYPE_CONTINUE:
 			ctx->controlFlow = CONTROLFLOW_CONTINUE;
-			return true;
+			break;
 		case STATEMENT_TYPE_RETURN:{
 			if(statement->returnStatement.value){
 				Value value = {0};
 				if(!evaluateExpression(&value, *statement->returnStatement.value, ctx)){
-					return false;
+					ret = false;
+					break;
 				}
 				if(!assignReturnValue(statement->returnStatement.resolvedVirtualSymbol, statement->returnStatement.returnDepth, value, ctx)){
 					destroyValue(&value);
-					return false;
+					ret = false;
+					break;
 				}
 				destroyValue(&value);
 			}
 			ctx->controlFlow = CONTROLFLOW_RETURN;
-			return true;
+			break;
 		}
 		case STATEMENT_TYPE_VARIABLE_DEFINITION:{
 			uint32 size = 1;
@@ -2071,16 +2077,19 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 			if(statement->variableDefinition.size &&  statement->variableDefinition.size->type != EXPRESSION_TYPE_NONE){
 				Value value = {0};
 				if(!evaluateExpression(&value, *statement->variableDefinition.size, ctx)){
-					return false;
+					ret = false;
+					break;
 				}
 				if(value.type != VALUE_TYPE_NUMBER){
 					destroyValue(&value);
 					runtimeError(ctx, "Variable %S's size does not resolve to number", statement->variableDefinition.identifier);
-					return false;
+					ret = false;
+					break;
 				}
 				if(value.asNumber < 1){
 					runtimeError(ctx, "Variable %S's size is not a valid number", statement->variableDefinition.identifier);
-					return false;
+					ret = false;
+					break;
 				}
 				size = value.asNumber;
 				isArray = true;
@@ -2093,7 +2102,8 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 			if(statement->variableDefinition.initialValue.type != EXPRESSION_TYPE_NONE){
 				Value value = {0};
 				if(!evaluateExpression(&value, statement->variableDefinition.initialValue, ctx)){
-					return false;
+					ret = false;
+					break;
 				}
 
 				if(isArray){
@@ -2107,13 +2117,15 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 							avMemcpy(&value, &tmp, sizeof(Value));
 						}else{
 							runtimeError(ctx, "Initial value is not correct size");
-							return false;
+							ret = false;
+							break;
 						}
 					}else{
 						if(size != 0){
 							if(value.asArray.count != size){
 								runtimeError(ctx, "Initial value is not correct size");
-								return false;
+								ret = false;
+								break;
 							}
 						}
 					}
@@ -2121,7 +2133,8 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 
 				if(!assignSymbol(statement->variableDefinition.resolvedSymbol, 0, value, -1, ctx)){
 					destroyValue(&value);
-					return false;
+					ret = false;
+					break;
 				}
 				destroyValue(&value);
 			}else{
@@ -2133,48 +2146,55 @@ bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 						avMemset(value.asArray.values, 0, sizeof(ConstValue)*size);
 					}
 					if(!assignSymbol(statement->variableDefinition.resolvedSymbol, 0, value, 0, ctx)){
-						return false;
+						ret = false;
+						break;
 					}
 					destroyValue(&value);
 				}
 			}
-			return true;
+			break;
 		}
 		case STATEMENT_TYPE_INHERIT:
 			if(!statement->inheritStatement.resolvedSymbol->external && statement->inheritStatement.defaultValue){
 				Value val = {0};
 				if(!evaluateExpression(&val, *statement->inheritStatement.defaultValue, ctx)){
-					return false;
+					ret = false;
+					break;
 				}
 				if(!assignSymbol(statement->inheritStatement.resolvedSymbol, 0, val, 0, ctx)){
 					destroyValue(&val);
-					return false;
+					ret = false;
+					break;
 				}
 				destroyValue(&val);
-				return true;
+				break;
 			}else if(!statement->inheritStatement.resolvedSymbol->external && !statement->inheritStatement.defaultValue){
 				runtimeError(ctx, "inherit  default valuenot %S not specified", statement->inheritStatement.variable);
-				return false;
+				ret = false;
+				break;
 			}else if(statement->inheritStatement.resolvedSymbol->external){
 				// statement->inheritStatement.resolvedSymbol = statement->inheritStatement.externalSymbol;
-				return true;
+				break;
 			}else{
 				runtimeError(ctx, "Logic Error");
-				return false;
+				ret = false;
+				break;
 			}
 			runtimeError(ctx, "Logic Error");
-			return false;
+			ret = false;
+			break;
 		case STATEMENT_TYPE_IMPORT:
-			return evaluateImport(*statement, ctx);
+			ret = evaluateImport(*statement, ctx);
+			break;
 		default:	
 			runtimeError(ctx, "Not implemented yet");
-			return false;
+			ret = false;
+			break;
 	}
-
-
-
-	return true;
+	if(statement->attachedScope) exitStackFrame(ctx);
+	return ret;
 }
+
 
 void exitAllImportedProjectStackFrames(Project* project);
 void exitProject(Project* project){

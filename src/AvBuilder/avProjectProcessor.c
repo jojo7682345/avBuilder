@@ -564,12 +564,20 @@ bool32 analyseIf(struct Statement_S* statement, Project* ctx){
     if(!analyseExpression(stmt.check, statement->line, 0, ctx)){
         ret = false;
     }
-
+    
+    enterScope(SCOPE_TYPE_IF, statement->ifStatement.branch, ctx);
+    ctx->skipScope = true;
     if(!analyseStatement(stmt.branch, ctx)){
         ret = false;
     }
-    if(stmt.alternativeBranch && !analyseStatement(stmt.alternativeBranch, ctx)){
-        ret = false;
+    exitScope(ctx);
+    if(stmt.alternativeBranch){
+        enterScope(SCOPE_TYPE_ELSE, statement->ifStatement.alternativeBranch, ctx);
+        ctx->skipScope = true;
+        if(!analyseStatement(stmt.alternativeBranch, ctx)){
+            ret = false;
+        }
+        exitScope(ctx);
     }
     return ret;
 }
@@ -638,6 +646,7 @@ bool32 importProjectFile(AvString importFileLoc, bool32 isLocal, Project** proj,
     AvDynamicArray aliases;
     avDynamicArrayClone(ctx->libraryAliases, &aliases);
     avDynamicArrayAppend(importProject->libraryAliases, &aliases);
+    avDynamicArrayDestroy(aliases);
 
     for(uint32 i = 0; i < mappingCount; i++){
         struct ImportMapping_S mapping = mappings[i];
@@ -681,6 +690,7 @@ bool32 importProjectFile(AvString importFileLoc, bool32 isLocal, Project** proj,
     (*proj) = importProject;
     avStringFree(&importFile);
     avStringFree(&projectFileName);
+    avDynamicArrayDestroy(tokens);
     return res;
 
 processingFailed:
@@ -698,11 +708,11 @@ loadingFailed:
 }
 
 bool32 analyseImport(struct Statement_S* statement, Project* ctx){
-    avStringDebugContextStart;
+    //avStringDebugContextStart;
     struct ImportStatement_S import = statement->importStatement;
     if(ctx->currentScope->type != SCOPE_TYPE_TOPLEVEL){
         semanticError(statement->line, ctx, "Import statement not at top level");
-        avStringDebugContextEnd;
+        //avStringDebugContextEnd;
         return false;
     }
     AvString importFile = AV_EMPTY;
@@ -711,7 +721,7 @@ bool32 analyseImport(struct Statement_S* statement, Project* ctx){
     bool32 res = importProjectFile(importFile, import.local, &importProject, import.mappingCount, import.mappings, ctx->projectFileName, ctx);
     if(!res){
         avStringFree(&importFile);
-        avStringDebugContextEnd;
+        //avStringDebugContextEnd;
         return false;
     }
     statement->importStatement.project = importProject;
@@ -746,7 +756,7 @@ bool32 analyseImport(struct Statement_S* statement, Project* ctx){
     }
 
     avStringFree(&importFile);
-    avStringDebugContextEnd;
+    //avStringDebugContextEnd;
     return res;
 }
 
@@ -958,7 +968,12 @@ bool32 processProject(Project* project){
 #else
 	AvString platform = AV_CSTRA("LINUX");
 #endif
-    declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .builtin = true, .constant = true, .constValue=true, .identifier=AV_CSTR("PROJECT_NAME"),.variable = {.constValue= (struct Value){.type=VALUE_TYPE_STRING,.asString=project->name}}}, project);
+
+    AvString projectName = {0};
+    avStringClone(&projectName, project->name);
+
+
+    declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .builtin = true, .constant = true, .constValue=true, .identifier=AV_CSTR("PROJECT_NAME"),.variable = {.constValue= (struct Value){.type=VALUE_TYPE_STRING,.asString=projectName}}}, project);
     declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .builtin = true, .constant = true, .constValue=true, .identifier=AV_CSTR("PROJECT_DIR"),.variable = {.constValue= currentDir(project, 0, nullptr)}}, project);
     declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .builtin = true, .constant = true, .constValue=true, .identifier=AV_CSTR("PLATFORM"),.variable = {.constValue= (struct Value){.type=VALUE_TYPE_STRING,.asString=platform}}}, project);
 

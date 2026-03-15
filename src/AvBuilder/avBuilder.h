@@ -143,6 +143,8 @@ enum ScopeType{
     SCOPE_TYPE_FUNCTION,
     SCOPE_TYPE_FOREACH,
     SCOPE_TYPE_BLOCK,
+    SCOPE_TYPE_IF,
+    SCOPE_TYPE_ELSE,
 };
 
 typedef struct Scope {

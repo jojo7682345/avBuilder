@@ -143,7 +143,7 @@ uint32 processProjectFile(const AvString projectFilePath, AvDynamicArray argumen
         printf("Attach debugger now...\n");
 
         while (!is_debugger_present()) {
-            extern void usleep(int);
+            extern int usleep(unsigned int);
             usleep(100000);  // 100 ms
         }
 
@@ -190,6 +190,7 @@ parsingFailed:
     projectDestroy(&project);
 tokenizingFailed:
     avDynamicArrayDestroy(tokens);
+    //avStringFree(&projectFileContent);
 loadingFailed:
     avStringFree(&projectFileName);
     avStringDebugContextEnd;
@@ -241,13 +242,55 @@ void projectCreate(struct Project* project, AvString name, AvString file, AvStri
     project->isLocal = isLocal;
     project->localContext = NULL;
 }
+
+static void destroyStatement(struct Statement_S* statement){
+    if(statement==NULL)return;
+    if(statement->attachedScope){
+        //avAllocatorDestroy(&statement.attachedScope->allocator);
+        for(uint32 j = 0; j < avDynamicArrayGetSize(statement->attachedScope->symbols); j++){
+            Symbol sym;
+            avDynamicArrayRead(&sym, j, statement->attachedScope->symbols);
+            if(sym.builtin){
+                if(sym.type==SYMBOL_VARIABLE){
+                    destroyValue(&sym.variable.constValue);
+                }
+            }
+        }
+	    avDynamicArrayDestroy(statement->attachedScope->symbols);
+    }
+    switch(statement->type){
+        case STATEMENT_TYPE_BLOCK:
+            for(uint32 i = 0; i < statement->block.statementCount; i++){
+                destroyStatement(&statement->block.statements[i]);
+            }
+            break;
+        case STATEMENT_TYPE_FOREACH:
+            destroyStatement(statement->foreachStatement.statement);
+            break;
+        case STATEMENT_TYPE_IF:
+            destroyStatement(statement->ifStatement.branch);
+            destroyStatement(statement->ifStatement.alternativeBranch);
+            break;
+        case STATEMENT_TYPE_FUNCTION_DEFINITION:
+            destroyStatement(statement->functionDefinition.body);
+            break;
+        default:
+            break;
+    }
+}
 void projectDestroy(struct Project* project){
     avAssert(project!=NULL, "project must be valid");
     for(uint32 i = 0; i < project->statementCount; i++){
-        struct Statement_S statement = project->statements[i];
-        if(statement.attachedScope){
-            //avAllocatorDestroy(&statement.attachedScope->allocator);
-	        avDynamicArrayDestroy(statement.attachedScope->symbols);
+        struct Statement_S* statement = &project->statements[i];
+        destroyStatement(statement);
+    }
+    for(uint32 j = 0; j < avDynamicArrayGetSize(project->toplevelScope->symbols); j++){
+        Symbol sym;
+        avDynamicArrayRead(&sym, j, project->toplevelScope->symbols);
+        if(sym.builtin){
+            if(sym.type==SYMBOL_VARIABLE){
+                destroyValue(&sym.variable.constValue);
+            }
         }
     }
     avDynamicArrayDestroy(project->toplevelScope->symbols);
@@ -278,6 +321,7 @@ static uint32 printUsage(const int argC, const char* argV[]){
     printf("  help                                  Display this help message and exit\n");
     printf("\nFlags:\n");
     printf("  --debugCommands                       Print all commands executed\n");
+    printf("  --debuggerAttach                      Wait for debugger to attach\n");
     printf("  --entry=(function)                    Specify entry function override\n");
     printf("  --genCompileCommands                  Generate compile_commands.json\n");
     printf("\nExamples:\n");
