@@ -1712,6 +1712,10 @@ struct Value splitString(Project* project, uint32 valueCount, struct Value* valu
     AvString str = values[0].asString;
     AvString split = values[1].asString;
 
+    if(avStringIsEmpty(str)){
+        return (Value){.type=VALUE_TYPE_STRING, .asString =AV_EMPTY_STRING };
+    }
+
     AvArray strs = {0};
     uint32 subStrings = avStringSplit(&strs, split, str);
 
@@ -1934,8 +1938,11 @@ struct Value trimString(Project* project, uint32 valueCount, struct Value* value
 
     struct Value ret = {
         .type = VALUE_TYPE_STRING,
-        //.asString = values[0].asString,
+        .asString = AV_EMPTY_STRING,
     };
+    if(avStringIsEmpty(values[0].asString)){
+        return ret;
+    }
     avStringClone(&ret.asString, values[0].asString);
     AvString str = values[0].asString;
 
@@ -2078,6 +2085,9 @@ struct Value stringMinimizeWhitespace(Project* project, uint32 valueCount, struc
     };
 
     AvString str = values[0].asString;
+    if(avStringIsEmpty(str)){
+        return ret;
+    }
 
     AvStringMemory memory = AV_EMPTY;
     avStringMemoryAllocate(str.len, &memory);

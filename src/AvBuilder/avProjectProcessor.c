@@ -536,8 +536,20 @@ bool32 analyseForeach(struct Statement_S* statement, Project* ctx){
     if(!analyseExpression(foreach.collection, statement->line, 0, ctx)){
         ret = false;
     }
+    bool32 skipped = ctx->skipScope;
+    ctx->skipScope = false;
+    if(!skipped) {
+        enterScope(SCOPE_TYPE_FOREACH, statement, ctx);
+    }else{
+        if(statement->attachedScope){
+            statement->attachedScope->type = SCOPE_TYPE_FOREACH;
+        } else {
+            skipped = false;
+            enterScope(SCOPE_TYPE_FOREACH, statement, ctx);
+        }
+        
+    }
 
-    enterScope(SCOPE_TYPE_FOREACH, statement, ctx);
     if(!avStringIsEmpty(foreach.variable) && (statement->foreachStatement.resolvedVarSymbol = declareSymbol((Symbol){.type=SYMBOL_VARIABLE,.identifier=foreach.variable}, ctx))==NULL){
         semanticError(statement->line, ctx, "variable %S already defined", foreach.variable);
         ret = false;
@@ -552,7 +564,9 @@ bool32 analyseForeach(struct Statement_S* statement, Project* ctx){
         ret = false;
     }
 
-    exitScope(ctx);
+    if(!skipped) {
+        exitScope(ctx);
+    }
     return ret;
 }
 

@@ -525,6 +525,7 @@ bool32 retrieveSymbol_(Symbol* symbol, int32 localDepth, Value* value, Project* 
 	avAssert(value!=NULL, "value must be valid");
 
 	if(symbol->builtin){
+		if(symbol->type!=SYMBOL_VARIABLE) return false;
 		cloneValue(value, symbol->variable.constValue);
 		return true;
 	}
