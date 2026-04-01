@@ -1388,6 +1388,7 @@ static bool32 getCommandString(struct CommandExpression_S command, Project* ctx,
 		return false;
 	}
 	AvString str = compileString(ctx, 1, &commandString).asString;
+	destroyValue(&commandString);
 	avStringClone(outStr, str);
 	avStringFree(&str);
 	return true;
