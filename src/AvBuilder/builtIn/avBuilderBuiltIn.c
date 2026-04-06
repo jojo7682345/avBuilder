@@ -2187,7 +2187,10 @@ struct Value readFileRaw(Project* project, uint32 valueCount, struct Value* valu
     avStringMemoryAllocate(size+1, &memory);
     avFileRead(memory.data, size, file);
     avFileHandleDestroy(file);
-    avStringFromMemory(&result.asString, 0, size, &memory);
+    AvString tmp = {0};
+    avStringFromMemory(&tmp, 0, size, &memory);
+    avStringClone(&result.asString, tmp);
+    avStringFree(&tmp);
     return result;
 
 }
