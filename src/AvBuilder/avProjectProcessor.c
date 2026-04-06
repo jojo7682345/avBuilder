@@ -991,7 +991,7 @@ bool32 processProject(Project* project){
     declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .builtin = true, .constant = true, .constValue=true, .identifier=AV_CSTR("PROJECT_NAME"),.variable = {.constValue= (struct Value){.type=VALUE_TYPE_STRING,.asString=projectName}}}, project);
     declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .builtin = true, .constant = true, .constValue=true, .identifier=AV_CSTR("PROJECT_DIR"),.variable = {.constValue= currentDir(project, 0, nullptr)}}, project);
     declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .builtin = true, .constant = true, .constValue=true, .identifier=AV_CSTR("PLATFORM"),.variable = {.constValue= (struct Value){.type=VALUE_TYPE_STRING,.asString=platform}}}, project);
-
+    declareSymbol((Symbol){.type=SYMBOL_VARIABLE, .builtin = true, .constant = true, .constValue=true, .identifier=AV_CSTR("sepuku"), .variable={.constValue=(struct Value){.type=VALUE_TYPE_NONE}}}, project);
     bool32 ret = true;
     for(uint32 i = 0; i < project->statementCount; i++){
         struct Statement_S* statement = project->statements+i;
