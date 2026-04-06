@@ -373,7 +373,7 @@ static struct Expression_S parseComparison(TokenIterator* iterator){
 
 
 static struct Expression_S parseCombination(TokenIterator* iterator){
-    struct Expression_S expr = {.type=EXPRESSION_TYPE_COMPARISON};
+    struct Expression_S expr = {.type=EXPRESSION_TYPE_COMBINATION};
     struct Expression_S left = parseComparison(iterator);
     
     if(match(iterator, TOKEN_TYPE_PUNCTUATOR_and, TOKEN_TYPE_PUNCTUATOR_or)){
