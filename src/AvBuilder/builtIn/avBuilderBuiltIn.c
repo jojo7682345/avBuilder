@@ -2154,8 +2154,7 @@ struct Value formatFloat(Project* project, uint32 valueCount, struct Value* valu
 
     AvString tmp = AV_EMPTY;
     avStringFromMemory(&tmp, 0, index, &memory);
-    avStringFlip(&tmp);
-    avStringClone(&ret.asString, tmp);
+    avStringFlip(&ret.asString, tmp);
     avStringFree(&tmp);
     return ret;
 
