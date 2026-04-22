@@ -2117,19 +2117,20 @@ struct Value stringMinimizeWhitespace(Project* project, uint32 valueCount, struc
 }
 
 struct Value formatFloat(Project* project, uint32 valueCount, struct Value* values){
-
+    avStringDebugContextStart;
     struct Value ret = {
         .type = VALUE_TYPE_STRING,
         .asString = AV_CSTRA("0"),
     };
 
     int64 num = values[0].asNumber;
+    if(num==0){
+        avStringDebugContextEnd;
+        return ret;
+    }
     AvStringMemory memory = AV_EMPTY;
     avStringMemoryAllocate(512, &memory);
     uint64 index = 0;
-    if(num==0){
-        return ret;
-    }
     bool32 neg = false;
     if(num < 0){
         neg = true;
@@ -2156,6 +2157,7 @@ struct Value formatFloat(Project* project, uint32 valueCount, struct Value* valu
     avStringFromMemory(&tmp, 0, index, &memory);
     avStringFlip(&ret.asString, tmp);
     avStringFree(&tmp);
+    avStringDebugContextEnd;
     return ret;
 
 }

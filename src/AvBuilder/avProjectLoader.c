@@ -37,7 +37,8 @@ bool32 loadProjectFile(const AvString projectFilePath, AvStringRef projectFileCo
     avStringClone(projectFileName, fileNameProps->fileNameWithoutExtension);
 
     avStringFree(&sanitizedProjectFileContent);
-    avStringFree(&projectFileContentRaw);
+    //avStringFree(&projectFileContentRaw); //NO need to free it as the memory is stored on the stack;
+    avFree(buffer);
 
     avFileClose(file);
     avFileHandleDestroy(file);
