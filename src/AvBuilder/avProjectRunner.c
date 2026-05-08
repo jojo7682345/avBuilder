@@ -33,7 +33,7 @@ void runtimeError(Project* project, const char* message, ...){
 	avStringPrintf(AV_CSTR("Runtime Error in project %S:\n\t"), project->name);
 	avStringPrintfVA(AV_CSTR(message), args);
 
-	avStringPrintf(AV_CSTR("\nVariables: [\n"));
+	avStringPrintf(AV_CSTR("\nFunction: %s:%u\n"), project->currentScope->functionName, project->currentLine);
 
 	//LocalContext* context = project->localContext;
 
@@ -98,6 +98,8 @@ void runtimeError(Project* project, const char* message, ...){
 	// 	avStringPrintf(AV_CSTR("\t%S\n"), var.identifier);
 	// });
 	// avStringPrintf(AV_CSTR("]\n"));
+    //project.currentScope
+    
 
 	avAssert(false, "runtime error");
 }
@@ -2024,6 +2026,7 @@ bool32 evaluateImport(struct Statement_S statement, Project* ctx){
 
 bool32 evaluateStatement(struct Statement_S* statement, Project* ctx){
 	bool32 ret = true;
+    ctx->currentLine = statement->line;
 	if(statement->attachedScope) enterStackFrame(statement->attachedScope, ctx);
 	switch(statement->type){
 		case STATEMENT_TYPE_BLOCK:

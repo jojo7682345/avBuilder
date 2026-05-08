@@ -241,6 +241,7 @@ void projectCreate(struct Project* project, AvString name, AvString file, AvStri
     avStringClone(&project->projectFileName, file);
     project->isLocal = isLocal;
     project->localContext = NULL;
+    project->currentLine = 0;
 }
 
 static void destroyStatement(struct Statement_S* statement){

@@ -153,6 +153,7 @@ typedef struct Scope {
     struct Scope* parent;
     struct Project* project;
     enum ScopeType type;
+    char functionName[1024];
 } Scope;
 
 typedef struct StackFrame {
@@ -224,6 +225,7 @@ typedef struct Project {
     enum ControlFlowStatus controlFlow;
 
     StackFrame* currentStackFrame;
+    uint32 currentLine;
     //struct FunctionDefinition_S* currentFunction;
 
     struct Project* parent;

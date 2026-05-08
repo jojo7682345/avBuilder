@@ -36,6 +36,16 @@ void enterScope(enum ScopeType type, struct Statement_S* statement, Project* ctx
 	scope->parent = ctx->currentScope;
     scope->type = type;
     scope->project = ctx;
+
+    if(type==SCOPE_TYPE_TOPLEVEL){
+        char buffer[sizeof(scope->functionName)] = "toplevel";
+        avMemcpy(scope->functionName, buffer, sizeof(scope->functionName));
+    }else if(type==SCOPE_TYPE_FUNCTION){
+        avStringPrintfToBuffer(scope->functionName, sizeof(scope->functionName), AV_CSTRA("%S"), statement->functionDefinition.functionName);
+        scope->functionName[sizeof(scope->functionName)-1] = '\0';
+    }else{
+        avMemcpy(scope->functionName, scope->parent->functionName, sizeof(scope->functionName));
+    }
 	ctx->currentScope = scope;
     if(statement) statement->attachedScope = scope;
 	avDynamicArrayCreate(0, sizeof(Symbol), &scope->symbols);
