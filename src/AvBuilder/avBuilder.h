@@ -225,7 +225,7 @@ typedef struct Project {
     enum ControlFlowStatus controlFlow;
 
     StackFrame* currentStackFrame;
-    uint32 currentLine;
+    uint32 currentLine; 
     //struct FunctionDefinition_S* currentFunction;
 
     struct Project* parent;

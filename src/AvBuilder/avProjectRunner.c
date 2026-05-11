@@ -26,6 +26,19 @@
 
 void printValue(struct Value value);
 
+static uint64 getLineOffset(AvString string, uint64 startingOffset, uint32 line){
+    for(uint64 i = startingOffset; i < string.len; i++){
+        char c = string.chrs[i];
+        if(c=='\n'){
+            line--;
+            if(line == 0){
+                return i+1;
+            }
+        }
+    }
+    return (uint64)-1;
+}
+
 void runtimeError(Project* project, const char* message, ...){
 	va_list args;
 	va_start(args, message);
@@ -34,6 +47,26 @@ void runtimeError(Project* project, const char* message, ...){
 	avStringPrintfVA(AV_CSTR(message), args);
 
 	avStringPrintf(AV_CSTR("\nFunction: %s:%u\n"), project->currentScope->functionName, project->currentLine);
+
+    
+    for(uint32 i = project->currentLine - 3; i < project->currentLine + 3; i++){
+        char buffer[4096];
+        uint64 start = getLineOffset(project->projectFileContent, 0, i);
+        uint64 end = getLineOffset(project->projectFileContent, start, 1);
+        if(start == (uint64)-1) continue;
+        if(end == (uint64)-1) end = start + sizeof(buffer)-1;
+        if(end - start > sizeof(buffer)-1){
+            end = start + sizeof(buffer)-1;
+        }
+        avMemcpy(buffer, project->projectFileContent.chrs + start, end-start);
+        buffer[4095] = '\0';
+        buffer[end-start] = '\0';
+        if(buffer[end-start-1] =='\n') buffer[end-start-1] = '\0';
+        avStringPrintf(AV_CSTRA("%u: %s\n"), i, buffer);
+    }
+
+    
+   
 
 	//LocalContext* context = project->localContext;
 
