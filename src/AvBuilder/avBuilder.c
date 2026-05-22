@@ -590,7 +590,7 @@ static uint32 saveProject(const int argC, const char* argV[]){
             break;
         }
         bytesRemaining -= bytesRead;
-        bytesWritten += avFileWrite(buffer, bytesRead, dstFile);
+        bytesWritten += avFileWrite(buffer + bytesWritten, bytesRead, dstFile);
     }
 
     avFileClose(dstFile);

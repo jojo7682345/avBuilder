@@ -222,6 +222,17 @@ struct Value fileName(Project* project, uint32 valueCount, struct Value* values)
     };
 }
 
+struct Value fileExists(Project* project, uint32 valueCount, struct Value* values){
+    AvString file = values[0].asString;
+    AvFile handle = avFileHandleCreate(file);
+    bool32 exists = avFileExists(handle);
+    avFileHandleDestroy(handle);
+    return (struct Value){
+        .type = VALUE_TYPE_NUMBER,
+        .asNumber = exists,
+    };
+}
+
 struct Value fileFullName(Project* project, uint32 valueCount, struct Value* values){
     AvString file = values[0].asString;
     AvArray filePaths = AV_EMPTY;

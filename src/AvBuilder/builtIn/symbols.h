@@ -5,6 +5,7 @@
 
 #define BUILT_IN_FUNCS \
     BUILT_IN_FUNC(fileName, {{ .type=VALUE_TYPE_STRING, .name="filePath" }})\
+    BUILT_IN_FUNC(fileExists, {{ .type=VALUE_TYPE_STRING, .name="filePath" }})\
     BUILT_IN_FUNC(fileFullName, {{ .type=VALUE_TYPE_STRING, .name="filePath" }})\
     BUILT_IN_FUNC(fileBaseName, {{ .type=VALUE_TYPE_STRING, .name="filePath" }})\
     BUILT_IN_FUNC(filePath, {{ .type=VALUE_TYPE_STRING, .name="filePath" }})\
