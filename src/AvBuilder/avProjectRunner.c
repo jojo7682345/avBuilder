@@ -2316,7 +2316,8 @@ bool32 initAllImportedProjects(Project* project){
 
 uint32 runProject(Project* project, AvDynamicArray arguments){
 	project->controlFlow = CONTROLFLOW_NORMAL;
-	AvString* entry = &project->name;
+	AvString functionEntryName = AV_CSTRA("main");
+	AvString* entry = &functionEntryName;
 	if(project->options.entry.len > 0 && project->options.entry.chrs){
 		entry = &project->options.entry;
 	}
