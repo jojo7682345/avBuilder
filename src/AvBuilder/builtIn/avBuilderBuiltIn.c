@@ -16,11 +16,12 @@
 #define TS(str) sizeof(#str)
 
 
-#define BUILT_IN_FUNC(func, ...) {\
+#define BUILT_IN_FUNC(func, isConst, ...) {\
     .identifier=AV_CSTRA(#func),\
     .argumentCount = sizeof((BuiltInParameter[])__VA_ARGS__)/sizeof(BuiltInParameter),\
     .argTypes = (BuiltInParameter[]) __VA_ARGS__,\
-    .function = func\
+    .function = func,\
+    .isPure = isConst\
 },
 const struct BuiltInFunctionDescription builtInFunctions[] = {
     BUILT_IN_FUNCS

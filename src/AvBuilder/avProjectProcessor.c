@@ -299,6 +299,7 @@ bool32 analyseCall(struct Expression_S* expr, uint32 line, struct ExpressionFlag
     expr->call.depth = depth;
     expr->call.resolvedSymbol = sym;
     struct FunctionDefinition_S func;
+    bool32 isConst = sym->constValue && constant;
     if(sym->builtin){
         struct FunctionParameter_S* params = avAllocate(sizeof(struct FunctionParameter_S)*sym->function.builtin->argumentCount, "");
         for(uint32 i = 0; i < sym->function.builtin->argumentCount; i++){
@@ -308,6 +309,9 @@ bool32 analyseCall(struct Expression_S* expr, uint32 line, struct ExpressionFlag
                 .unknownSize = false,
             };
             avMemcpy(params + i, &param, sizeof(struct FunctionParameter_S));
+        }
+        if(sym->function.builtin->isPure){
+            isConst = constant;
         }
 
         struct FunctionDefinition_S fn = {
@@ -320,13 +324,13 @@ bool32 analyseCall(struct Expression_S* expr, uint32 line, struct ExpressionFlag
         avMemcpy(&func, &sym->function.definition->functionDefinition, sizeof(struct FunctionDefinition_S));
     }
 
-    if(flags) flags->constant = sym->constValue && constant;
+    if(flags) flags->constant = isConst;
     if(func.parameterCount > call.argumentCount){
         semanticError(line, ctx, "Function %S not supplied with enough arguments", func.functionName);
         return false;
     }
     if((func.parameterCount==0 || !func.parameters[func.parameterCount-1].unknownSize) && func.parameterCount != call.argumentCount){
-        semanticError(line, ctx, "Function %S not supplied with too many arguments", func.functionName);
+        semanticError(line, ctx, "Function %S supplied with too many arguments", func.functionName);
         return false;
     }
     if(sym->builtin){
@@ -818,6 +822,7 @@ bool32 analyseInherit(struct Statement_S* statement, Project* ctx){
         symbol = resolveSymbol(inherit.variable, 0, project);
         if(symbol && symbol->type==SYMBOL_VARIABLE){
             found = true;
+            break;
         }
         project = project->parent;
     }

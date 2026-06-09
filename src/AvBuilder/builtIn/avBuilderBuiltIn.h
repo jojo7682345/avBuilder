@@ -34,6 +34,7 @@ struct BuiltInFunctionDescription{
     AvString identifier;
     uint32 argumentCount;
     BuiltInParameter* argTypes;
+    bool32 isPure;
     struct Value (*function)(Project*, uint32, struct Value*);
 };
 
