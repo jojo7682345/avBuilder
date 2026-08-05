@@ -9,7 +9,7 @@
     };
   };
 
-  outputs = { self, nixpkgs, ... } @inputs:
+  outputs = { self, avUtils, nixpkgs, ... } @inputs:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
@@ -51,10 +51,10 @@
 		  # Install your default projects somewhere inside the store
           ls
   		  mkdir -p $out/share/avBuilder/library/std/c
-  		  cp ./library/std/c/stdc.project $out/share/avBuilder/library/std/c/
+  		  cp ./library/c/stdc.project $out/share/avBuilder/library/std/c/
 
   		  mkdir -p $out/share/avBuilder/library/std/project
-  		  cp ./library/std/project/import.project $out/share/avBuilder/library/std/project/	
+  		  cp ./library/project/import.project $out/share/avBuilder/library/std/project/	
         
 		  mkdir -p $out/lib
 		  cp ./lib/AvUtils/lib/*.a $out/lib/
