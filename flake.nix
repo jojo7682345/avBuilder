@@ -23,11 +23,7 @@
         #  url = "https://github.com/jojo7682345/avBuilder.git";
 		#  sha256 = "sha256-TjySkoXpZ3sfE3EZNQyRhCaw9WYUMQng4UQNcx/0py4=";# Replace with actual hash
         #};
-            src = pkgs.fetchgit {
-            url = "https://github.com/jojo7682345/avBuilder.git";
-            fetchSubmodules = true;
-            sha256 = "sha256-AzUhrRYc6oEMIPGv5ab4fmtdGWc221c/c+nil+POcJA=";
-        };
+        src = ./.;
 
         # Compute version from git commit count and short hash
 		version = "v0.1.001n";	
