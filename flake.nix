@@ -32,11 +32,12 @@
 			git 
 			gcc
 		];
-		  #mkdir -p ./lib/AvUtils
-		  #cp -r ${avUtils}/* ./lib/AvUtils/
-		  #mkdir ./lib/AvUtils/build
+		
 
         buildPhase = ''
+          mkdir -p ./lib/AvUtils
+		  cp -r ${avUtils}/* ./lib/AvUtils/
+		  mkdir ./lib/AvUtils/build
 		  chmod +x ./bootstrap
           ./bootstrap
 		  mkdir build
