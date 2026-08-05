@@ -1159,13 +1159,21 @@ struct Value callExtern(Project* project, uint32 valueCount, struct Value* value
     extern bool32 evaluateStatement(struct Statement_S* statement, Project* ctx);
 
     Project* externProject = NULL;
-    for(uint32 i = 0; i < avDynamicArrayGetSize(project->importedProjects); i++){
-        Project* import;
-        avDynamicArrayRead(&import, i, project->importedProjects);
+    Project* parent = project;
+    while(parent){
+        for(uint32 i = 0; i < avDynamicArrayGetSize(parent->importedProjects); i++){
+            Project* import;
+            avDynamicArrayRead(&import, i, parent->importedProjects);
 
-        if(avStringEquals(projectFile, import->projectFileName)){
-            externProject = import;
+            if(avStringEquals(projectFile, import->projectFileName)){
+                externProject = import;
+                break;
+            }
         }
+        if(externProject!=NULL){
+            break;
+        }
+        parent = parent->parent;
     }
     if(externProject==NULL){
         if(!importProjectFile(projectFile, 1, &externProject, 0, NULL, AV_CSTRA("."), project)){

@@ -3,13 +3,13 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-	avUtils = {
-		url = "github:jojo7682345/avUtils";
-		flake=false;
-	};
+    avUtils = {
+      url = "github:jojo7682345/avUtils";
+      flake=false;
+    };
   };
 
-  outputs = { self, nixpkgs, avUtils, ... } @inputs:
+  outputs = { self, nixpkgs, ... } @inputs:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
@@ -23,8 +23,11 @@
         #  url = "https://github.com/jojo7682345/avBuilder.git";
 		#  sha256 = "sha256-TjySkoXpZ3sfE3EZNQyRhCaw9WYUMQng4UQNcx/0py4=";# Replace with actual hash
         #};
-		src = ./.;
-
+            src = pkgs.fetchgit {
+            url = "https://github.com/jojo7682345/avBuilder.git";
+            fetchSubmodules = true;
+            sha256 = "sha256-AzUhrRYc6oEMIPGv5ab4fmtdGWc221c/c+nil+POcJA=";
+        };
 
         # Compute version from git commit count and short hash
 		version = "v0.1.001n";	
@@ -33,14 +36,15 @@
 			git 
 			gcc
 		];
+		  #mkdir -p ./lib/AvUtils
+		  #cp -r ${avUtils}/* ./lib/AvUtils/
+		  #mkdir ./lib/AvUtils/build
 
         buildPhase = ''
-		  mkdir -p ./lib/AvUtils
-		  cp -r ${avUtils}/* ./lib/AvUtils/
-		  mkdir ./lib/AvUtils/build
 		  chmod +x ./bootstrap
           ./bootstrap
 		  mkdir build
+        export AVBUILDER_HOME="./"
           ./avBuilder avBuilder.project
         '';
 
@@ -48,11 +52,12 @@
           ./bootstrap install $out/bin/avBuilder
 
 		  # Install your default projects somewhere inside the store
+          ls
   		  mkdir -p $out/share/avBuilder/library/std/c
-  		  cp ./library/c/stdc.project $out/share/avBuilder/library/std/c/
+  		  cp ./library/std/c/stdc.project $out/share/avBuilder/library/std/c/
 
   		  mkdir -p $out/share/avBuilder/library/std/project
-  		  cp ./library/project/import.project $out/share/avBuilder/library/std/project/	
+  		  cp ./library/std/project/import.project $out/share/avBuilder/library/std/project/	
         
 		  mkdir -p $out/lib
 		  cp ./lib/AvUtils/lib/*.a $out/lib/

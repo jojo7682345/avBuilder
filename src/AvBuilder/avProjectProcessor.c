@@ -650,6 +650,34 @@ bool32 importProjectFile(AvString importFileLoc, bool32 isLocal, Project** proj,
         goto loadingFailed;
     }
 
+    // find if the project is already imported somewhere else
+    extern uint64 hashFile(AvString content);
+    uint64 id = hashFile(projectFileContent);
+    Project* parent = ctx;
+    Project* externProject = NULL;
+    while(parent){
+        for(uint32 i = 0; i < avDynamicArrayGetSize(parent->importedProjects); i++){
+            Project* import;
+            avDynamicArrayRead(&import, i, parent->importedProjects);
+
+            if(id == import->ID){
+                externProject = import;
+                break;
+            }
+        }
+        if(externProject!=NULL){
+            break;
+        }
+        parent = parent->parent;
+    }
+    if(externProject){
+        (*proj) = externProject;
+        avStringFree(&importFile);
+        avStringFree(&projectFileContent);
+        avStringFree(&projectFileName);
+        return res;
+    }
+
     AV_DS(AvDynamicArray, Token) tokens = AV_EMPTY;
     avDynamicArrayCreate(0, sizeof(Token), &tokens);
     if(!tokenizeProject(projectFileContent, projectFileContent, tokens)){
