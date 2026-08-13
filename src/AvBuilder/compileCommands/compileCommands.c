@@ -97,6 +97,10 @@ void addCommandToCompileCommands(const char *command){
 	char cwd[4096];
 	avGetCurrentDir(sizeof(cwd), cwd);
 
+    for(uint32 i = 0; i < sizeof(cwd); i++){
+        if(cwd[i]=='\\') cwd[i] = '/';
+    }
+
 	fprintf(json, "	{\n");
 	fprintf(json, "		\"directory\": \"%s\",\n", cwd);
 	fprintf(json, "		\"command\": \"");
