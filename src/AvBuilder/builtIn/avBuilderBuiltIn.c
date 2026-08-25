@@ -1750,6 +1750,10 @@ struct Value splitString(Project* project, uint32 valueCount, struct Value* valu
     for(uint32 index = 0; index < (&strs)->count; index++) { 
         AvString subStr; avArrayRead(&subStr, index, (&strs)); 
         { 
+            if(subStr.len==0) {
+                subStrings--; 
+                continue;
+            }
             avMemset(vals + index, 0, sizeof(struct ConstValue));
             vals[index].type = VALUE_TYPE_STRING;
             avStringClone(&vals[index].asString, subStr); 
