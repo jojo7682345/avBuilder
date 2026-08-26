@@ -1745,7 +1745,7 @@ struct Value splitString(Project* project, uint32 valueCount, struct Value* valu
         cloneValue(&res, values[0]);
         return res;
     }
-
+    uint32 writeIndex = 0;
     struct ConstValue* vals = avAllocate(sizeof(struct ConstValue)*subStrings, "");
     for(uint32 index = 0; index < (&strs)->count; index++) { 
         AvString subStr; avArrayRead(&subStr, index, (&strs)); 
@@ -1754,9 +1754,10 @@ struct Value splitString(Project* project, uint32 valueCount, struct Value* valu
                 subStrings--; 
                 continue;
             }
-            avMemset(vals + index, 0, sizeof(struct ConstValue));
-            vals[index].type = VALUE_TYPE_STRING;
-            avStringClone(&vals[index].asString, subStr); 
+            avMemset(vals + writeIndex, 0, sizeof(struct ConstValue));
+            vals[writeIndex].type = VALUE_TYPE_STRING;
+            avStringClone(&vals[writeIndex].asString, subStr);
+            writeIndex++; 
         }
     };
     avArrayFree(&strs);
